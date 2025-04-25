@@ -43,18 +43,123 @@ def get_cases(project_name, database):
     '''
     
     conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT case_id, donor_id, species, sex, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
+    data = conn.execute("SELECT DISTINCT case_id, donor_id, ext_id, species, sex, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
     data = [dict(i) for i in data]
-       
+    for i in range(len(data)):
+        assay = data[i]['case_id'].split(':')[1]
+        data[i]['assay'] = assay
+      
     return data
 
 
-def get_sample_counts(project_name, database):
+# def get_sample_counts(project_name, database):
+#     '''
+#     (str, str) - > dict
+    
+#     Returns a dictionary with sample counts for each donor of a project of interest
+    
+#     Parameters
+#     ----------
+#     - project_name (str): Name of project of interest
+#     - database (str): Path to the sqlite database
+#     '''
+    
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT case_id, tissue_type, tissue_origin, library_type, group_id FROM Libraries WHERE project_id = ?;", (project_name,)).fetchall()
+#     conn.close()
+
+#     counts = {}
+#     for i in data:
+#         donor = i['case_id']
+#         sample = '_'.join([i['case_id'], i['tissue_type'], i['tissue_origin'],
+#                            i['library_type'], i['group_id']])
+#         if i['tissue_type'] == 'R':
+#             tissue = 'normal'
+#         else:
+#             tissue = 'tumor'
+#         if donor not in counts:
+#             counts[donor] = {}
+#         if tissue not in counts[donor]:
+#             counts[donor][tissue] = set()
+#         counts[donor][tissue].add(sample)
+        
+#     for i in counts:
+#         for j in ['normal', 'tumor']:
+#             if j in counts[i]:
+#                 counts[i][j] = len(counts[i][j])
+#             else:
+#                 counts[i][j] = 0
+                    
+#     return counts            
+
+
+# def get_library_types(project_name, database):
+#     '''
+#     (str, str) -> list
+    
+#     Returns a list of different library types for a given project
+    
+#     Parameters
+#     ----------
+#     - project_name (str): Name of project of interest
+#     - database (str): Path to the sqlite database
+#     '''
+    
+#     # connect to db
+#     conn = connect_to_db(database)
+#     # extract library types
+#     data = conn.execute("SELECT DISTINCT library_types FROM Projects WHERE project_id = ?;", (project_name,)).fetchall()
+#     conn.close()
+    
+#     library_types = sorted(list(map(lambda x: x.strip(), data[0]['library_types'].split(','))))
+   
+#     return library_types
+
+
+# def count_libraries(project_name, library_types, cases, database):
+#     '''
+#     (str, list, list, str) -> dict
+    
+#     Returns a dictionary with libraries for each library type and sample for a given project
+       
+#     Parameters
+#     ----------
+#     - project_name (str) Name of the project of interest
+#     - library_types (list): List of library types recorded for project
+#     - cases (list): List of dictionary with case information  
+#     - database (str): Path to the sqlite database
+#     '''
+    
+#     # connect to db
+#     conn = connect_to_db(database)
+#     # extract library source
+#     data = conn.execute("SELECT DISTINCT case_id, library_type, library FROM Libraries WHERE project_id = '{0}';".format(project_name)).fetchall()
+#     conn.close()
+    
+#     libraries= {}
+    
+#     # initiate the libraries dict
+#     for i in cases:
+#         libraries[i['case_id']] = {}
+#         for j in library_types:
+#             libraries[i['case_id']][j] = set()
+    
+#     # record libraries for each library type
+#     for i in data:
+#         libraries[i['case_id']][i['library_type']].add(i['library'])
+    
+#     return libraries
+
+
+
+#######################
+
+def extract_samples_libraries_per_case(project_name, database):
     '''
     (str, str) - > dict
     
-    Returns a dictionary with sample counts for each donor of a project of interest
-    
+    Returns a dictionary with samples sorted by tissue type and with libraries sorted by library type
+        
     Parameters
     ----------
     - project_name (str): Name of project of interest
@@ -62,90 +167,59 @@ def get_sample_counts(project_name, database):
     '''
     
     conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT case_id, tissue_type, tissue_origin, library_type, group_id FROM Libraries WHERE project_id = ?;", (project_name,)).fetchall()
+    data = conn.execute("SELECT DISTINCT case_id, donor_id, tissue_type, tissue_origin, library_type, group_id, library FROM Libraries WHERE project_id = ?;", (project_name,)).fetchall()
     conn.close()
 
-    counts = {}
+    D = {}
+    
     for i in data:
-        donor = i['case_id']
-        sample = '_'.join([i['case_id'], i['tissue_type'], i['tissue_origin'],
-                           i['library_type'], i['group_id']])
-        if i['tissue_type'] == 'R':
+        case = i['case_id']
+        donor = i['donor_id']
+        tissue_type = i['tissue_type']
+        library_type = i['library_type']
+        library = i['library']
+        
+        sample = '_'.join([donor, i['tissue_origin'] , tissue_type, library_type, i['group_id']])
+        if tissue_type == 'R':
             tissue = 'normal'
         else:
             tissue = 'tumor'
-        if donor not in counts:
-            counts[donor] = {}
-        if tissue not in counts[donor]:
-            counts[donor][tissue] = set()
-        counts[donor][tissue].add(sample)
         
-    for i in counts:
-        for j in ['normal', 'tumor']:
-            if j in counts[i]:
-                counts[i][j] = len(counts[i][j])
-            else:
-                counts[i][j] = 0
-                    
-    return counts            
+        if case not in D:
+            D[case] = {}
+        if 'samples' not in D[case]:
+            D[case]['samples'] = {}
+        if 'libraries' not in D[case]:
+            D[case]['libraries'] = {}
+        
+        if tissue not in D[case]['samples']:
+            D[case]['samples'][tissue] = set()
+        if library_type not in D[case]['libraries']:
+            D[case]['libraries'][library_type] = set()
+            
+        D[case]['samples'][tissue].add(sample)
+        D[case]['libraries'][library_type].add(library)
+        
+    return D            
 
 
-def get_library_types(project_name, database):
-    '''
-    (str, str) -> list
-    
-    Returns a list of different library types for a given project
-    
-    Parameters
-    ----------
-    - project_name (str): Name of project of interest
-    - database (str): Path to the sqlite database
-    '''
-    
-    # connect to db
-    conn = connect_to_db(database)
-    # extract library types
-    data = conn.execute("SELECT DISTINCT library_types FROM Projects WHERE project_id = ?;", (project_name,)).fetchall()
-    conn.close()
-    
-    library_types = sorted(list(map(lambda x: x.strip(), data[0]['library_types'].split(','))))
-   
-    return library_types
 
 
-def count_libraries(project_name, library_types, cases, database):
-    '''
-    (str, list, list, str) -> dict
-    
-    Returns a dictionary with libraries for each library type and sample for a given project
-       
-    Parameters
-    ----------
-    - project_name (str) Name of the project of interest
-    - library_types (list): List of library types recorded for project
-    - cases (list): List of dictionary with case information  
-    - database (str): Path to the sqlite database
-    '''
-    
-    # connect to db
-    conn = connect_to_db(database)
-    # extract library source
-    data = conn.execute("SELECT DISTINCT case_id, library_type, library FROM Libraries WHERE project_id = '{0}';".format(project_name)).fetchall()
-    conn.close()
-    
-    libraries= {}
-    
-    # initiate the libraries dict
-    for i in cases:
-        libraries[i['case_id']] = {}
-        for j in library_types:
-            libraries[i['case_id']][j] = set()
-    
-    # record libraries for each library type
-    for i in data:
-        libraries[i['case_id']][i['library_type']].add(i['library'])
-    
-    return libraries
+#########################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

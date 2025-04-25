@@ -28,11 +28,13 @@ def collect_sequence_info(project_name, database):
     conn = connect_to_db(database)
     files = conn.execute("SELECT Files.file, Files.workflow, Files.version, Files.wfrun_id, Files.attributes, \
                          Workflow_Inputs.run, Workflow_Inputs.lane, Workflow_Inputs.platform, \
-                         Libraries.library, Libraries.case_id, Libraries.ext_id, Libraries.group_id, Libraries.group_id_description, \
+                         Libraries.library, Libraries.case_id, Libraries.donor_id, Libraries.ext_id, \
+                         Libraries.group_id, Libraries.group_id_description, \
                          Libraries.library_type, Libraries.tissue_origin, Libraries.tissue_type \
                          from Files JOIN Workflow_Inputs JOIN Libraries WHERE Files.project_id = '{0}' \
                          AND Workflow_Inputs.project_id = '{0}' AND Libraries.project_id = '{0}' \
                          AND Files.wfrun_id = Workflow_Inputs.wfrun_id AND Workflow_Inputs.library = Libraries.library \
+                         AND Libraries.case_id = Files.case_id \
                          AND LOWER(Files.workflow) in ('casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq');".format(project_name)).fetchall()
     conn.close()
 
@@ -61,6 +63,7 @@ def get_sequences(L):
         # keep only read1
         if json.loads(L[i]['attributes'])['read_number'] == '1':
             case = L[i]['case_id']
+            donor = L[i]['donor_id']
             sample = L[i]['ext_id']
             library =  L[i]['library']
             library_type =  L[i]['library_type']
@@ -74,12 +77,11 @@ def get_sequences(L):
             run = L[i]['run'] + '_' + str(L[i]['lane'])
             platform = L[i]['platform']
             read_count = json.loads(L[i]['attributes'])['read_count'] if 'read_count' in json.loads(L[i]['attributes']) else 'NA' 
-            sample_id = '_'.join([case, tissue_origin, tissue_type, group_id]) 
-                       
+            sample_id = '_'.join([donor, tissue_origin, tissue_type, group_id]) 
             readcount = '{:,}'.format(int(read_count)) if read_count != 'NA' else 'NA'
             fileprefix = os.path.basename(file)
             fileprefix = '_'.join(fileprefix.split('_')[:-1])
-            d = {'case': case, 'sample': sample, 'sample_id': sample_id, 'library': library, 'run': run,
+            d = {'case': case, 'donor':donor, 'sample': sample, 'sample_id': sample_id, 'library': library, 'run': run,
                  'read_count': readcount, 'workflow': workflow, 'prefix':fileprefix,
                  'platform': platform, 'group_id': group_id,
                  'group_description': group_description, 'tissue_type': tissue_type,

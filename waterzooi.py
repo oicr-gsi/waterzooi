@@ -16,7 +16,7 @@ import matplotlib
 matplotlib.use('agg')
 from utilities import connect_to_db, get_miso_sample_link,\
     get_pipelines, get_workflow_names, get_library_design, secret_key_generator, \
-    get_children_workflows
+    get_children_workflows, get_case_md5sums, get_assay_number, code_to_assay, convert_epoch_time
 from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_json, \
     get_parent_workflows, get_workflows_analysis_date, get_workflow_file_count, \
     get_WGTS_blocks_info, get_sequencing_platform, get_selected_workflows, \
@@ -25,11 +25,14 @@ from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_
     get_workflow_limskeys, map_fileswid_to_filename, \
     map_limskey_to_library, map_library_to_sample, get_WGS_standard_deliverables, \
     get_block_level_contamination, map_library_to_case, get_sample_sequencing_amount, \
-    get_input_sequences    
+    get_input_sequences, get_cases_with_analysis, get_case_analysis_samples, get_case_analysis_workflows, \
+    count_case_analysis_workflows, most_recent_analysis_workflow, get_analysis_workflow_name, \
+    get_case_workflow_samples, get_assays, get_missing_workflows, get_case_parent_to_children_workflows, \
+    get_case_children_to_parents_workflows, get_case_workflow_info, map_files_to_limskeys, \
+    map_limskey_to_sample, get_workflow_output_files, group_files_by_samples, map_samples_to_files
 from whole_transcriptome import get_WT_call_ready_cases, get_WT_standard_deliverables, \
     create_WT_project_block_json, create_WT_block_json
-from project import get_project_info, get_cases, get_sample_counts, count_libraries, \
-     get_library_types, get_last_sequencing
+from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case
 from sequencing import get_sequences, collect_sequence_info, platform_name
 from swg_ts import get_swg_ts, review_data, \
     create_swg_ts_sample_json, create_swg_ts_project_json, get_swg_ts_standard_deliverables, \
@@ -118,6 +121,23 @@ def shorten_workflow_id(workflow_run_id):
 
 
 @app.template_filter()
+def format_identifier(identifier):
+    '''
+    (str) -> str
+    
+    Format case and assay for url
+             
+    Parameters
+    ----------
+    - identifier (str): case or assay identifier
+    '''
+    
+    return identifier.replace('/', '+:+')
+
+
+
+
+@app.template_filter()
 def basename(workflow_run_id):
     '''
     (str) -> str
@@ -153,60 +173,66 @@ def format_created_time(created_time):
 def index():
     
     # connect to db and extract project info
-    conn = connect_to_db('waterzooi.db')
-    projects = conn.execute('SELECT * FROM Projects').fetchall()
+    #conn = connect_to_db('waterzooi.db')
+    conn = connect_to_db('waterzooi_db_test.db')
+        
+    data = conn.execute('SELECT * FROM Projects').fetchall()
     conn.close()
     
-    projects = sorted([(i['project_id'], i) for i in projects])
+    projects = sorted([(i['project_id'], i) for i in data])
     projects = [i[1] for i in projects]
     
     return render_template('index.html', projects=projects)
 
+
 @app.route('/<project_name>')
 def project_page(project_name):
     
-    database = 'waterzooi.db'
+    #database = 'waterzooi.db'
+    database = 'waterzooi_db_test.db'
     # get the project info for project_name from db
     project = get_project_info(project_name, database)
-    # get the pipelines from the library definitions in db
-    pipelines = get_pipelines(project_name, database)
     # get case information
     cases = get_cases(project_name, database)
-    # sort by donor id
+    # sort by case id
     cases = sorted(cases, key=lambda d: d['case_id']) 
     # get the species
     species = ', '.join(sorted(list(set([i['species'] for i in cases]))))
-    # get library and sample counts
-    counts = get_sample_counts(project_name, database)
-    # count libraries for each library type
-    # get the library types
-    library_types =  get_library_types(project_name, database)
-    # get the library names
-    library_names = {i: get_library_design(i) for i in library_types}
-    libraries = count_libraries(project_name, library_types, cases, database)
-    # get the date of the last sequencing data
+    # get the assays
+    assay_names = get_assays(database, project_name)
+    assays = sorted(list(set(assay_names.split(','))))
+    # get the samples and libraries for each case respectively sorted by tissue and library type
+    samples_libraries = extract_samples_libraries_per_case(project_name, database)
+    library_types = sorted(list(map(lambda x: x.strip(), project['library_types'].split(','))))
     seq_date = get_last_sequencing(project['project_id'], database)
+    # get library definitions
+    library_names = {i: get_library_design(i) for i in library_types}
+    return render_template('project.html', project=project, cases=cases,
+                           assays=assays, assay_names = assay_names,
+                           samples_libraries = samples_libraries,
+                           seq_date=seq_date, species=species, 
+                           library_types = library_types,
+                           library_names=library_names
+                           )
     
-    return render_template('project.html', routes=routes, project=project,
-                           pipelines=pipelines, cases=cases, counts=counts,
-                           seq_date=seq_date, species=species, libraries=libraries,
-                           library_types = library_types, library_names=library_names)
-
 
 @app.route('/<project_name>/sequencing', methods = ['GET', 'POST'])
 def sequencing(project_name):
     
-    database = 'waterzooi.db'
+    #database = 'waterzooi.db'
+    database = 'waterzooi_db_test.db'
+    
     # get the project info for project_name from db
     project = get_project_info(project_name, database)
-    # get the pipelines from the library definitions in db
-    pipelines = get_pipelines(project_name, database)
     # get sequence file information
     files = collect_sequence_info(project_name, database)
     # re-organize sequence information
     sequences = get_sequences(files)
+    # get the assays
+    assay_names = get_assays(database, project_name)
+    assays = sorted(list(set(assay_names.split(','))))
     # sort data
-    sequences.sort(key=lambda x: (x['case'], x['sample_id'], x['library'], x['platform']))
+    sequences.sort(key=lambda x: (x['case'], x['donor'], x['sample_id'], x['library'], x['platform']))
     # map the instrument short name to sequencing platform
     platform_names = platform_name(project_name, database)
  
@@ -217,7 +243,8 @@ def sequencing(project_name):
         D = {}
         for i in sequences:
             d = {'Case': i['case'],
-                 'Donor': i['sample'],
+                 'Donor': i['donor'],
+                 'DonorID': i['sample'],
                  'SampleID': i['group_id'],
                  'Sample': i['sample_id'],
                  'Description': i['group_description'],
@@ -242,9 +269,429 @@ def sequencing(project_name):
         return send_file(outputfile, as_attachment=True)
 
     else:
-        return render_template('sequencing.html', routes=routes,
-                           project=project, sequences=sequences,
-                           pipelines=pipelines, platform_names=platform_names)
+        return render_template('sequencing.html', project=project,
+                               sequences=sequences, assays=assays,
+                               platform_names=platform_names
+                               )
+
+
+
+@app.route('/<project_name>/<assay>', methods=['POST', 'GET'])
+def analysis(project_name, assay):
+    
+    database = 'waterzooi_db_test.db'
+    workflow_db = 'workflows.db'
+    analysis_db = 'analysis_review.db'
+    
+    assay = assay.replace('+:+', '/')
+        
+    # get the project info for project_name from db
+    project = get_project_info(project_name, database)
+    # get the cases with analysis data for that project and assay
+    cases = get_cases_with_analysis(analysis_db, project_name, assay)
+    # check that analysis is up to date with the waterzooi database
+    md5sums = get_case_md5sums(database, project_name)
+    # keep only cases with up to date data between resources
+    to_remove = []
+    for i in cases:
+        for j in cases[i]:
+            if j['md5sum'] != md5sums[i]:
+                to_remove.append(i)
+    to_remove = list(set(to_remove))
+    if to_remove:
+        alert = 'removing {0} cases for which data is not in sync between {1} and {2}'
+        print(alert.format(len(to_remove), os.path.basename(database), os.path.basename(analysis_db)))
+        for i in to_remove:
+            del cases[i]
+    
+    # get the donor
+    donors = {}
+    for i in cases:
+        for d in cases[i]:
+            donor = d['donor']
+            if i in donors:
+                assert donor == donors[i]
+            else:
+                donors[i] = donor
+    
+    
+    #### put code in functions
+    
+    # add links to workflows
+    
+    # add links to miso and dimsum
+    
+    
+        
+    # get the assays
+    assay_names = get_assays(database, project_name)
+    assays = sorted(list(set(assay_names.split(','))))
+    
+    
+    
+    
+    
+    # get the samples analyzed in the assay for each case
+    samples = get_case_analysis_samples(cases)
+    case_names = sorted(list(cases.keys()))
+    # count workflows
+    workflow_counts = count_case_analysis_workflows(cases)
+    # re-organized the workflows
+    case_data = get_case_analysis_workflows(cases)
+    # get all the analysis workflows
+    analysis_workflows = []
+    for case in case_data:
+        for d in case_data[case]:
+            analysis_workflows.extend(list(d['analysis'].keys()))
+    analysis_workflows = sorted(list(set(analysis_workflows)))    
+    
+    
+    ## get the assays from the project table
+    
+    
+    
+    if request.method == 'POST':
+        deliverable = request.form.get('deliverable')
+        # get the workflow names
+        workflow_names = get_workflow_names(project_name, database)
+        
+        # if deliverable == 'selected':
+        #     block_data = create_WGS_project_block_json(project_name, database, blocks, block_status, selected, workflow_names)
+        # elif deliverable == 'standard':
+        #     # get the pipeline deliverables       
+        #     deliverables = get_WGS_standard_deliverables()
+        #     block_data = create_WGS_project_block_json(project_name, database, blocks, block_status, selected, workflow_names, deliverables)
+        # else:
+        #     block_data = {}
+                
+        # return Response(
+        #     response=json.dumps(block_data),
+        #     mimetype="application/json",
+        #     status=200,
+        #     headers={"Content-disposition": "attachment; filename={0}.WGS.json".format(project_name)})
+
+    else:
+        return render_template('assay.html',
+                           project=project,
+                           assays=assays,
+                           current_assay = assay,
+                           samples=samples,
+                           cases=cases,
+                           donors=donors,
+                           case_names=case_names,
+                           case_data=case_data,
+                           analysis_workflows=analysis_workflows,
+                           workflow_counts=workflow_counts
+                           )
+
+@app.route('/<project_name>/<assay>/<case>/', methods = ['POST', 'GET'])
+def case_analysis(project_name, assay, case):
+    
+    database = 'waterzooi_db_test.db'
+    workflow_db = 'workflows.db'
+    analysis_db = 'analysis_review.db'
+    
+    assay = assay.replace('+:+', '/')
+    case = case.replace('+:+', '/')
+    
+    # get the project info for project_name from db
+    project = get_project_info(project_name, database)
+    # get the cases with analysis data for that project and assay
+    cases = get_cases_with_analysis(analysis_db, project_name, assay)
+    case_analysis = cases[case]
+    case_data = get_case_analysis_workflows(cases) 
+    case_data = case_data[case]
+    # get the creation date of all workflows in each template
+    creation_dates = get_workflows_analysis_date(project_name, database)
+    # get the most recent creation date for each template
+    most_recent = most_recent_analysis_workflow(case_data, creation_dates)
+    #most_recent = list(map(lambda x: convert_epoch_time(x), most_recent))
+    # get the workflow names    
+    workflow_names = [get_analysis_workflow_name(case_data[i]['analysis']) for i in range(len(case_data))]
+    # get the file count of each workflow in project
+    file_counts = get_workflow_file_count(project_name, database)
+    # get the amount of data for each workflow
+    amount_data = get_amount_data(project_name, database)
+    # get the samples corresponding to each worklow id
+    samples = get_case_workflow_samples(database, case)
+    
+    
+    print('6d13ee0546e10e5bec0ae93449e36826aec080013732c4e9525fb5489b621eda' in samples)
+    
+    
+   ##### a library may belong to multiple cases
+   ##### need to allow for library to not be unique
+   ##### library, case can be different
+   
+   
+   
+   
+   
+    
+    
+    # get the assays
+    assay_names = get_assays(database, project_name)
+    assays = sorted(list(set(assay_names.split(','))))
+    
+    
+    
+    
+    # get the number of lane of sequence per sample 
+    
+    
+    selected = get_selected_workflows(project_name, workflow_db, 'Workflows')
+    
+   
+    # list expected workflows without workflow ids
+    missing_workflows = get_missing_workflows(case_data)
+    # get workflow relationships
+    parent_to_children = get_case_parent_to_children_workflows(database, case)
+    child_to_parents = get_case_children_to_parents_workflows(parent_to_children)
+    
+    
+    
+    
+    
+    
+    
+    #### add downloadable
+    
+    #### include case in selection database
+    
+    #### what to use for selection ? md5sum?
+    
+    #### add selection function
+    
+    #### add deliverables
+    
+    
+    
+   
+    
+    
+    
+    #### create graph
+    
+    #### add sequencing
+    
+    
+    #### add lane level alignments
+    
+    
+    #### fix position of case in bar
+    
+    
+    
+    
+    
+    # # get the number of lane sequence per sequence and platform and the corresponding release status
+    # lanes = get_sample_sequencing_amount(project_name, case, sample_pair, database,
+    #                                      'Workflows', 'Workflow_Inputs', 'Libraries')
+    # # get the project info for project_name from db
+    # project = get_project_info(project_name, database)
+    # # get the pipelines from the library definitions in db
+    # pipelines = get_pipelines(project_name, database)
+    # # get miso link
+    # miso_link = get_miso_sample_link(project_name, case, database)
+    # # get the WGS blocks
+    # blocks = get_WGTS_blocks_info(project_name, case, database, 'WGS_blocks')
+    # # sort sample pairs names
+    # sample_pairs_names = sorted(list(blocks.keys()))
+    # # get the workflow names
+    # workflow_names = get_workflow_names(project_name, database)
+    
+    
+    # # get the sequencing platform of each workflow
+    # platforms = get_sequencing_platform(project_name, database)
+    # # find the parents of each workflow
+    # parents = get_parent_workflows(project_name, database)
+    # # extract selected status of each workflow
+    
+    # # get the contamination for each anchor workflow 
+    # contamination = get_block_level_contamination(project_name, database, blocks, sample_pair)
+        
+    if request.method == 'POST':
+        # get the list of checked workflows        
+        selected_workflows = request.form.getlist('workflow')
+        # # get the workflows of each block for sample pair and case
+        # case_workflows = get_case_workflows(case, database, 'WGS_blocks')
+        # # list all the workflows for a given sample pair
+        # # may include workflows from different blocks for a sample sample pair
+        # # this ensures blocks are mutually exclusive within a sample pair but not within a case
+        # workflows = []
+        # for i in case_workflows[sample_pair]:
+        #     workflows.extend(case_workflows[sample_pair][i])
+        # update_wf_selection(workflows, selected_workflows, selected, workflow_db, 'Workflows')
+        # return redirect(url_for('wgs_case', case=case, project_name=project_name, sample_pair=sample_pair))
+    else:
+        return render_template('case_assay.html',
+                           project=project,
+                           assays=assays,
+                           assay=assay,
+                           case=case,
+                           case_data=case_data,
+                           case_analysis=case_analysis,
+                           most_recent=most_recent,
+                           workflow_names=workflow_names,
+                           file_counts=file_counts,
+                           amount_data=amount_data,
+                           creation_dates=creation_dates,
+                           samples=samples,
+                           selected=selected,
+                           missing_workflows=missing_workflows,
+                           child_to_parents=child_to_parents
+                           
+                           
+                           )
+
+
+
+
+
+
+@app.route('/<project_name>/<assay>/<case>/<path:wfrunid>')
+def show_workflow(project_name, assay, case, wfrunid):
+    
+    #database = 'waterzooi.db'
+    database = 'waterzooi_db_test.db'
+    
+    assay = assay.replace('+:+', '/')
+    case = case.replace('+:+', '/')
+    
+        
+    
+    # get the project info for project_name from db
+    project = get_project_info(project_name, database)
+    
+    # get the workflow info for each workflow in case
+    
+    # get the parent and children workflows
+    parent_to_children = get_case_parent_to_children_workflows(database, case)
+    child_to_parents = get_case_children_to_parents_workflows(parent_to_children)
+    # get workflow name and version
+    workflow_info = get_case_workflow_info(database, case)
+    
+    # get the samples corresponding to each workflow run
+    samples = get_case_workflow_samples(database, case)
+    
+    # get the workflow outputfiles sorted by samples
+    files_to_limskeys = map_files_to_limskeys(database, case)
+    limskey_to_sample = map_limskey_to_sample(database, case)
+    workflow_outputs = get_workflow_output_files(files_to_limskeys, limskey_to_sample)
+    workflow_outputs = workflow_outputs[wfrunid]
+    # group files by samples
+    outputfiles = group_files_by_samples(map_samples_to_files(workflow_outputs))
+    
+    # # get the workflow names
+    # workflow_names = get_workflow_names(project_name, database)
+       
+    # # find the parents of each workflow
+    # parents = get_parent_workflows(project_name, database)
+    # if workflow_id in parents:
+    #     parents = parents[workflow_id]
+    # else:
+    #     parents = {}
+    
+    # # find the children of each workflow
+    # D = get_children_workflows(project_name, database)
+    # children = {}
+    # if workflow_id in D:
+    #     D = D[workflow_id]
+    #     for i in D:
+    #         if i['wf'] in children:
+    #             children[i['wf']].append(i['children_id'])
+    #         else:
+    #             children[i['wf']] = [i['children_id']]
+    
+    # # get the number of rows in table
+    # rows, parent_rows, children_rows = 0, 0, 0
+    # for i in parents:
+    #     parent_rows += len(parents[i])
+    # for i in children:
+    #     children_rows += len(children[i])
+    # rows = max([parent_rows, children_rows])
+    # if parent_rows > children_rows:
+    #     parent_rows = rows
+    # elif parent_rows < children_rows:
+    #     children_rows = rows
+    
+    # # get input worflow sequences
+    # limskeys = get_workflow_limskeys(project_name, database, 'Workflow_Inputs')
+    # limskeys = limskeys[workflow_id]
+    # # get input sequences
+    # D = get_input_sequences(project_name, database)
+    # input_sequences = {i:D[i] for i in limskeys}
+
+    # # map file swids to file names
+    # fastqs = map_fileswid_to_filename(project_name, database, 'Files')
+    
+    # # map library to limskey
+    # all_libraries = map_limskey_to_library(project_name, database, table='Workflow_Inputs')
+    # libraries = all_libraries[workflow_id]
+    
+    
+    # # map libraries to samples
+    # all_samples = map_library_to_sample(project_name, database, table = 'Libraries')
+    # samples = all_samples[case]    
+    
+    # sequences = []
+    # for i in limskeys:
+    #     library = libraries[i]
+    #     sample = samples[library]
+    #     swid1, swid2 = input_sequences[i][0], input_sequences[i][1]
+    #     file1, file2 = fastqs[swid1], fastqs[swid2]
+    #     seq = [[swid1, file1], [swid2, file2]]
+    #     seq.sort(key=lambda x: x[1])
+    #     for j in seq:
+    #         sequences.append([sample, library, i, j[0], j[1]])
+    # sequences.sort(key=lambda x: x[0])
+    
+    # # get workflow output files
+    # donors = map_library_to_case(project_name, database, table = 'Libraries')
+    # workflow_outputfiles = get_workflow_output(project_name, database, all_libraries, all_samples, donors, 'Files')
+    # files = workflow_outputfiles[workflow_id]
+     
+    
+    # return render_template('workflow_info.html',
+    #                        project=project,
+    #                        case=case,
+    #                        sample_pair=sample_pair,
+    #                        parents=parents,
+    #                        children=children,
+    #                        parent_rows=parent_rows,
+    #                        children_rows=children_rows,
+    #                        rows=rows,
+    #                        workflow_id=workflow_id,
+    #                        workflow_names=workflow_names,
+    #                        files=files,
+    #                        sequences=sequences
+    #                        )
+
+    return render_template('workflow_info.html',
+                       project=project,
+                       case=case,
+                       assay=assay,
+                       workflow_info=workflow_info,
+                       workflow_id=wfrunid,
+                       child_to_parents=child_to_parents,
+                       parent_to_children=parent_to_children,
+                       outputfiles=outputfiles
+                       )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

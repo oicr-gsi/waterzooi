@@ -5,12 +5,8 @@
 {% block link %}
   <a href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
   <a class="selected" href="{{ url_for('sequencing', project_name=project['project_id']) }}">Sequencing</a>
-  {% for i in pipelines %}
-    {% if i in routes %}
-      <a href="{{ url_for(routes[i], project_name=project['project_id']) }}">{{i}}</a>
-    {% else %}
-      <a href="#{{i}}">{{i}}</a>
-    {% endif %}  
+  {% for i in assays %}
+    <a href="{{ url_for('analysis', project_name=project['project_id'], assay=i | format_identifier) }}">{{i}}</a>   
   {% endfor %}   
 {% endblock %}
 
@@ -46,7 +42,8 @@
     <table id="project_table">
       <thead>
         <th><div class="tooltip">Case<span class="tooltiptext">OICR-generated case identifier</span></th>
-        <th><div class="tooltip">Donor<span class="tooltiptext">User-supplied donor identifier</span></th>
+        <th><div class="tooltip">Donor<span class="tooltiptext">OICR-generated donor identifier</span></th>
+        <th><div class="tooltip">Donor ID<span class="tooltiptext">User-supplied donor identifier</span></th>
         <th><div class="tooltip">Sample ID<span class="tooltiptext">User-supplied sample, this distinguishes distinct samples of the same type from the same donor</span></th>
         <th><div class="tooltip">Sample<span class="tooltiptext">OICR-generated sample identifier. Formed from: 1. case, 2. tissue origin, 3. tissue type, 4. sample ID</span></th>
         <th><div class="tooltip">Description<span class="tooltiptext">A description of the Sample ID</span></th>
@@ -64,6 +61,7 @@ Flow cell identifier, 6. Lane number, 7. Demultiplex barcodes</span></th>
       {% for i in sequences %}
         <tr class="platform" data-id="{{platform_names[i['platform']]}}" data-category="{{platform_names[i['platform']]}}">
           <td> {{i['case']}} </td>
+          <td> {{i['donor']}} </td>
           <td> {{i['sample']}} </td>
           <td> {{i['group_id']}} </td>
           <td> {{i['sample_id']}} </td>

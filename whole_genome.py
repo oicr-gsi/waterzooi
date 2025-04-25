@@ -7,6 +7,7 @@ Created on Fri Jun  9 10:42:36 2023
 
 import os
 import itertools
+import json
 from utilities import connect_to_db, convert_epoch_time, remove_non_analysis_workflows,\
     get_children_workflows, get_workflow_names, get_donors
 
@@ -1197,3 +1198,554 @@ def get_input_sequences(project_name, database):
 
 
 
+def get_cases_with_analysis(analysis_db, project_name, assay):
+    '''
+    (str, str, str) -> dict
+    
+    Returns a dictionary of cases with analysis data corresponding to project and assay
+    
+    Parameters
+    ----------
+    - analysis_db (str): Path to the database sorting analysis data
+    - project_name (str): Name of the project of interest
+    - assay (str): Name of the assay
+    '''
+    
+    conn = connect_to_db(analysis_db)
+    data = conn.execute("SELECT case_id, donor, template, valid, md5sum FROM templates WHERE \
+                        project = ? AND assay = ?;", (project_name,assay)).fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        case = i['case_id']
+        md5sum = i['md5sum']
+        template = json.loads(i['template'])
+        valid = int(i['valid'])
+        donor = i['donor']
+        if case in D:
+            D[case].append({'md5sum': md5sum, 'template': template, 'valid': valid, 'donor': donor})
+        else:
+            D[case] = [{'md5sum': md5sum, 'template': template, 'valid': valid, 'donor': donor}]
+        
+    return D    
+
+
+
+
+
+def get_case_analysis_samples(cases):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with all the samples with analysis data for each case
+    
+    Parameters
+    ----------
+    - cases (dict): Dictionary of project cases with analysis data from a specific assay
+    '''
+    
+    D = {}
+    for case in cases:
+        samples = []
+        for d in cases[case]:
+            for i in d['template']['Samples']:
+                samples.append(d['template']['Samples'][i]['sample']) 
+        D[case] = list(set(samples))
+        
+    return D
+    
+
+
+def count_case_analysis_workflows(cases):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with analysis workflow ids organized for each case
+    
+    Parameters
+    ----------
+    - cases (dict): Dictionary with case analysis extracted from the analysis review database
+    '''
+        
+    D = {}
+    
+    for case in cases:
+        if case not in D:
+            D[case] = {}
+        callready = []
+        for d in cases[case]:
+            for i in d['template']['Anchors']:
+                callready.append(d['template']['Anchors'][i]['workflows'])
+        D[case]['callready'] = len(list(set(callready)))
+        downstream = []
+        for d in cases[case]:
+            for i in d['template']['Analysis']:
+                for j in d['template']['Analysis'][i]:
+                    downstream.append(j['workflow_id'])
+        D[case]['downstream'] = len(list(set(downstream)))
+        analysis = {}
+        for d in cases[case]:
+            for i in d['template']['Analysis']:
+                if i not in analysis:
+                    analysis[i] = []
+                for j in d['template']['Analysis'][i]:
+                    analysis[i].append(j['workflow_id'])
+                analysis[i] = list(set(analysis[i]))   
+        for i in analysis:
+            analysis[i] = len(analysis[i])
+        D[case]['analysis'] = analysis
+
+    return D
+
+
+
+
+
+def get_case_analysis_workflows(cases):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with analysis workflow ids organized for each case
+    
+    Parameters
+    ----------
+    - cases (dict): Dictionary with case analysis extracted from the analysis review database
+    '''
+        
+    D = {}
+    
+    for case in cases:
+        if case not in D:
+            D[case] = []
+        for d in cases[case]:
+            callready = []
+            for i in d['template']['Anchors']:
+                callready.append(d['template']['Anchors'][i]['workflows'])
+            callready = list(set(callready))
+            downstream = []
+            for i in d['template']['Analysis']:
+                for j in d['template']['Analysis'][i]:
+                    downstream.append(j['workflow_id'])
+            downstream = list(set(downstream))
+            sequencing = {}
+            for i in d['template']['Data']['Sequencing']['workflows']:
+                workflow_name = i['workflow_name']
+                workflow_id = i['workflow_id']
+                if workflow_name in sequencing:
+                    sequencing[workflow_name].append(workflow_id)
+                else:
+                    sequencing[workflow_name] = [workflow_id]
+                sequencing[workflow_name] = list(set(sequencing[workflow_name]))
+            analysis = {}
+            for i in d['template']['Analysis']:
+                if i not in analysis:
+                    analysis[i] = []
+                for j in d['template']['Analysis'][i]:
+                    analysis[i].append(j['workflow_id'])
+            analysis[i] = list(set(analysis[i]))   
+            D[case].append({'callready': callready, 'downstream': downstream, 'sequencing': sequencing, 'analysis': analysis})
+          
+
+    return D
+        
+
+def most_recent_analysis_workflow(case_data, creation_dates):
+    '''
+    (list, dict) -> list
+    
+    Returns a list with the most recent workflow for each analysis template in a case
+       
+    Parameters
+    ----------
+    - case_data (list): List of templates with analysis data for a single case
+    - creation_dates (dict): Dictionary with creation dates of each workflow
+    '''
+    
+    most_recent = []
+       
+    for template in case_data:
+        L = []
+        for workflow_id in template['callready']:
+            L.append(creation_dates[os.path.basename(workflow_id)])
+        for workflow_id in template['downstream']:
+            L.append(creation_dates[os.path.basename(workflow_id)])
+        
+        L.sort()
+        most_recent.append(L[-1])
+        
+    return most_recent
+
+
+def get_analysis_workflow_name(analysis):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with the name of workflows for each workflow id of
+    an analysis group of a single case
+    
+    Parameters
+    ----------
+    - analysis (dict): Dictionary with workflow ids of analysis workflows of a single case
+    '''
+    
+    D = {}
+    
+    for workflow_name in analysis:
+        for workflow_id in analysis[workflow_name]:
+            assert workflow_id not in D
+            D[workflow_id] = workflow_name
+    
+    return D
+    
+    
+def get_case_workflow_samples(database, case):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary of workflow ids and list of corresponding samples for a single case
+    
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - case (str): Case of interest
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT Workflow_Inputs.wfrun_id, Libraries.donor_id, Libraries.tissue_type, \
+                        Libraries.tissue_origin, Libraries.library_type, Libraries.group_id FROM \
+                        Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.library=Libraries.library \
+                        AND Libraries.case_id = ?;", (case,)).fetchall()     
+    conn.close()
+    
+    D = {}
+    for i in data:
+        donor = i['donor_id']
+        tissue_origin = i['tissue_origin']
+        tissue_type = i['tissue_type']
+        library_type = i['library_type']
+        groupid = i['group_id'] 
+        wfrunid = i['wfrun_id']
+        sample = '_'.join([donor, tissue_origin, tissue_type, library_type, groupid]) 
+        
+            
+        if wfrunid in D:
+            D[wfrunid].append(sample)
+        else:
+            D[wfrunid] = [sample]
+        D[wfrunid] = list(set(D[wfrunid]))
+
+    return D    
+
+    
+    
+    
+def get_assays(database, project_name):
+    '''
+    (str, str) -> str
+    
+    Returns a comma-separated list of all assays for a given project 
+    
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - project_name (str): Name of project of interest
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT assays FROM Projects WHERE project_id = ?;", (project_name,)).fetchall()     
+    conn.close()
+    
+    assays = ','.join([i['assays'] for i in data])
+    
+    return assays
+
+
+def get_missing_workflows(case_data):
+    '''
+    (list) -> list
+    
+    Returns a list of list of mising workflows for each template of a single case
+    
+    Parameters
+    ----------
+    - case_data (list): List of dictionaries with template of analysis data for a single case
+    '''
+    
+    missing = []
+    
+    for d in case_data:
+        L = []
+        for workflow in d['analysis']:
+            if len(d['analysis'][workflow]) == 0:
+                L.append(workflow)
+        missing.append(L)
+        
+    return missing
+    
+    
+def get_case_parent_to_children_workflows(database, case):
+    '''
+    (dict, str) -> dict
+    
+    Returns a dictionary of parent to children workflows for a single case
+    
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - case (str): Name of case of interest
+    '''
+
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT parents_id, children_id FROM Parents WHERE case_id = ?;", (case,)).fetchall()     
+    conn.close()
+    
+    parent_to_children = {}
+    for i in data:
+        parent = i['parents_id']
+        child = i['children_id']
+        if parent in parent_to_children:
+            parent_to_children[parent].append(child)
+        else:
+            parent_to_children[parent] = [child]
+    
+    return parent_to_children
+    
+    
+def get_case_children_to_parents_workflows(parents_to_children):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary of child to parent workflows for a single case
+    
+    Parameters
+    - parents_to_children (dict): Dictionary of parents to children workflow
+                                  relationships for a single case
+    '''
+    
+    child_to_parents = {}
+    
+    for parent in parents_to_children:
+        for child in parents_to_children[parent]:
+            if child in child_to_parents:
+                child_to_parents[child].append(parent)
+            else:
+                child_to_parents[child] = [parent]
+    
+    return child_to_parents
+
+
+def get_case_workflow_info(database, case):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary of workflow name and workflow version for all workflows of a single case
+        
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - case (str): Case of interest
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT wfrun_id, wf, wfv FROM Workflows WHERE case_id = ?;", (case,)).fetchall()     
+    conn.close()
+    
+    D = {}
+    for i in data:
+        workflow_id = i['wfrun_id']
+        workflow_name = i['wf']
+        version = i['wfv']
+        D[workflow_id] = [workflow_name, version] 
+    
+    return  D
+    
+
+
+def map_files_to_limskeys(database, case):
+    '''
+    
+    
+    
+    '''
+    
+    D = {}
+    
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT file_swid, wfrun_id, file, limskey FROM Files \
+                        WHERE case_id = ?", (case,)).fetchall()
+    conn.close()
+                        
+    for i in data:
+        limskeys = i['limskey'].split(';')                    
+        file_swid = i['file_swid']
+        file = i['file']
+        wfrunid = i['wfrun_id']                
+                        
+        for limskey in limskeys:
+            if wfrunid not in D:
+                D[wfrunid] = {}
+            if limskey in D[wfrunid]:
+                D[wfrunid][limskey].append({'file': file, 'file_swid': file_swid})
+            else:
+                D[wfrunid][limskey] = [{'file': file, 'file_swid': file_swid}]    
+                
+    return D                        
+                        
+    
+
+def map_limskey_to_sample(database, case):
+    '''
+    
+    
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT Workflow_Inputs.wfrun_id, Workflow_Inputs.limskey, \
+                        Libraries.donor_id, Libraries.tissue_type, \
+                        Libraries.tissue_origin, Libraries.library_type, Libraries.group_id FROM \
+                        Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.library=Libraries.library \
+                        AND Libraries.case_id = ?;", (case,)).fetchall()     
+    conn.close()
+    
+    D = {}
+    for i in data:
+        limskey = i['limskey']
+        donor = i['donor_id']
+        tissue_origin = i['tissue_origin']
+        tissue_type = i['tissue_type']
+        library_type = i['library_type']
+        groupid = i['group_id'] 
+        wfrunid = i['wfrun_id']
+        sample = '_'.join([donor, tissue_origin, tissue_type, library_type, groupid]) 
+        
+        if wfrunid not in D:
+            D[wfrunid] = {}
+        if limskey in D[wfrunid]:
+            assert sample == D[wfrunid][limskey]
+        else:
+            D[wfrunid][limskey] = sample
+            
+    return D    
+
+
+
+
+
+
+
+
+
+def get_workflow_output_files(files_to_limskeys, limskey_to_sample):
+    '''
+    
+    
+    '''
+    
+    D = {}
+    
+    for wfrunid in files_to_limskeys:
+        for limskey in files_to_limskeys[wfrunid]:
+            
+            # this should be always be true - let's see the new olive
+            if wfrunid in limskey_to_sample and limskey in limskey_to_sample[wfrunid]:
+            
+                
+                sample = limskey_to_sample[wfrunid][limskey]
+                if wfrunid not in D:
+                    D[wfrunid] = {}
+                for d in files_to_limskeys[wfrunid][limskey]:
+                    file = d['file']
+                    file_swid = d['file_swid']
+            
+                    if sample not in D[wfrunid]:
+                        D[wfrunid][sample] = {}
+                    if file in D[wfrunid][sample]:
+                        assert limskey not in D[wfrunid][sample][file]['limskey']
+                        D[wfrunid][sample][file]['limskey'].append(limskey)
+                    else:
+                        D[wfrunid][sample][file] = {'file': file, 'file_swid': file_swid, 'limskey': [limskey]}
+   
+    return D
+    
+    
+def map_samples_to_files(outputfiles):
+    '''
+    (dict) -> dict
+    
+    
+    '''
+
+    D = {}
+    
+    for sample in outputfiles:
+        for file in outputfiles[sample]:
+            if file in D:
+                D[file].append(sample)
+            else:
+                D[file] = [sample]
+            D[file] = sorted(list(set(D[file])))
+    
+    return D
+
+
+
+def group_files_by_samples(files_to_samples):
+    '''
+    
+    
+    '''
+    
+    D = {}
+    
+    for file in files_to_samples:
+        sample = ';'.join(files_to_samples[file])
+        if sample in D:
+            D[sample].append(file)
+        else:
+            D[sample] = [file]
+ 
+    return D
+
+{'NEOPOC_58009002_Ly_R_WG_058-009-002_BC': {'/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/gatk.recalibration.csv': {'file': '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/gatk.recalibration.csv',
+   'file_swid': 'vidarr:research/file/3e1a93e8eccabf49c04f083359920862851f8e0bf323307952fc221328a1a513',
+   'limskey': ['7748_1_LDI117186',
+    '7748_2_LDI117186',
+    '7748_3_LDI117186',
+    '7748_4_LDI117186',
+    '7748_5_LDI117186',
+    '7748_6_LDI117186',
+    '7748_7_LDI117186',
+    '7748_8_LDI117186']},
+  '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/NEOPOC_58009002_Ly_R_WG_058-009-002_BC.filter.deduped.recalibrated.bam': {'file': '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/NEOPOC_58009002_Ly_R_WG_058-009-002_BC.filter.deduped.recalibrated.bam',
+   'file_swid': 'vidarr:research/file/566a6343e31ae5b8bf1339dee6daa055c22202aac1b0ad1399d03c019c9f6073',
+   'limskey': ['7748_1_LDI117186',
+    '7748_2_LDI117186',
+    '7748_3_LDI117186',
+    '7748_4_LDI117186',
+    '7748_5_LDI117186',
+    '7748_6_LDI117186',
+    '7748_7_LDI117186',
+    '7748_8_LDI117186']},
+  '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/gatk.recalibration.pdf': {'file': '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/gatk.recalibration.pdf',
+   'file_swid': 'vidarr:research/file/5ed7bc74c5ea5bbbd36b5e9bd4890939a8c53f506a34b81e33ebe246ef802589',
+   'limskey': ['7748_1_LDI117186',
+    '7748_2_LDI117186',
+    '7748_3_LDI117186',
+    '7748_4_LDI117186',
+    '7748_5_LDI117186',
+    '7748_6_LDI117186',
+    '7748_7_LDI117186',
+    '7748_8_LDI117186']},
+  '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/NEOPOC_58009002_Ly_R_WG_058-009-002_BC.filter.deduped.recalibrated.bai': {'file': '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/NEOPOC_58009002_Ly_R_WG_058-009-002_BC.filter.deduped.recalibrated.bai',
+   'file_swid': 'vidarr:research/file/9e7ea470ae0f980c098b214141c47b4c9c2c52fb7849c2496dce9d9263b10bed',
+   'limskey': ['7748_1_LDI117186',
+    '7748_2_LDI117186',
+    '7748_3_LDI117186',
+    '7748_4_LDI117186',
+    '7748_5_LDI117186',
+    '7748_6_LDI117186',
+    '7748_7_LDI117186',
+    '7748_8_LDI117186']}}}    
+    

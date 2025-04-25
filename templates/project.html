@@ -3,12 +3,8 @@
 {% block link %}
   <a class="selected" href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
   <a href="{{ url_for('sequencing', project_name=project['project_id']) }}">Sequencing</a>  
-  {% for i in pipelines %}
-    {% if i in routes %}
-      <a href="{{ url_for(routes[i], project_name=project['project_id']) }}">{{i}}</a>
-    {% else %}
-      <a href="#{{i}}">{{i}}</a>
-    {% endif %}  
+  {% for i in assays %}
+    <a href="{{ url_for('analysis', project_name=project['project_id'], assay=i | format_identifier) }}">{{i}}</a>   
   {% endfor %}  
 {% endblock %}
 
@@ -36,6 +32,18 @@
     <td>{{ project['pipeline'] }}</td>
   </tr>
   <tr>
+    <th>Cases:</th>
+    <td>{{ project['cases'] }}</td>
+  </tr>
+  <tr>
+    <th>Samples:</th>
+    <td>{{ project['samples'] }}</td>
+  </tr>
+  <tr>
+    <th>Assays</th>
+    <td>{{ assay_names }}</td>
+  </tr>
+  <tr>
     <th>Library types:</th>
     <td>{{ project['library_types'] }}</td>
   </tr>
@@ -50,8 +58,10 @@
 <table id="project_table" style="margin-top:35px; margin-left:50px">
     <tr>
       <th><div class="tooltip">Case Id<span class="tooltiptext">OICR-generated case identifier</span></th>
-      <th><div class="tooltip">Donor Id<span class="tooltiptext">User-supplied donor identifier</span></th>
+      <th><div class="tooltip">Donor Id<span class="tooltiptext">OICR-generated donor identifier</span></th>
+      <th><div class="tooltip">External Id<span class="tooltiptext">User-supplied donor identifier</span></th>
       <th><div class="tooltip">MISO<span class="tooltiptext">Link to the MISO sample page</span></th>
+      <th><div class="tooltip">Assay<span class="tooltiptext">Analysis assay</span></div></th>
       <th><div class="tooltip">Normals<span class="tooltiptext">Count of normal samples</span></th>
       <th><div class="tooltip">Tumours<span class="tooltiptext">Count of tumour samples</span></th>
       {% for library_type in library_types %}
@@ -62,11 +72,25 @@
       <tr>
         <td>{{ i['case_id'] }}</td>
         <td>{{ i['donor_id'] }}</td>        
+        <td>{{ i['ext_id'] }}</td>        
         <td><button id="miso_button"><a href="{{ i['miso'] }}" target="_blank">MISO</a></button>
-        <td>{{ counts[i['case_id']]['normal'] }}</td>
-        <td>{{ counts[i['case_id']]['tumor'] }}</td>
+        <td>{{ i['assay'] }}</td>
+        {% if 'normal' in samples_libraries[i['case_id']]['samples'] %}
+          <td>{{ samples_libraries[i['case_id']]['samples']['normal'] | length }}</td>  
+        {% else %}
+          <td>0</td>
+        {% endif %}
+        {% if 'tumor' in samples_libraries[i['case_id']]['samples'] %}
+          <td>{{ samples_libraries[i['case_id']]['samples']['tumor'] | length }}</td>  
+        {% else %}
+          <td>0</td>
+        {% endif %}
         {% for library_type in library_types %}
-          <td>{{libraries[i['case_id']][library_type] | length}}</td>
+          {% if library_type in samples_libraries[i['case_id']]['libraries'] %}
+            <td>{{ samples_libraries[i['case_id']]['libraries'][library_type] | length}}</td>
+          {% else %}
+            <td>0</td>
+          {% endif %}
         {% endfor %} 
       </tr>
     {% endfor %}

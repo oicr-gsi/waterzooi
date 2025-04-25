@@ -21,7 +21,8 @@
   <table id="project_table">
     <tr>
       <th>Project</th>
-      <th>Pipeline</th>     
+      <th>Pipeline</th>
+      <th>Cases</th>
       <th>Sequenced libraries</th>
     </tr>     
     {% for i in projects %}
@@ -31,6 +32,9 @@
         </td>
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['pipeline'] }}</a>
+        </td>
+        <td>
+          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['cases'] }}</a>
         </td>
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['library_types'] }}</a>

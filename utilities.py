@@ -241,4 +241,94 @@ def secret_key_generator(size=10):
     
 
 
+
+
+
+
+# def get_assays(project_name, database):
+#     '''
+#     (str, str) -> list
     
+#     Returns a list of assays extracted from the cases in the Samples table of the database
+    
+#     Parameters
+#     ----------
+#     - project_name (str): Name of the project of interest
+#     - database (str): Path to the sqlite database
+#     '''
+    
+#     # connect to db
+#     conn = connect_to_db(database)
+#     # extract library source
+#     data = conn.execute("SELECT DISTINCT case_id FROM Samples WHERE project_id = ?;", (project_name,)).fetchall()
+#     conn.close()
+#     assays = sorted(list(set(map(lambda x: x.split(':')[1], [i['case_id'] for i in  data]))))
+        
+#     return assays
+
+    
+def get_case_md5sums(database, project_name):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary with case, md5sums from the waterzooi database
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi sqlite database
+    - project_name (str): Name of the project of interest
+    '''
+    
+    # connect to db
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT case_id, md5 FROM Checksums WHERE project_id = ?;", (project_name,)).fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        case = i['case_id']
+        md5sum = i['md5']
+        D[case] = md5sum
+    
+    return D
+    
+
+def get_assay_number(database, table):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary with the assays and their corresponding integer code
+    
+    Parameters
+    ----------
+    - database (str): Path to the databae file
+    - table (str): Name of table in database
+    '''
+    
+    D = {}
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT * FROM {0};".format(table)).fetchall()
+    conn.close()
+    if data:
+        for i in data:
+            D[i['assay']] = int(i['assay_num'])
+
+    return D    
+
+def code_to_assay(assay_codes):
+    '''
+    (dict) -> dict
+    
+    Returns a reversed dictionary of assay codes with each code corresponding to an assay
+    
+    Parameters
+    ----------
+    - assay_codes (dict): Dictionary with assays and their corresponding integer code 
+    '''
+
+    D = {}
+    for i in assay_codes:
+        D[assay_codes[i]] = i
+    
+    return D
