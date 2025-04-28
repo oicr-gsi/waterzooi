@@ -1000,6 +1000,33 @@ def add_workflows_to_db(database, provenance_data, cases_to_update, table = 'Wor
 
 
 
+def find_sequencing_attributes(limskeys, case_data):
+    '''
+    (list, dict) -> dict
+    
+    Returns a dictionary of library and barcode for each lims id in limskeys
+    
+    Parameters
+    ----------
+    - limskeys (list): list of lims ids
+    - case_data (dict): Dictionary with a single case data   
+    '''
+    
+    D = {}
+        
+    for i in limskeys:
+        for d in case_data['pineryData']:
+            if i == d['limsId']:
+                assert i not in D
+                D[i] = {'library': d['library'],
+                        'barcode': d['barcode'],
+                        'lane': d['lane'],
+                        'project': d['project'],
+                        'run': d['run']}
+    
+    return D
+
+
 def collect_case_workflow_inputs(case_data):
     '''
     (dict) -> list
@@ -1013,24 +1040,28 @@ def collect_case_workflow_inputs(case_data):
         
     L = []
     
-    for i in range(len(case_data['cerberus_data'])):
-        case = get_case_name(case_data)
+    for d in case_data['workflowRuns']:
+        case = case_data['case']
         donor = get_donor_name(case_data)
-        project_id = get_project_name(case_data)
-        library = case_data['cerberus_data'][i]['library_name']
-        barcode = case_data['cerberus_data'][i]['barcode']
-        platform = '_'.join(case_data['cerberus_data'][i]['instrument_model'].split())
-        lane = case_data['cerberus_data'][i]['lane']
-        wfrun_id = os.path.basename(case_data['cerberus_data'][i]['workflow_run_accession'])
-        run = case_data['cerberus_data'][i]['run']
-        limskey = json.loads(case_data['cerberus_data'][i]['lims'])['id']
-        
-        d = {'case_id': case, 'donor_id': donor, 'library': library, 'project_id': project_id,
-             'barcode': barcode, 'platform': platform, 'lane': lane, 'wfrun_id': wfrun_id,
-             'run': run, 'limskey': limskey}
-        
-        if d not in L:
-            L.append(d)
+        limskeys = d['limsIds'].split(',')
+        sequencing_attributes = find_sequencing_attributes(limskeys, case_data)
+        platform = 'NA'
+        wfrun_id = d['wfrunid']
+                
+        for limskey in sequencing_attributes:
+            D = {'case_id': case,
+                 'donor_id': donor,
+                 'library': sequencing_attributes[limskey]['library'],
+                 'project_id': sequencing_attributes[limskey]['project'],
+                 'barcode': sequencing_attributes[limskey]['barcode'],
+                 'platform': platform,
+                 'lane': sequencing_attributes[limskey]['lane'],
+                 'wfrun_id': wfrun_id,
+                 'run': sequencing_attributes[limskey]['run'],
+                 'limskey': limskey}
+            
+            if D not in L:
+                L.append(D)
     
     return L
 
@@ -1061,8 +1092,7 @@ def add_workflow_inputs_to_db(database, provenance_data, cases_to_update, table 
         newdata = []
      
         for case_data in provenance_data:
-            case = get_case_name(case_data)
-            donor = get_donor_name(case_data)
+            case = case_data['case']
             # check if donor needs to be updated
             if case in cases_to_update and cases_to_update[case] != 'delete':
                 workflow_input_info = collect_case_workflow_inputs(case_data)
@@ -2678,6 +2708,9 @@ def generate_database(database, provenance_data_file):
     add_samples_info_to_db(database, provenance_data, cases_to_update, 'Samples')
     print('added sample information to database')
     
+    # add workflow inputs
+    add_workflow_inputs_to_db(database, provenance_data, cases_to_update, 'Workflow_Inputs')
+    print('added workflow inputs to database')
     
     
     
@@ -2687,9 +2720,6 @@ def generate_database(database, provenance_data_file):
     # # add workflow information
     # add_workflows_to_db(database, provenance_data, cases_to_update, 'Workflows')
     # print('added workflow info to database')
-    # # add workflow inputs
-    # add_workflow_inputs_to_db(database, provenance_data, cases_to_update, 'Workflow_Inputs')
-    # print('added workflow inputs to database')
     # # add workflow relationships
     # add_workflows_relationships_to_db(database, provenance_data, cases_to_update, 'Parents')
     # print('added workflow relationships to database')
