@@ -50,7 +50,8 @@ def define_column_names():
     # create dict to store column names for each table {table: [column names]}
     column_names = {'Workflows': ['wfrun_id', 'wf', 'wfv', 'case_id', 'project_id', 'donor_id', 'attributes', 'file_count', 'lane_count', 'stale'],
                     'Parents': ['parents_id', 'children_id', 'project_id', 'case_id', 'donor_id'],
-                    'Projects': ['project_id', 'pipeline', 'last_updated', 'cases', 'samples', 'library_types', 'assays'],
+                    'Projects': ['project_id', 'pipeline', 'last_updated', 'cases', 'samples',
+                                 'library_types', 'assays', 'deliverables', 'active'],
                     'Files': ['file_swid', 'project_id', 'md5sum', 'workflow', 'version', 'wfrun_id', 'file', 'library_type', 'attributes', 'creation_date', 'limskey', 'stale', 'case_id', 'donor_id'],
                     'Libraries': ['library', 'case_id', 'donor_id', 'tissue_type', 'ext_id', 'tissue_origin',
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
@@ -74,7 +75,8 @@ def define_column_types():
     column_types = {'Workflows': ['VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)', 'TEXT', 'INT', 'INT', 'VARCHAR(128)'],
                     'Parents': ['VARCHAR(572)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
                     'Projects': ['VARCHAR(128) PRIMARY KEY NOT NULL UNIQUE', 'VARCHAR(128)',
-                                  'VARCHAR(256)', 'INT', 'INT', 'INT', 'VARCHAR(572)'],
+                                 'VARCHAR(256)', 'INT', 'INT', 'VARCHAR(256)', 'VARCHAR(572)',
+                                 'VARCHAR(572)', 'INT'],
                     'Files': ['VARCHAR(572)', 'VARCHAR(128)',
                               'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(128)',
                               'VARCHAR(572)', 'TEXT', 'VARCHAR(128)', 'TEXT', 'INT', 'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
@@ -259,9 +261,9 @@ def compute_case_md5sum(provenance_data):
     D = {}
     for d in provenance_data:
         md5 = compute_md5(d)
-        case = get_case_name(d)
+        case = d['case']
         donor = get_donor_name(d)
-        project = get_project_name(d)
+        project = d['project']
         assert case not in D
         D[case] = {'md5':md5, 'project_id':project, 'donor_id':donor}
     return D
@@ -471,21 +473,21 @@ def remove_cases_without_pinery_data(provenance_data):
 
 
 
-def get_project_name(case_data):
-    '''
-    (dict) -> str
+# def get_project_name(case_data):
+#     '''
+#     (dict) -> str
     
-    Returns the name of the project extracted from the pinery project data of a case 
+#     Returns the name of the project extracted from the pinery project data of a case 
     
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with a single case data    
-    '''
+#     Parameters
+#     ----------
+#     - case_data (dict): Dictionary with a single case data    
+#     '''
 
-    L = list(set([i['name'] for i in case_data['pinery_project_data']]))
-    assert len(L) == 1
-    project = L[0]    
-    return project
+#     L = list(set([i['name'] for i in case_data['pinery_project_data']]))
+#     assert len(L) == 1
+#     project = L[0]    
+#     return project
 
 
 def get_case_name(case_data):
@@ -513,21 +515,25 @@ def get_donor_name(case_data):
     - case_data (dict): Dictionary with a single case data 
     '''
 
-    return case_data['pinery_donor']
+    donor = list(set([i['donor'] for i in case_data['pineryData']]))
+    assert len(donor) == 1
+    donor = donor[0]
+
+    return donor
 
 
-def get_assay(case):
-    '''
-    (str) -> str
+# def get_assay(case):
+#     '''
+#     (str) -> str
     
-    Returns the assay name extracted from the case name
+#     Returns the assay name extracted from the case name
     
-    Parameters
-    ----------
-    - case (str): Case name
-    '''
+#     Parameters
+#     ----------
+#     - case (str): Case name
+#     '''
     
-    return case.split(':')[1]
+#     return case.split(':')[1]
 
 
 
@@ -674,6 +680,27 @@ def collect_case_library_info(case_data):
         tissue_type = case_data['pinery_data'][i]['tissue_type']
         tissue_origin = case_data['pinery_data'][i]['tissue_origin']
         
+        
+        {'barcode': 'ACAGCAAC-TCCTGACT',
+         'donor': 'IRIS_0078',
+         'groupDesc': 'RB-2471',
+         'groupId': 'RB-2471',
+         'lane': '1',
+         'library': 'IRIS_0078_02_LB01-01',
+         'libraryDesign': 'WG',
+         'limsId': '6992_1_LDI107653',
+         'project': 'IRIS',
+         'run': '240110_A00469_0611_AHTMCKDSX7',
+         'sampleId': 'IRIS_0078_Lv_M RB-2471_WG',
+         'startDate': '2024-01-10T00:00:00Z',
+         'tissueOrigin': 'Lv',
+         'tissueType': 'M'}
+        
+        
+        
+        
+        
+        
         d = {'library': library, 'case_id': case, 'donor_id': donor, 'ext_id': ext_id,
              'project_id': project_id, 'group_id': group_id,
              'group_id_description': group_id_description,
@@ -702,6 +729,24 @@ def add_library_info_to_db(database, provenance_data, cases_to_update, table = '
     - cases_to_update (dict): Dictionary with cases for which records needs to be updated
     - table (str): Table in database storing file information. Default is Libraries
     '''                 
+
+
+ {'barcode': 'CTGAAGCT-CTTCGCCT',
+  'donor': 'IRIS_0078',
+  'groupDesc': 'RB-2471',
+  'groupId': 'RB-2471',
+  'lane': '4',
+  'library': 'IRIS_0078_02_LB02-01',
+  'libraryDesign': 'WT',
+  'limsId': '6985_4_LDI107860',
+  'project': 'IRIS',
+  'run': '240105_A00469_0607_BH2GL3DSXC',
+  'sampleId': 'IRIS_0078_Lv_M RB-2471_WT',
+  'startDate': '2024-01-05T00:00:00Z',
+  'tissueOrigin': 'Lv',
+  'tissueType': 'M'}]
+
+
 
     if cases_to_update:
         # get the column names
@@ -749,72 +794,120 @@ def get_pipeline(case_data):
 
 
 
-def collect_project_info_from_db(database, table = 'Libraries'):
-    '''
-    (str, str) -> dict
+# def collect_project_info_from_db(database, table = 'Libraries'):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary with project level information for each active project in provenance_data
+#     Returns a dictionary with project level information for each active project in provenance_data
     
-    Parameters
-    ----------
-    - database (str): Path to the database
-    - table (str): Table storing the library information
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the database
+#     - table (str): Table storing the library information
+#     '''
 
-    D = {}
+#     D = {}
 
-    # connect to db
-    conn = connect_to_db(database)
-    # get column names
-    data = conn.execute('SELECT * FROM {0}'.format(table))
-    data = data.fetchall()
-    conn.close()
+#     # connect to db
+#     conn = connect_to_db(database)
+#     # get column names
+#     data = conn.execute('SELECT * FROM {0}'.format(table))
+#     data = data.fetchall()
+#     conn.close()
     
-    for i in data:
-        project = i['project_id']
-        library_design = i['library_type']
-        sample = '_'.join([i['donor_id'], i['tissue_type'], i['tissue_origin'],
-                           library_design, i['group_id']])
+#     for i in data:
+#         project = i['project_id']
+#         library_design = i['library_type']
+#         sample = '_'.join([i['donor_id'], i['tissue_type'], i['tissue_origin'],
+#                            library_design, i['group_id']])
         
-        if project not in D:
-            D[project] = {}
-        D[project][sample] = library_design
+#         if project not in D:
+#             D[project] = {}
+#         D[project][sample] = library_design
                                
-    return D
+#     return D
 
 
-def count_project_case(provenance_data):
+def collect_project_info(provenance_data):
     '''
     (list) -> dict
     
-    Returns a dictionary of case count per project
+    Returns a dictionary with project level information for each project in provenance_data
     
     Parameters
     ----------
-    - provenance_data (list): List of dictionaries, each representing the data of a single case
+    - provenance_data (list): List of dictionaries with case information 
     '''
-    
+
     D = {}
     
     for case_data in provenance_data:
-        project = get_project_name(case_data)
-        case = get_case_name(case_data)
-        if project in D:
-            D[project].append(case)
+        project = case_data['project']
+        case = case_data['case']
+        assay = case_data['assay']
+        assert len(case_data['projectInfo']) == 1
+        active = case_data['projectInfo'][0]['isActive']
+        pipeline = case_data['projectInfo'][0]['pipeline']
+        deliverables = case_data['projectInfo'][0]['deliverables']
+        samples, library_types = [], []
+        for d in case_data['pineryData']:
+            samples.append(d['sampleId'])
+            library_types.append(d['libraryDesign'])
+        if project not in D:
+            D[project] = {'assays': [assay],
+                          'cases': [case],
+                          'active': active,
+                          'pipeline': pipeline,
+                          'deliverables': deliverables,
+                          'samples': samples,
+                          'library_types': library_types}
         else:
-            D[project] = [case]
+            D[project]['assays'].append(assay)
+            D[project]['cases'].append(case)
+            D[project]['samples'].extend(samples)
+            D[project]['library_types'].extend(library_types)
+                                
+        D[project]['assays'] = list(set(D[project]['assays']))
+        D[project]['cases'] = list(set(D[project]['cases']))
+        D[project]['samples'] = list(set(D[project]['samples']))
+        D[project]['library_types'] = list(set(D[project]['library_types']))
             
-    counts = {}
-    for project in D:
-        D[project] = set(D[project])
-        counts[project] = len(D[project])
-
-    return counts
+    return D
 
 
-def add_project_info_to_db(database, provenance_data, library_table = 'Libraries', project_table = 'Projects'):
+
+# def count_project_case(provenance_data):
+#     '''
+#     (list) -> dict
+    
+#     Returns a dictionary of case count per project
+    
+#     Parameters
+#     ----------
+#     - provenance_data (list): List of dictionaries, each representing the data of a single case
+#     '''
+    
+#     D = {}
+    
+#     for case_data in provenance_data:
+#         project = get_project_name(case_data)
+#         case = get_case_name(case_data)
+#         if project in D:
+#             D[project].append(case)
+#         else:
+#             D[project] = [case]
+            
+#     counts = {}
+#     for project in D:
+#         D[project] = set(D[project])
+#         counts[project] = len(D[project])
+
+#     return counts
+
+
+def add_project_info_to_db(database, provenance_data, project_table = 'Projects'):
     '''
-    (str, dict, str, str) -> None
+    (str, list, str) -> None
     
     Add project information into Projects table of database
        
@@ -822,7 +915,6 @@ def add_project_info_to_db(database, provenance_data, library_table = 'Libraries
     ----------
     - database (str): Path to the database file
     - provenance_data (list): List of dictionaries, each representing the data of a single case
-    - library_table (str): Name of Table storing library information in database. Default is Libraries
     - project_table (str): Name of Table storing project information in database. Default is Projects
     '''
     
@@ -830,26 +922,8 @@ def add_project_info_to_db(database, provenance_data, library_table = 'Libraries
     column_names = define_column_names()[project_table]
     
     # collect project information
-    project_info = collect_project_info_from_db(database, library_table)
-
-    # count cases per project
-    case_counts = count_project_case(provenance_data)
-
-    # collect pipeline and assays
-    pipelines, assays = {}, {}
-    for case_data in provenance_data:
-        project_id = get_project_name(case_data)
-        pipeline = get_pipeline(case_data)
-        pipelines[project_id] = pipeline
-        case = get_case_name(case_data)
-        assay = get_assay(case)
-        if project_id not in assays:
-            assays[project_id] = [assay]
-        else:
-            assays[project_id].append(assay)
-            assays[project_id] = sorted(list(set(assays[project_id])))
-            
-        
+    project_info = collect_project_info(provenance_data)
+    
     # make a list of data to insert in the database
     newdata = []
     
@@ -857,16 +931,18 @@ def add_project_info_to_db(database, provenance_data, library_table = 'Libraries
     conn = connect_to_db(database)
        
     for project in project_info:
-        # check that pipeline is defined
-        if project in pipelines:
-            pipeline = pipelines[project]
-        else:
-            pipeline = 'NA'
         last_updated = time.strftime('%Y-%m-%d_%H:%M', time.localtime(time.time()))
-        samples = len(project_info[project])
+        
         # get the library types
-        library_types = ','.join(sorted(list(set(project_info[project].values())))) 
-        L = [project, pipeline, last_updated, str(case_counts[project]), str(samples), library_types, ','.join(assays[project])]
+        library_types = ','.join(sorted(project_info[project]['library_types']))
+        samples = len(project_info[project]['samples'])
+        cases = len(project_info[project]['cases'])
+        assays = ','.join(sorted(project_info[project]['assays']))
+        
+        L = [project, project_info[project]['pipeline'], last_updated, str(cases),
+             str(samples), str(library_types), assays, project_info[project]['deliverables'],
+             project_info[project]['active']]
+        
         newdata.append(L)
         # delete project entry
         query = 'DELETE FROM {0} WHERE project_id = \"{1}\"'.format(project_table, project)
@@ -2610,15 +2686,15 @@ def generate_database(database, provenance_data_file):
     provenance_data = load_data(provenance_data_file)
     print('loaded data')
     
-    # clean up data 
-    # remove data from inactive projects
-    provenance_data = remove_data_from_inactive_projects(provenance_data)
-    print('removed inactive projects')
-    # remove donors lacking cerberus or pinery data
-    provenance_data = remove_cases_without_cerberus_data(provenance_data)
-    print('removed cases without cerberus data')
-    provenance_data = remove_cases_without_pinery_data(provenance_data)
-    print('removed cases without pinery data')
+    # # clean up data 
+    # # remove data from inactive projects
+    # provenance_data = remove_data_from_inactive_projects(provenance_data)
+    # print('removed inactive projects')
+    # # remove donors lacking cerberus or pinery data
+    # provenance_data = remove_cases_without_cerberus_data(provenance_data)
+    # print('removed cases without cerberus data')
+    # provenance_data = remove_cases_without_pinery_data(provenance_data)
+    # print('removed cases without pinery data')
     
     # collect the md5sum of each donor's data
     md5sums = compute_case_md5sum(provenance_data)
@@ -2629,28 +2705,32 @@ def generate_database(database, provenance_data_file):
     # determine the donors that need an update
     cases_to_update = cases_info_to_update(md5sums, recorded_md5sums)
     print('determined donors to update')
-        
-    # add file information
-    add_file_info_to_db(database, provenance_data, cases_to_update, 'Files')
-    print('added file info to database')
+    
+    # add project information
+    add_project_info_to_db(database, provenance_data, 'Projects')
+    print('added project info to database')
+    
     # add library information
     add_library_info_to_db(database, provenance_data, cases_to_update, 'Libraries')
     print('added library info to database')
-    # add project information
-    add_project_info_to_db(database, provenance_data, 'Libraries', 'Projects')
-    print('added project info to database')
-    # add workflow information
-    add_workflows_to_db(database, provenance_data, cases_to_update, 'Workflows')
-    print('added workflow info to database')
-    # add workflow inputs
-    add_workflow_inputs_to_db(database, provenance_data, cases_to_update, 'Workflow_Inputs')
-    print('added workflow inputs to database')
-    # add workflow relationships
-    add_workflows_relationships_to_db(database, provenance_data, cases_to_update, 'Parents')
-    print('added workflow relationships to database')
-    # add sample information
-    add_samples_info_to_db(database, provenance_data, cases_to_update, 'Samples')
-    print('added sample information to database')
+    
+
+    
+    # # add file information
+    # add_file_info_to_db(database, provenance_data, cases_to_update, 'Files')
+    # print('added file info to database')
+    # # add workflow information
+    # add_workflows_to_db(database, provenance_data, cases_to_update, 'Workflows')
+    # print('added workflow info to database')
+    # # add workflow inputs
+    # add_workflow_inputs_to_db(database, provenance_data, cases_to_update, 'Workflow_Inputs')
+    # print('added workflow inputs to database')
+    # # add workflow relationships
+    # add_workflows_relationships_to_db(database, provenance_data, cases_to_update, 'Parents')
+    # print('added workflow relationships to database')
+    # # add sample information
+    # add_samples_info_to_db(database, provenance_data, cases_to_update, 'Samples')
+    # print('added sample information to database')
     
     # # add contamination
     # add_contamination_info(database, calcontaqc_db, provenance_data, donors_to_update, 'Calculate_Contamination')
@@ -2692,9 +2772,10 @@ def generate_database(database, provenance_data_file):
     
  
     
-generate_database('waterzooi_db_test.db', 'd1.dump.json')    
+#generate_database('waterzooi_db_test.db', 'd1.dump.json')    
  
-    
+generate_database('waterzooi_db_case.db', 'CaseInfo_IRIS_NEOPOC.dump.json')    
+     
  
     
  
