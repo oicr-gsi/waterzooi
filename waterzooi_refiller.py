@@ -1182,6 +1182,51 @@ def identify_parent_children_workflows(workflow_inputs, files):
 
 
 
+def collect_workflow_relationships(case_data):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary of parent-children workflows
+    for all workflows for a given case
+
+    Paramaters
+    ----------
+    - case_data (dict): Dictionary with a single case data         
+    '''
+    
+    D = {}
+    
+    for d in case_data['workflowRuns']:
+        workflow = d['wfrunid']
+        parents = json.loads(d['parents'])
+        children = json.loads(d['children'])
+        if parents:
+            parent_workflows = [i[1] for i in parents]
+        else:
+            parent_workflows = ['NA']
+        if children:
+            children_workflows = [i[1] for i in children]
+        else:
+            children_workflows = ['NA']
+        
+        # record the parent-child relationship of the current workflow
+        if workflow in D:
+            D[workflow].extend(children_workflows)
+        else:
+            D[workflow] = children_workflows
+        D[workflow] = list(set(D[workflow]))
+        # record the parent-child relationships of each parent and current workflow 
+        for workflow_run in parent_workflows:
+            if workflow_run in D:
+                D[workflow_run].append(workflow)
+            else:
+                D[workflow_run] = [workflow]
+            D[workflow_run] = list(set(D[workflow_run]))
+
+    return D
+
+
+
 def add_workflows_relationships_to_db(database, provenance_data, cases_to_update, table = 'Parents'):
     '''
     (str, str, str, dict, str, str, str, str) -> None
@@ -1207,21 +1252,16 @@ def add_workflows_relationships_to_db(database, provenance_data, cases_to_update
         newdata = []
         
         for case_data in provenance_data:
-            case = get_case_name(case_data)
+            case = case_data['case']
             donor = get_donor_name(case_data)
-            project = get_project_name(case_data)             
-            
+            project = case_data['project']             
+                       
             # check if donor needs to be updated
             if case in cases_to_update and cases_to_update[case] != 'delete':
-                files = map_file_to_worklow(case_data)
-                workflow_inputs = get_workflow_inputs(case_data)
-                parents = identify_parent_children_workflows(workflow_inputs, files)
-        
-                # make a list of all workflows for the donor
-                case_workflows = list(set(list(files.values())))
-                for workflow in case_workflows:
-                    for parent in parents[workflow]:
-                        L = (os.path.basename(parent), os.path.basename(workflow), project, case, donor)
+                parents =  collect_workflow_relationships(case_data)
+                for workflow in parents:
+                    for child in parents[workflow]:
+                        L = [workflow, child, project, case, donor]
                         if L not in newdata:
                             newdata.append(L)
         
@@ -2676,16 +2716,6 @@ def generate_database(database, provenance_data_file):
     provenance_data = load_data(provenance_data_file)
     print('loaded data')
     
-    # # clean up data 
-    # # remove data from inactive projects
-    # provenance_data = remove_data_from_inactive_projects(provenance_data)
-    # print('removed inactive projects')
-    # # remove donors lacking cerberus or pinery data
-    # provenance_data = remove_cases_without_cerberus_data(provenance_data)
-    # print('removed cases without cerberus data')
-    # provenance_data = remove_cases_without_pinery_data(provenance_data)
-    # print('removed cases without pinery data')
-    
     # collect the md5sum of each donor's data
     md5sums = compute_case_md5sum(provenance_data)
     print('computed md5sums')
@@ -2699,18 +2729,18 @@ def generate_database(database, provenance_data_file):
     # add project information
     add_project_info_to_db(database, provenance_data, 'Projects')
     print('added project info to database')
-    
     # add library information
     add_library_info_to_db(database, provenance_data, cases_to_update, 'Libraries')
     print('added library info to database')
-    
     # add sample information
     add_samples_info_to_db(database, provenance_data, cases_to_update, 'Samples')
     print('added sample information to database')
-    
     # add workflow inputs
     add_workflow_inputs_to_db(database, provenance_data, cases_to_update, 'Workflow_Inputs')
     print('added workflow inputs to database')
+    # add workflow relationships
+    add_workflows_relationships_to_db(database, provenance_data, cases_to_update, 'Parents')
+    print('added workflow relationships to database')
     
     
     
@@ -2720,51 +2750,14 @@ def generate_database(database, provenance_data_file):
     # # add workflow information
     # add_workflows_to_db(database, provenance_data, cases_to_update, 'Workflows')
     # print('added workflow info to database')
-    # # add workflow relationships
-    # add_workflows_relationships_to_db(database, provenance_data, cases_to_update, 'Parents')
-    # print('added workflow relationships to database')
     
-    # # add contamination
-    # add_contamination_info(database, calcontaqc_db, provenance_data, donors_to_update, 'Calculate_Contamination')
-    # print('added contamination to database')
-    
-    # # # add WGS blocks
-    # expected_WGS_workflows = sorted(['mutect2', 'variantEffectPredictor', 'delly', 'varscan', 'sequenza', 'mavis']) 
-    # qc_workflows = ('wgsmetrics', 'insertsizemetrics', 'bamqc', 'calculatecontamination',
-    #                           'callability', 'fastqc', 'crosscheckfingerprintscollector',
-    #                           'fingerprintcollector', 'bwamem', 'bammergepreprocessing',
-    #                           'ichorcna', 'tmbanalysis', 'casava', 'bcl2fastq',
-    #                           'fileimportforanalysis', 'fileimport', 'import_fastq',
-    #                           'dnaseqqc', 'hotspotfingerprintcollector', 'rnaseqqc',
-    #                           'rnaseqqc_lane_level', 'rnaseqqc_call_ready', 'calculatecontamination')
-                              
-    # add_WGS_blocks_to_db(database, provenance_data, donors_to_update, 'WGS_blocks',
-    #                           expected_WGS_workflows, qc_workflows, library_type = 'WG',
-    #                           platform = 'novaseq')
-    # print('added WGS blocks to database')
-    
-    # # add EX blocks
-    # expected_EX_workflows = sorted(['mutect2', 'variantEffectPredictor', 'varscan', 'sequenza']) 
-    # add_WGS_blocks_to_db(database, provenance_data, donors_to_update, 'EX_blocks',
-    #                           expected_EX_workflows, qc_workflows, library_type = 'EX',
-    #                           platform = 'novaseq')
-    # print('added EX blocks to database')
-    
-    
-    # # add WT blocks
-    # expected_WT_workflows = sorted(['arriba', 'rsem', 'starfusion', 'mavis'])
-    # add_WT_blocks_to_db(database, provenance_data, donors_to_update, 'WT_blocks',
-    #                         expected_WT_workflows, qc_workflows, library_type = 'WT',
-    #                         platform = 'novaseq')
-    # print('added WT blocks to database')
     
     # update the checksums for donors
     # add_checksums_info_to_db(database, cases_to_update, 'Checksums')
     # print('added md5sums to database')
     
  
-    
-#generate_database('waterzooi_db_test.db', 'd1.dump.json')    
+   
  
 generate_database('waterzooi_db_case.db', 'CaseInfo_IRIS_NEOPOC.dump.json')    
      
