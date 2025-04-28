@@ -53,7 +53,7 @@ def define_column_names():
                     'Projects': ['project_id', 'pipeline', 'last_updated', 'cases', 'samples',
                                  'library_types', 'assays', 'deliverables', 'active'],
                     'Files': ['file_swid', 'project_id', 'md5sum', 'workflow', 'version', 'wfrun_id', 'file', 'library_type', 'attributes', 'creation_date', 'limskey', 'stale', 'case_id', 'donor_id'],
-                    'Libraries': ['library', 'lims_id', 'case_id', 'donor_id', 'tissue_type', 'ext_id', 'tissue_origin',
+                    'Libraries': ['library', 'lims_id', 'case_id', 'donor_id', 'tissue_type', 'tissue_origin',
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
                     'Workflow_Inputs': ['library', 'run', 'lane', 'wfrun_id', 'limskey', 'barcode', 'platform', 'project_id', 'case_id', 'donor_id'],
                     'Samples': ['case_id', 'donor_id', 'ext_id', 'species', 'sex', 'miso', 'project_id'],
@@ -80,7 +80,7 @@ def define_column_types():
                     'Files': ['VARCHAR(572)', 'VARCHAR(128)',
                               'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(128)',
                               'VARCHAR(572)', 'TEXT', 'VARCHAR(128)', 'TEXT', 'INT', 'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
-                    'Libraries': ['VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(572)', 'VARCHAR(128)',
+                    'Libraries': ['VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(572)',
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)',
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(128)'],
                     'Workflow_Inputs': ['VARCHAR(128)', 'VARCHAR(256)', 'INTEGER', 'VARCHAR(572)', 
@@ -400,76 +400,76 @@ def load_data(provenance_data_file):
 
 
 
-def remove_data_from_inactive_projects(provenance_data):
-    '''
-    (list) -> list
+# def remove_data_from_inactive_projects(provenance_data):
+#     '''
+#     (list) -> list
 
-    Returns the list of case data removing any data from inactive project
+#     Returns the list of case data removing any data from inactive project
     
-    Parameters
-    ----------
-    - provenance_data (list): List of dictionaries, each representing the data of a single case
-    '''
+#     Parameters
+#     ----------
+#     - provenance_data (list): List of dictionaries, each representing the data of a single case
+#     '''
     
-    to_remove = [i for i in provenance_data if is_project_active(i) == False]
-    if to_remove:
-        for i in to_remove:
-            provenance_data.remove(i)
-    return provenance_data
+#     to_remove = [i for i in provenance_data if is_project_active(i) == False]
+#     if to_remove:
+#         for i in to_remove:
+#             provenance_data.remove(i)
+#     return provenance_data
 
 
-def is_project_active(case_data):
-    '''
-    (dict) -> bool
+# def is_project_active(case_data):
+#     '''
+#     (dict) -> bool
     
-    Returns True if the project is active and False otherwise
+#     Returns True if the project is active and False otherwise
     
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with a single donor data    
-    '''
+#     Parameters
+#     ----------
+#     - case_data (dict): Dictionary with a single donor data    
+#     '''
     
-    active = [convert_to_bool(i['active']) for i in case_data['pinery_project_data']]
-    return all(active)
+#     active = [convert_to_bool(i['active']) for i in case_data['pinery_project_data']]
+#     return all(active)
 
 
 
-def remove_cases_without_cerberus_data(provenance_data):
-    '''
-    (list) -> list
+# def remove_cases_without_cerberus_data(provenance_data):
+#     '''
+#     (list) -> list
     
-    Returns the list of case data removing any cases that do not have data from cerberus
+#     Returns the list of case data removing any cases that do not have data from cerberus
     
-    Parameters
-    ----------
-    - provenance_data (list): List of dictionaries, each representing the data of a single case
-    '''
+#     Parameters
+#     ----------
+#     - provenance_data (list): List of dictionaries, each representing the data of a single case
+#     '''
 
-    to_remove = [i for i in provenance_data if len(i['cerberus_data']) == 0]
-    if to_remove:
-        for i in to_remove:
-            provenance_data.remove(i)
-    return provenance_data
+#     to_remove = [i for i in provenance_data if len(i['cerberus_data']) == 0]
+#     if to_remove:
+#         for i in to_remove:
+#             provenance_data.remove(i)
+#     return provenance_data
 
 
 
-def remove_cases_without_pinery_data(provenance_data):
-    '''
-    (list) -> list
+# def remove_cases_without_pinery_data(provenance_data):
+#     '''
+#     (list) -> list
     
-    Returns the list of case data removing any cases that do not have project
-    information from pinery
+#     Returns the list of case data removing any cases that do not have project
+#     information from pinery
     
-    Parameters
-    ----------
-    - provenance_data (list): List of dictionaries, each representing the data of a single case
-    '''
+#     Parameters
+#     ----------
+#     - provenance_data (list): List of dictionaries, each representing the data of a single case
+#     '''
 
-    to_remove = [i for i in provenance_data if len(i['pinery_project_data']) == 0]
-    if to_remove:
-        for i in to_remove:
-            provenance_data.remove(i)
-    return provenance_data
+#     to_remove = [i for i in provenance_data if len(i['pinery_project_data']) == 0]
+#     if to_remove:
+#         for i in to_remove:
+#             provenance_data.remove(i)
+#     return provenance_data
 
 
 
@@ -490,18 +490,18 @@ def remove_cases_without_pinery_data(provenance_data):
 #     return project
 
 
-def get_case_name(case_data):
-    '''
-    (str) -> str
+# def get_case_name(case_data):
+#     '''
+#     (str) -> str
     
-    Returns the name of the case in case_data
+#     Returns the name of the case in case_data
     
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with a single case data 
-    '''
+#     Parameters
+#     ----------
+#     - case_data (dict): Dictionary with a single case data 
+#     '''
 
-    return case_data['pinery_case']
+#     return case_data['pinery_case']
 
 
 def get_donor_name(case_data):
@@ -680,9 +680,8 @@ def collect_case_library_info(case_data):
         group_id_description = d['groupDesc']
         lims_id = d['limsId']
         sample = d['sampleId']
-        ext_id = 'NA'
-        
-        d = {'library': library, 'case_id': case, 'donor_id': donor, 'ext_id': ext_id,
+               
+        d = {'library': library, 'case_id': case, 'donor_id': donor, 
              'project_id': project, 'group_id': group_id, 
              'group_id_description': group_id_description,
              'library_type': library_type, 'tissue_type': tissue_type,
@@ -1332,8 +1331,7 @@ def add_samples_info_to_db(database, provenance_data, cases_to_update, table = '
         newdata = []
         
         for case_data in provenance_data:
-            case = get_case_name(case_data)
-            donor = get_donor_name(case_data)
+            case = case_data['assay']
             # check if donor needs to be updated
             if case in cases_to_update and cases_to_update[case] != 'delete':
                 sample_info = collect_case_sample_info(case_data)
@@ -2675,7 +2673,12 @@ def generate_database(database, provenance_data_file):
     add_library_info_to_db(database, provenance_data, cases_to_update, 'Libraries')
     print('added library info to database')
     
-
+    # add sample information
+    add_samples_info_to_db(database, provenance_data, cases_to_update, 'Samples')
+    print('added sample information to database')
+    
+    
+    
     
     # # add file information
     # add_file_info_to_db(database, provenance_data, cases_to_update, 'Files')
@@ -2689,9 +2692,6 @@ def generate_database(database, provenance_data_file):
     # # add workflow relationships
     # add_workflows_relationships_to_db(database, provenance_data, cases_to_update, 'Parents')
     # print('added workflow relationships to database')
-    # # add sample information
-    # add_samples_info_to_db(database, provenance_data, cases_to_update, 'Samples')
-    # print('added sample information to database')
     
     # # add contamination
     # add_contamination_info(database, calcontaqc_db, provenance_data, donors_to_update, 'Calculate_Contamination')
