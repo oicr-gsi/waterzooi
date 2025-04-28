@@ -53,7 +53,7 @@ def define_column_names():
                     'Projects': ['project_id', 'pipeline', 'last_updated', 'cases', 'samples',
                                  'library_types', 'assays', 'deliverables', 'active'],
                     'Files': ['file_swid', 'project_id', 'md5sum', 'workflow', 'version', 'wfrun_id', 'file', 'library_type', 'attributes', 'creation_date', 'limskey', 'stale', 'case_id', 'donor_id'],
-                    'Libraries': ['library', 'case_id', 'donor_id', 'tissue_type', 'ext_id', 'tissue_origin',
+                    'Libraries': ['library', 'lims_id', 'case_id', 'donor_id', 'tissue_type', 'ext_id', 'tissue_origin',
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
                     'Workflow_Inputs': ['library', 'run', 'lane', 'wfrun_id', 'limskey', 'barcode', 'platform', 'project_id', 'case_id', 'donor_id'],
                     'Samples': ['case_id', 'donor_id', 'ext_id', 'species', 'sex', 'miso', 'project_id'],
@@ -80,7 +80,7 @@ def define_column_types():
                     'Files': ['VARCHAR(572)', 'VARCHAR(128)',
                               'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(128)',
                               'VARCHAR(572)', 'TEXT', 'VARCHAR(128)', 'TEXT', 'INT', 'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
-                    'Libraries': ['VARCHAR(256)', 'VARCHAR(572)', 'VARCHAR(128)',
+                    'Libraries': ['VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(572)', 'VARCHAR(128)',
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)',
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(128)'],
                     'Workflow_Inputs': ['VARCHAR(128)', 'VARCHAR(256)', 'INTEGER', 'VARCHAR(572)', 
@@ -668,44 +668,25 @@ def collect_case_library_info(case_data):
 
     D = {}
     
-    for i in range(len(case_data['pinery_data'])):
-        library = case_data['pinery_data'][i]['library_name']
-        donor = get_donor_name(case_data)
-        case = get_case_name(case_data)
-        ext_id = case_data['cerberus_data'][0]['external_donor_id']
-        project_id = case_data['pinery_data'][i]['project']
-        group_id = case_data['pinery_data'][i]['group_id']
-        group_id_description = case_data['pinery_data'][i]['group_desc']
-        library_type = case_data['pinery_data'][i]['library_design']
-        tissue_type = case_data['pinery_data'][i]['tissue_type']
-        tissue_origin = case_data['pinery_data'][i]['tissue_origin']
-        
-        
-        {'barcode': 'ACAGCAAC-TCCTGACT',
-         'donor': 'IRIS_0078',
-         'groupDesc': 'RB-2471',
-         'groupId': 'RB-2471',
-         'lane': '1',
-         'library': 'IRIS_0078_02_LB01-01',
-         'libraryDesign': 'WG',
-         'limsId': '6992_1_LDI107653',
-         'project': 'IRIS',
-         'run': '240110_A00469_0611_AHTMCKDSX7',
-         'sampleId': 'IRIS_0078_Lv_M RB-2471_WG',
-         'startDate': '2024-01-10T00:00:00Z',
-         'tissueOrigin': 'Lv',
-         'tissueType': 'M'}
-        
-        
-        
-        
-        
+    for d in case_data['pineryData']:
+        donor = d['donor']
+        library = d['library']
+        case = case_data['case']
+        tissue_origin = d['tissueOrigin']
+        tissue_type = d['tissueType']
+        library_type = d['libraryDesign']
+        project = d['project']
+        group_id = d['groupId']
+        group_id_description = d['groupDesc']
+        lims_id = d['limsId']
+        sample = d['sampleId']
+        ext_id = 'NA'
         
         d = {'library': library, 'case_id': case, 'donor_id': donor, 'ext_id': ext_id,
-             'project_id': project_id, 'group_id': group_id,
+             'project_id': project, 'group_id': group_id, 
              'group_id_description': group_id_description,
              'library_type': library_type, 'tissue_type': tissue_type,
-             'tissue_origin': tissue_origin}
+             'tissue_origin': tissue_origin, 'lims_id': lims_id, 'sample': sample}
         
         if library not in D:
             D[library] = [d] 
@@ -729,25 +710,7 @@ def add_library_info_to_db(database, provenance_data, cases_to_update, table = '
     - cases_to_update (dict): Dictionary with cases for which records needs to be updated
     - table (str): Table in database storing file information. Default is Libraries
     '''                 
-
-
- {'barcode': 'CTGAAGCT-CTTCGCCT',
-  'donor': 'IRIS_0078',
-  'groupDesc': 'RB-2471',
-  'groupId': 'RB-2471',
-  'lane': '4',
-  'library': 'IRIS_0078_02_LB02-01',
-  'libraryDesign': 'WT',
-  'limsId': '6985_4_LDI107860',
-  'project': 'IRIS',
-  'run': '240105_A00469_0607_BH2GL3DSXC',
-  'sampleId': 'IRIS_0078_Lv_M RB-2471_WT',
-  'startDate': '2024-01-05T00:00:00Z',
-  'tissueOrigin': 'Lv',
-  'tissueType': 'M'}]
-
-
-
+ 
     if cases_to_update:
         # get the column names
         column_names = define_column_names()[table]
@@ -759,9 +722,7 @@ def add_library_info_to_db(database, provenance_data, cases_to_update, table = '
         newdata = []
     
         for case_data in provenance_data:
-            donor = get_donor_name(case_data)
-            case =  get_case_name(case_data)
-            
+            case =  case_data['case']
             # check if donor needs to be updated
             if case in cases_to_update and cases_to_update[case] != 'delete':
                 library_info = collect_case_library_info(case_data)
