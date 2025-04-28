@@ -1285,14 +1285,15 @@ def collect_case_sample_info(case_data):
         
     D = {}
         
-    for i in range(len(case_data['pinery_data'])):
-        case = get_case_name(case_data)
-        donor = get_donor_name(case_data)
-        project_id = get_project_name(case_data)
-        ext_id = get_donor_external_id(case_data)
-        sex = get_donor_sex(case_data)
-        species = get_donor_species(case_data)
+    for d in case_data['pineryData']:
+        case = case_data['case']
+        donor = d['donor']
+        project_id = d['project']
+        
+        ext_id = 'NA'
+        sex = 'NA'
         miso = 'NA'
+        species = 'NA'
         
         d = {'case_id': case, 'donor_id': donor, 'ext_id': ext_id, 'sex': sex,
              'species': species, 'project_id': project_id, 'miso': miso}
@@ -1331,7 +1332,7 @@ def add_samples_info_to_db(database, provenance_data, cases_to_update, table = '
         newdata = []
         
         for case_data in provenance_data:
-            case = case_data['assay']
+            case = case_data['case']
             # check if donor needs to be updated
             if case in cases_to_update and cases_to_update[case] != 'delete':
                 sample_info = collect_case_sample_info(case_data)
@@ -2728,8 +2729,8 @@ def generate_database(database, provenance_data_file):
     # print('added WT blocks to database')
     
     # update the checksums for donors
-    add_checksums_info_to_db(database, cases_to_update, 'Checksums')
-    print('added md5sums to database')
+    # add_checksums_info_to_db(database, cases_to_update, 'Checksums')
+    # print('added md5sums to database')
     
  
     
