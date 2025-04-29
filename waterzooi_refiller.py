@@ -52,7 +52,7 @@ def define_column_names():
                     'Parents': ['parents_id', 'children_id', 'project_id', 'case_id', 'donor_id'],
                     'Projects': ['project_id', 'pipeline', 'last_updated', 'cases', 'samples',
                                  'library_types', 'assays', 'deliverables', 'active'],
-                    'Files': ['file_swid', 'project_id', 'md5sum', 'workflow', 'version', 'wfrun_id', 'file', 'library_type', 'attributes', 'creation_date', 'limskey', 'stale', 'case_id', 'donor_id'],
+                    'Files': ['file_swid', 'project_id', 'md5sum', 'wfrun_id', 'file', 'attributes', 'creation_date', 'limskey', 'case_id', 'donor_id'],
                     'Libraries': ['library', 'lims_id', 'case_id', 'donor_id', 'tissue_type', 'tissue_origin',
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
                     'Workflow_Inputs': ['library', 'run', 'lane', 'wfrun_id', 'limskey', 'barcode', 'platform', 'project_id', 'case_id', 'donor_id'],
@@ -77,9 +77,8 @@ def define_column_types():
                     'Projects': ['VARCHAR(128) PRIMARY KEY NOT NULL UNIQUE', 'VARCHAR(128)',
                                  'VARCHAR(256)', 'INT', 'INT', 'VARCHAR(256)', 'VARCHAR(572)',
                                  'VARCHAR(572)', 'INT'],
-                    'Files': ['VARCHAR(572)', 'VARCHAR(128)',
-                              'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(128)',
-                              'VARCHAR(572)', 'TEXT', 'VARCHAR(128)', 'TEXT', 'INT', 'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
+                    'Files': ['VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(256)',
+                              'VARCHAR(572)', 'TEXT', 'TEXT', 'INT', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(128)'],
                     'Libraries': ['VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(572)',
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)',
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(128)'],
@@ -576,43 +575,45 @@ def collect_case_file_info(case_data):
         
     D = {}
     
-    for i in range(len(case_data['cerberus_data'])):
+    for d in case_data['workflowRuns']:
         donor = get_donor_name(case_data)
-        case = get_case_name(case_data)
-        file_swid = case_data['cerberus_data'][i]['accession']
-        project_id = case_data['cerberus_data'][i]['project']
-        md5sum = case_data['cerberus_data'][i]['md5']
-        workflow = case_data['cerberus_data'][i]['workflow']
-        file = case_data['cerberus_data'][i]['path']
-        library_type = case_data['cerberus_data'][i]['library_design']
-        stale = convert_to_bool(case_data['cerberus_data'][i]['stale'])
-        wfrun_id = os.path.basename(case_data['cerberus_data'][i]['workflow_run_accession'])
-        version = '.'.join(map(lambda x: str(x), json.loads(case_data['cerberus_data'][i]['workflow_version'])))
-        limskey = json.loads(case_data['cerberus_data'][i]['lims'])['id']
-        creation_date = get_file_timestamp(case_data['cerberus_data'][i])
-        if 'file_attributes' in case_data['cerberus_data'][i]:
-            attributes = json.loads(case_data['cerberus_data'][i]['file_attributes'])
-            for k in attributes:
-                attributes[k] = attributes[k][0]
-            if len(attributes) == 0:
-                attributes = ''
-            else:
-                attributes = json.dumps(attributes)
-        else:
-            attributes = ''
+        case = case_data['case']
+        project_id = case_data['project']
+        wfrun_id = d['wfrunid']
+        limskeys = d['limsIds'].split(',')
+        file_swids = list(map(lambda x: x.strip(), json.loads(d['files'])))   
+        
+        ## olive must be updated to collect these fields
+        md5sums = ['NA'] * len(file_swids)
+        creation_date = ['NA'] * len(file_swids)
+        attributes = ['NA'] * len(file_swids)
+        file_paths = ['NA'] * len(file_swids)
+         
+        # if attributes:
+        #     attributes = json.loads(d['attributes'])
+        #     for k in attributes:
+        #         attributes[k] = attributes[k][0]
+        #     if len(attributes) == 0:
+        #         attributes = ''
+        #     else:
+        #         attributes = json.dumps(attributes)
+        # else:
+        #     attributes = ''
     
-        # collect file info if not stale             
-        if stale == False:
-            if file_swid not in D:
-                D[file_swid] = {'file_swid': file_swid, 'project_id': project_id,
-                                'md5sum': md5sum, 'workflow': workflow, 'case_id': case, 'donor_id': donor,
-                                'file': file, 'library_type': library_type,
-                                'stale': stale, 'wfrun_id': wfrun_id, 'version': version,
-                                'limskey': [limskey], 'creation_date': creation_date,
-                                'attributes': attributes}
-            else:
-                D[file_swid]['limskey'].append(limskey)
-                
+    
+        for i in range(len(file_swids)):
+            assert file_swids[i] not in D
+            D[file_swids[i]] = {'file_swid': file_swids[i],
+                                'md5sum': md5sums[i],
+                                'creation_date': creation_date[i],
+                                'attributes': attributes[i],
+                                'file': file_paths[i],
+                                'project_id': project_id,
+                                'case_id': case,
+                                'donor_id': donor,
+                                'wfrun_id': wfrun_id,
+                                'limskey': limskeys}  
+                                
     return D
 
 
@@ -642,15 +643,40 @@ def add_file_info_to_db(database, provenance_data, cases_to_update, table = 'Fil
             
         for case_data in provenance_data:
             donor = get_donor_name(case_data)
-            case =  get_case_name(case_data)
+            case =  case_data['case']
             # check if donor needs to be updated
             if case in cases_to_update and cases_to_update[case] != 'delete':
                 file_info = collect_case_file_info(case_data)
                 for file_swid in file_info:
-                    file_info[file_swid]['limskey'] = ';'.join(sorted(list(set(file_info[file_swid]['limskey']))))
-                    L = [file_info[file_swid][i] for i in column_names]
-                    newdata.append(L)             
-        
+                    for limskey in file_info[file_swid]['limskey']:
+                        
+                        
+                        # L = [file_info[file_swid]['file_swid'],
+                        #      file_info[file_swid]['project_id'],
+                        #      file_info[file_swid]['md5sum'],
+                        #      file_info[file_swid]['wfrun_id'],
+                        #      file_info[file_swid]['file'],
+                        #      file_info[file_swid]['attributes'],
+                        #      file_info[file_swid]['creation_date'],
+                        #      limskey,
+                        #      file_info[file_swid]['project_id'],
+                        #      file_info[file_swid]['case_id'],
+                        #      file_info[file_swid]['donor_id']]
+                        
+                        L = [file_info[file_swid][i] for i in column_names[:column_names.index('limskey')]]
+                        L.append(limskey)
+                        L.extend([file_info[file_swid][i] for i in column_names[column_names.index('limskey')+1:]])
+                        
+                                               
+                        
+                        
+                        # print(L)
+                        # t = [type(i) for i in L]
+                        # print(t)
+                        # print('----')
+                        
+                        newdata.append(L)             
+    
         # add data
         insert_data(database, table, newdata, column_names)
 
@@ -2741,11 +2767,9 @@ def generate_database(database, provenance_data_file):
     # add workflow information
     add_workflows_to_db(database, provenance_data, cases_to_update, 'Workflows')
     print('added workflow info to database')
-    
-    
-    # # add file information
-    # add_file_info_to_db(database, provenance_data, cases_to_update, 'Files')
-    # print('added file info to database')
+    # add file information
+    add_file_info_to_db(database, provenance_data, cases_to_update, 'Files')
+    print('added file info to database')
     
     
     
