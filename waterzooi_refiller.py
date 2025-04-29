@@ -48,7 +48,7 @@ def define_column_names():
     '''
 
     # create dict to store column names for each table {table: [column names]}
-    column_names = {'Workflows': ['wfrun_id', 'wf', 'wfv', 'case_id', 'project_id', 'donor_id', 'attributes', 'file_count', 'lane_count', 'stale'],
+    column_names = {'Workflows': ['wfrun_id', 'wf', 'wfv', 'case_id', 'project_id', 'donor_id', 'file_count', 'lane_count'],
                     'Parents': ['parents_id', 'children_id', 'project_id', 'case_id', 'donor_id'],
                     'Projects': ['project_id', 'pipeline', 'last_updated', 'cases', 'samples',
                                  'library_types', 'assays', 'deliverables', 'active'],
@@ -72,7 +72,7 @@ def define_column_types():
     '''
     
     # create dict to store column names for each table {table: [column names]}
-    column_types = {'Workflows': ['VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)', 'TEXT', 'INT', 'INT', 'VARCHAR(128)'],
+    column_types = {'Workflows': ['VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)', 'INT', 'INT'],
                     'Parents': ['VARCHAR(572)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
                     'Projects': ['VARCHAR(128) PRIMARY KEY NOT NULL UNIQUE', 'VARCHAR(128)',
                                  'VARCHAR(256)', 'INT', 'INT', 'VARCHAR(256)', 'VARCHAR(572)',
@@ -916,7 +916,7 @@ def add_project_info_to_db(database, provenance_data, project_table = 'Projects'
 
 
 
-def collect_donor_workflow_info(case_data):
+def collect_workflow_info(case_data):
     '''
     (dict) -> dict
     
@@ -929,33 +929,30 @@ def collect_donor_workflow_info(case_data):
 
     D = {}
     
-    for i in range(len(case_data['cerberus_data'])):
-        project_id = get_project_name(case_data)      
-        wfrun_id = os.path.basename(case_data['cerberus_data'][i]['workflow_run_accession'])
-        wf = case_data['cerberus_data'][i]['workflow']
-        wfv = '.'.join(map(lambda x: str(x), json.loads(case_data['cerberus_data'][i]['workflow_version'])))
+    for d in case_data['workflowRuns']:
+        project_id = case_data['project']
+        case = case_data['case']
         donor = get_donor_name(case_data)
-        case_id = get_case_name(case_data)
-        stale = convert_to_bool(case_data['cerberus_data'][i]['stale'])
-        file_swid = case_data['cerberus_data'][i]['accession']     
-        limskey = json.loads(case_data['cerberus_data'][i]['lims'])['id']
-        attributes = json.loads(case_data['cerberus_data'][i]['workflow_run_attributes'])
-        attributes = json.dumps(attributes)
-        
-        d = {'project_id': project_id, 'wfrun_id': wfrun_id, 'wf': wf,
-             'wfv': wfv, 'case_id': case_id, 'donor_id': donor, 'stale': stale, 'file_count': [file_swid],
-             'lane_count': [limskey], 'attributes': attributes}
-             
-        if wfrun_id not in D:
-            D[wfrun_id] = d
-        else:
-            D[wfrun_id]['file_count'].append(file_swid)
-            D[wfrun_id]['lane_count'].append(limskey)
-        
-    for i in D:
-        D[i]['file_count'] = len(list(set(D[i]['file_count'])))
-        D[i]['lane_count'] = len(list(set(D[i]['lane_count'])))
-        
+        wfrun_id = d['wfrunid']
+        wf = d['wf']
+        wfv = d['wfv']
+        limskeys = d['limsIds'].split(',')
+        file_count = len(d['files'])
+        sequencing_attributes = find_sequencing_attributes(limskeys, case_data)
+        lane_count = len([sequencing_attributes[i]['lane'] for i in sequencing_attributes])
+         
+        data = {'project_id': project_id,
+                'wfrun_id': wfrun_id,
+                'wf': wf,
+                'wfv': wfv,
+                'case_id': case,
+                'donor_id': donor,
+                'file_count': file_count,
+                'lane_count': lane_count}
+                
+        assert wfrun_id not in D
+        D[wfrun_id] = data
+                
     return D            
 
 
@@ -985,12 +982,12 @@ def add_workflows_to_db(database, provenance_data, cases_to_update, table = 'Wor
         newdata = []
         
         for case_data in provenance_data:
-            case = get_case_name(case_data)
+            case = case_data['case']
             donor = get_donor_name(case_data)
                       
             # check if donor needs to be updated
             if case in cases_to_update and cases_to_update[case] != 'delete':
-                workflow_info = collect_donor_workflow_info(case_data)                
+                workflow_info = collect_workflow_info(case_data)                
                 for workflow in workflow_info:
                     L = [workflow_info[workflow][i] for i in column_names]
                     newdata.append(L)             
@@ -2741,15 +2738,15 @@ def generate_database(database, provenance_data_file):
     # add workflow relationships
     add_workflows_relationships_to_db(database, provenance_data, cases_to_update, 'Parents')
     print('added workflow relationships to database')
-    
+    # add workflow information
+    add_workflows_to_db(database, provenance_data, cases_to_update, 'Workflows')
+    print('added workflow info to database')
     
     
     # # add file information
     # add_file_info_to_db(database, provenance_data, cases_to_update, 'Files')
     # print('added file info to database')
-    # # add workflow information
-    # add_workflows_to_db(database, provenance_data, cases_to_update, 'Workflows')
-    # print('added workflow info to database')
+    
     
     
     # update the checksums for donors
