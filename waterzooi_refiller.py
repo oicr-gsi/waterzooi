@@ -56,7 +56,7 @@ def define_column_names():
                     'Libraries': ['library', 'lims_id', 'case_id', 'donor_id', 'tissue_type', 'tissue_origin',
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
                     'Workflow_Inputs': ['library', 'run', 'lane', 'wfrun_id', 'limskey', 'barcode', 'platform', 'project_id', 'case_id', 'donor_id'],
-                    'Samples': ['case_id', 'donor_id', 'ext_id', 'species', 'sex', 'miso', 'project_id'],
+                    'Samples': ['case_id', 'assay', 'donor_id', 'ext_id', 'species', 'sex', 'miso', 'project_id'],
                     'Checksums': ['project_id', 'case_id', 'donor_id', 'md5']
                     }
         
@@ -83,7 +83,7 @@ def define_column_types():
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(128)'],
                     'Workflow_Inputs': ['VARCHAR(128)', 'VARCHAR(256)', 'INTEGER', 'VARCHAR(572)', 
                                         'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
-                    'Samples': ['VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
+                    'Samples': ['VARCHAR(572)', 'VARCHAR(256)',  'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
                     'Checksums': ['VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)']
                     }
     
@@ -177,7 +177,7 @@ def initiate_db(database):
     tables = [i[0] for i in tables]    
     conn.close()
     for i in ['Projects', 'Workflows', 'Parents', 'Files', 'Libraries',
-              'Workflow_Inputs', 'Samples', 'Calculate_Contamination', 'Checksums']:
+              'Workflow_Inputs', 'Samples', 'Checksums']:
         if i not in tables:
             create_table(database, i)
 
@@ -1312,13 +1312,14 @@ def collect_case_sample_info(case_data):
         case = case_data['case']
         donor = d['donor']
         project_id = d['project']
+        assay = case_data['assay']
         
         ext_id = 'NA'
         sex = 'NA'
         miso = 'NA'
         species = 'NA'
         
-        d = {'case_id': case, 'donor_id': donor, 'ext_id': ext_id, 'sex': sex,
+        d = {'case_id': case, 'assay': assay, 'donor_id': donor, 'ext_id': ext_id, 'sex': sex,
              'species': species, 'project_id': project_id, 'miso': miso}
         
         if case not in D:
