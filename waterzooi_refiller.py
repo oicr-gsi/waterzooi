@@ -57,7 +57,6 @@ def define_column_names():
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
                     'Workflow_Inputs': ['library', 'run', 'lane', 'wfrun_id', 'limskey', 'barcode', 'platform', 'project_id', 'case_id', 'donor_id'],
                     'Samples': ['case_id', 'donor_id', 'ext_id', 'species', 'sex', 'miso', 'project_id'],
-                    'Calculate_Contamination': ['sample_id', 'group_id', 'donor_id', 'library_type', 'tissue_origin', 'tissue_type', 'contamination', 'merged_limskey'],
                     'Checksums': ['project_id', 'case_id', 'donor_id', 'md5']
                     }
         
@@ -85,7 +84,6 @@ def define_column_types():
                     'Workflow_Inputs': ['VARCHAR(128)', 'VARCHAR(256)', 'INTEGER', 'VARCHAR(572)', 
                                         'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
                     'Samples': ['VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
-                    'Calculate_Contamination': ['VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'FLOAT', 'VARCHAR(572)'],
                     'Checksums': ['VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)']
                     }
     
@@ -472,36 +470,6 @@ def load_data(provenance_data_file):
 
 
 
-# def get_project_name(case_data):
-#     '''
-#     (dict) -> str
-    
-#     Returns the name of the project extracted from the pinery project data of a case 
-    
-#     Parameters
-#     ----------
-#     - case_data (dict): Dictionary with a single case data    
-#     '''
-
-#     L = list(set([i['name'] for i in case_data['pinery_project_data']]))
-#     assert len(L) == 1
-#     project = L[0]    
-#     return project
-
-
-# def get_case_name(case_data):
-#     '''
-#     (str) -> str
-    
-#     Returns the name of the case in case_data
-    
-#     Parameters
-#     ----------
-#     - case_data (dict): Dictionary with a single case data 
-#     '''
-
-#     return case_data['pinery_case']
-
 
 def get_donor_name(case_data):
     '''
@@ -519,21 +487,6 @@ def get_donor_name(case_data):
     donor = donor[0]
 
     return donor
-
-
-# def get_assay(case):
-#     '''
-#     (str) -> str
-    
-#     Returns the assay name extracted from the case name
-    
-#     Parameters
-#     ----------
-#     - case (str): Case name
-#     '''
-    
-#     return case.split(':')[1]
-
 
 
 def get_file_timestamp(d):
@@ -649,32 +602,9 @@ def add_file_info_to_db(database, provenance_data, cases_to_update, table = 'Fil
                 file_info = collect_case_file_info(case_data)
                 for file_swid in file_info:
                     for limskey in file_info[file_swid]['limskey']:
-                        
-                        
-                        # L = [file_info[file_swid]['file_swid'],
-                        #      file_info[file_swid]['project_id'],
-                        #      file_info[file_swid]['md5sum'],
-                        #      file_info[file_swid]['wfrun_id'],
-                        #      file_info[file_swid]['file'],
-                        #      file_info[file_swid]['attributes'],
-                        #      file_info[file_swid]['creation_date'],
-                        #      limskey,
-                        #      file_info[file_swid]['project_id'],
-                        #      file_info[file_swid]['case_id'],
-                        #      file_info[file_swid]['donor_id']]
-                        
                         L = [file_info[file_swid][i] for i in column_names[:column_names.index('limskey')]]
                         L.append(limskey)
                         L.extend([file_info[file_swid][i] for i in column_names[column_names.index('limskey')+1:]])
-                        
-                                               
-                        
-                        
-                        # print(L)
-                        # t = [type(i) for i in L]
-                        # print(t)
-                        # print('----')
-                        
                         newdata.append(L)             
     
         # add data
