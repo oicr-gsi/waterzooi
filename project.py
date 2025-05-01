@@ -6,7 +6,7 @@ Created on Sun Aug 13 21:11:22 2023
 """
 
 
-from utilities import connect_to_db
+from utilities import connect_to_db, convert_epoch_time
 
 
 def get_project_info(project_name, database):
@@ -43,12 +43,11 @@ def get_cases(project_name, database):
     '''
     
     conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT case_id, donor_id, ext_id, species, sex, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
+    data = conn.execute("SELECT DISTINCT case_id, assay, donor_id, ext_id, species, sex, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
+    conn.close()
+    
     data = [dict(i) for i in data]
-    for i in range(len(data)):
-        assay = data[i]['case_id'].split(':')[1]
-        data[i]['assay'] = assay
-      
+         
     return data
 
 
@@ -236,26 +235,22 @@ def get_last_sequencing(project_name, database):
     '''
     
     conn = connect_to_db(database)
-    sequencing = conn.execute("SELECT DISTINCT Workflow_Inputs.run FROM Workflow_Inputs JOIN Files \
-                              WHERE Workflow_Inputs.project_id = '{0}' AND Files.project_id = '{0}' \
-                              AND Files.wfrun_id = Workflow_Inputs.wfrun_id \
-                              AND LOWER(Files.workflow) in ('casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq');".format(project_name)).fetchall()
+    sequencing = conn.execute("SELECT DISTINCT Files.creation_date FROM Files JOIN Workflows \
+                              WHERE Files.project_id = '{0}' AND Workflows.project_id = '{0}' \
+                              AND Workflows.wfrun_id = Files.wfrun_id AND LOWER(Workflows.wf) in \
+                              ('casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq');".format(project_name)).fetchall()
     conn.close()
     
     # get the most recent creation date of fastq generating workflows
-    
     if sequencing:
-        sequencing = list(set(sequencing))
-        sequencing = [i['run'] for i in sequencing]
-        sequencing = map(lambda x: x.split('_'), sequencing)
-        seq_dates = [i for i in sequencing if any(list(map(lambda x: x.isdigit(), i)))]
-        
-        F = lambda y: list(map(lambda x: x.isdigit(), y)).index(True)
-        date_index = list(map(lambda x: F(x), seq_dates))
-        seq_dates = [seq_dates[i][date_index[i]] for i in range(len(date_index))]
-        seq_date = sorted(list(set(seq_dates)))[-1]
-        seq_date = '20' + str(seq_date)[:2] + '-' + str(seq_date)[2:4] + '-' + str(seq_date)[4:]
-        
+        seq_dates = sorted([i['creation_date'] for i in sequencing])
+        most_recent = seq_dates[-1]
     else:
-        seq_date = 'NA'
-    return seq_date
+        most_recent = 'NA'
+        
+    try:
+        most_recent = convert_epoch_time(most_recent)    
+        return most_recent
+    except:
+        return most_recent
+    
