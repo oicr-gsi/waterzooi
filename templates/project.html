@@ -19,6 +19,18 @@
     <th>Project name:</th>
     <td>{{ project['project_id'] }}</td>
   </tr>
+  <tr>
+    <th>Sequencing status:</th>
+    <td>THIS NEEDS TO BE UPDATED</td>
+  </tr>
+  <tr>
+    <th>Analysis status:</th>
+    <td>THIS NEEDS TO BE UPDATED</td>
+  </tr>
+  <tr>
+    <th>Deliverables:</th>
+    <td>{{ project['deliverables'] }}</td>
+  </tr>
   <tr>   
     <th>Last sequencing:</th>
     <td>{{ seq_date }}</td>
@@ -32,16 +44,18 @@
     <td>{{ project['pipeline'] }}</td>
   </tr>
   <tr>
+    <th>Assays:</th>
+    <td>
+      {{ assays | length }}
+    </td>
+  </tr>
+  <tr>
     <th>Cases:</th>
     <td>{{ project['cases'] }}</td>
   </tr>
   <tr>
     <th>Samples:</th>
     <td>{{ project['samples'] }}</td>
-  </tr>
-  <tr>
-    <th>Assays</th>
-    <td>{{ assay_names }}</td>
   </tr>
   <tr>
     <th>Library types:</th>

@@ -22,6 +22,8 @@
     <tr>
       <th>Project</th>
       <th>Pipeline</th>
+      <th>Sequencing status</th>
+      <th>Analysis status</th>
       <th>Assays</th>
       <th>Cases</th>
       <th>Samples</th>
@@ -37,7 +39,12 @@
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['pipeline'] }}</a>
         </td>
-        
+        <td>
+          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">TBA</a>
+        </td>
+        <td>
+          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">TBA</a>
+        </td>
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['assays'].split(',') | length }}</a>
         </td>
