@@ -7,7 +7,7 @@
 </head>
 
 <body>
-  <table style="width=100%; font-family: Arial, Helvetica, sans-serif; bottom-margin:50px">
+  <table style="width:100%; font-family: Arial, Helvetica, sans-serif; margin-bottom:50px">
     <tr>
       <td style="width: 40%; padding: 3px; text-align: left"><img src="{{ url_for('static', filename='images/OICR_Logo_RGB_ENGLISH.png') }}" alt="OICR_logo" title="OICR_logo" style="padding-right: 8px; padding-left:0px; width:10; height:10"></td>     
       <td style="width: 60%; padding: 3px; text-align: left"><p style="text-align: center; color: black; font-size:45px; font-family: Arial, Verdana, sans-serif; font-weight:bold">Genome Sequence Informatics<br><br>Waterzooi</p></td>
@@ -22,8 +22,12 @@
     <tr>
       <th>Project</th>
       <th>Pipeline</th>
+      <th>Assays</th>
       <th>Cases</th>
-      <th>Sequenced libraries</th>
+      <th>Samples</th>
+      <th>Libraries</th>
+      <th>Active</th>
+
     </tr>     
     {% for i in projects %}
       <tr>
@@ -33,11 +37,25 @@
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['pipeline'] }}</a>
         </td>
+        
+        <td>
+          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['assays'].split(',') | length }}</a>
+        </td>
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['cases'] }}</a>
         </td>
         <td>
+          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['samples'] }}</a>
+        </td>
+        <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['library_types'] }}</a>
+        </td>
+        <td>
+          {% if i['active'] == 'true' %}
+            <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}"><span style="font-size:16px;color:#70db70">&#10004;</span></a>
+          {% else %}
+            <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}"><span style="font-size:16px;color:#ff3300;">&#10006;</span></a>
+          {% endif %}
         </td>
       </tr>
     {% endfor %}
