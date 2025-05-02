@@ -303,7 +303,7 @@ def count_completed_cases(analysis_status):
     '''
     (dict) -> dict
     
-    Returns a dictionary with counts of cases (case_id and assay) with complete
+    Returns a dictionary with counts of cases with complete
     and incomplete analysis for each project     
        
     Parameters
@@ -325,4 +325,62 @@ def count_completed_cases(analysis_status):
     return D
     
     
+def get_case_sequencing_status(database, project_name=None):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary with the sequencing status of each case in a project if
+    project name is specified or all projects otherwise.
+            
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi database
+    - project_name (None str): Name of a specific project
+    '''
+    
+    conn = connect_to_db(database)
+    if project_name:
+        data = conn.execute("SELECT project_id, case_id, sequencing_status FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
+    else:
+        data = conn.execute("SELECT project_id, case_id, sequencing_status FROM Samples").fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        project = i['project_id']
+        case = i['case_id']
+        sequencing_status = i['sequencing_status']
+        if project not in D:
+            D[project] = {}
+        assert case not in D[project]
+        D[project][case] = int(sequencing_status)
+        
+    return D
+
+
+
+def count_complete_sequencing(sequencing_status):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with counts of cases with complete and incomplete
+    sequencing for each project     
+       
+    Parameters
+    ----------
+    - sequencing_status (dict): Dictionary with sequencing status of each case
+                                for each project
+    '''
+    
+    D = {}
+    
+    for project in sequencing_status:
+        # get the status of all cases
+        status = list(sequencing_status[project].values())
+        complete = sum(status)
+        incomplete = len(status) - complete
+        
+        D[project] = {'complete': complete, 'incomplete': incomplete}
+    
+    return D
 

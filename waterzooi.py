@@ -33,7 +33,7 @@ from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_
 from whole_transcriptome import get_WT_call_ready_cases, get_WT_standard_deliverables, \
     create_WT_project_block_json, create_WT_block_json
 from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
-    get_case_analysis_status, count_completed_cases
+    get_case_analysis_status, count_completed_cases, get_case_sequencing_status, count_complete_sequencing
 from sequencing import get_sequences, collect_sequence_info, platform_name
 from swg_ts import get_swg_ts, review_data, \
     create_swg_ts_sample_json, create_swg_ts_project_json, get_swg_ts_standard_deliverables, \
@@ -174,11 +174,11 @@ def format_created_time(created_time):
 def index():
     
     analysis_database = 'analysis_review_case.db'
-    
+    database = 'waterzooi_db_case.db'
     
     # connect to db and extract project info
     #conn = connect_to_db('waterzooi.db')
-    conn = connect_to_db('waterzooi_db_case.db')
+    conn = connect_to_db(database)
         
     data = conn.execute('SELECT * FROM Projects').fetchall()
     conn.close()
@@ -190,10 +190,15 @@ def index():
     analysis_status = get_case_analysis_status(analysis_database)
     # count complete and incomplete cases
     analysis_counts = count_completed_cases(analysis_status)  
+    # get the sequencing status of each case
+    sequencing_status = get_case_sequencing_status(database)
+    # count cases with complete and incomplete sequencing
+    sequencing_counts = count_complete_sequencing(sequencing_status)  
       
     return render_template('index.html',
                            projects=projects,
-                           analysis_counts=analysis_counts)
+                           analysis_counts=analysis_counts,
+                           sequencing_counts=sequencing_counts)
 
 
 @app.route('/<project_name>')
@@ -224,7 +229,11 @@ def project_page(project_name):
     analysis_status = get_case_analysis_status(analysis_database, project_name)
     # count complete and incomplete cases
     analysis_counts = count_completed_cases(analysis_status)      
-    
+    # get the sequencing status of each case
+    sequencing_status = get_case_sequencing_status(database, project_name)
+    # count cases with complete and incomplete sequencing
+    sequencing_counts = count_complete_sequencing(sequencing_status)
+        
     return render_template('project.html', project=project, cases=cases,
                            assays=assays, assay_names = assay_names,
                            samples_libraries = samples_libraries,
@@ -232,7 +241,9 @@ def project_page(project_name):
                            library_types = library_types,
                            library_names=library_names,
                            analysis_status=analysis_status,
-                           analysis_counts=analysis_counts
+                           analysis_counts=analysis_counts,
+                           sequencing_status=sequencing_status,
+                           sequencing_counts=sequencing_counts
                            )
     
 

@@ -40,7 +40,14 @@
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['pipeline'] }}</a>
         </td>
         <td>
-          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">TBA</a>
+          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">
+            {% if sequencing_counts[i['project_id']]['complete'] %}
+              {{sequencing_counts[i['project_id']]['complete']}} <span style="font-size:16px;color:#70db70">&#10004;</span> 
+            {% endif %}
+            {% if sequencing_counts[i['project_id']]['incomplete'] %}
+              {{sequencing_counts[i['project_id']]['incomplete']}} <span style="font-size:16px;color:#ff3300;">&#10006;</span> 
+            {% endif %}
+          </a>
         </td>
         <td>
             <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">

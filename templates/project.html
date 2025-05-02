@@ -21,7 +21,9 @@
   </tr>
   <tr>
     <th>Sequencing status:</th>
-    <td>THIS NEEDS TO BE UPDATED</td>
+    <td>
+      complete: {{sequencing_counts[project['project_id']]['complete']}}, incomplete: {{sequencing_counts[project['project_id']]['incomplete']}}
+    </td>
   </tr>
   <tr>
     <th>Analysis status:</th>
@@ -78,6 +80,7 @@
       <th><div class="tooltip">External Id<span class="tooltiptext">User-supplied donor identifier</span></th>
       <th><div class="tooltip">MISO<span class="tooltiptext">Link to the MISO sample page</span></th>
       <th><div class="tooltip">Assay<span class="tooltiptext">Analysis assay</span></div></th>
+      <th><div class="tooltip">Sequencing status<span class="tooltiptext">Sequencing complete</span></div></th>
       <th><div class="tooltip">Analysis status<span class="tooltiptext">Data complete</span></div></th>
       <th><div class="tooltip">Normals<span class="tooltiptext">Count of normal samples</span></th>
       <th><div class="tooltip">Tumours<span class="tooltiptext">Count of tumour samples</span></th>
@@ -92,6 +95,13 @@
         <td>{{ i['ext_id'] }}</td>        
         <td><button id="miso_button"><a href="{{ i['miso'] }}" target="_blank">MISO</a></button>
         <td>{{ i['assay'] }}</td>
+        <td>
+          {% if sequencing_status[project['project_id']][i['case_id']] %}
+            <span style="font-size:16px;color:#70db70">&#10004;</span>
+          {% else %}
+            <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+          {% endif %}
+        </td>
         <td>
           {% if analysis_status[project['project_id']][i['case_id']] %}
             <span style="font-size:16px;color:#70db70">&#10004;</span>
