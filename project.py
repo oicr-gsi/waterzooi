@@ -254,3 +254,75 @@ def get_last_sequencing(project_name, database):
     except:
         return most_recent
     
+
+
+def get_case_analysis_status(analysis_database, project_name=None):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary with the analysis status of each case in a project if
+    project name is specified or all projects otherwise.
+    If a case has multiple analysis templates, it will return the status of a complete
+    template if one exists
+        
+    Parameters
+    ----------
+    - analysis_database (str): Path to the database storing the analysis data
+    - project_name (None str): Name of a specific project
+    '''
+    
+    conn = connect_to_db(analysis_database)
+    if project_name:
+        data = conn.execute("SELECT project, case_id, valid FROM templates WHERE project = ?", (project_name,)).fetchall()
+    else:
+        data = conn.execute("SELECT project, case_id, valid FROM templates").fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        project = i['project']
+        case = i['case_id']
+        valid = i['valid']
+        if project not in D:
+            D[project] = {}
+        if case in D[project]:
+            D[project][case].append(int(valid))
+        else:
+            D[project][case] = [int(valid)]
+    
+    # return the status of the complete template if one exists
+    for project in D:
+        for case in D[project]:
+            D[project][case] = sorted(D[project][case])
+            D[project][case] = D[project][case][-1]
+        
+    return D
+
+
+def count_completed_cases(analysis_status):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with counts of cases (case_id and assay) with complete
+    and incomplete analysis for each project     
+       
+    Parameters
+    ----------
+    - analysis_status (dict): Dictionary with analysis status of each case
+                              for each project
+    '''
+    
+    D = {}
+    
+    for project in analysis_status:
+        # get the status of all cases
+        status = list(analysis_status[project].values())
+        complete = sum(status)
+        incomplete = len(status) - complete
+        
+        D[project] = {'complete': complete, 'incomplete': incomplete}
+    
+    return D
+    
+    
+

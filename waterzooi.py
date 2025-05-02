@@ -32,7 +32,8 @@ from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_
     map_limskey_to_sample, get_workflow_output_files, group_files_by_samples, map_samples_to_files
 from whole_transcriptome import get_WT_call_ready_cases, get_WT_standard_deliverables, \
     create_WT_project_block_json, create_WT_block_json
-from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case
+from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
+    get_case_analysis_status, count_completed_cases
 from sequencing import get_sequences, collect_sequence_info, platform_name
 from swg_ts import get_swg_ts, review_data, \
     create_swg_ts_sample_json, create_swg_ts_project_json, get_swg_ts_standard_deliverables, \
@@ -172,9 +173,12 @@ def format_created_time(created_time):
 @app.route('/')
 def index():
     
+    analysis_database = 'analysis_review_case.db'
+    
+    
     # connect to db and extract project info
     #conn = connect_to_db('waterzooi.db')
-    conn = connect_to_db('waterzooi_db_test.db')
+    conn = connect_to_db('waterzooi_db_case.db')
         
     data = conn.execute('SELECT * FROM Projects').fetchall()
     conn.close()
@@ -182,14 +186,23 @@ def index():
     projects = sorted([(i['project_id'], i) for i in data])
     projects = [i[1] for i in projects]
     
-    return render_template('index.html', projects=projects)
+    # get analysis status of each case in each project
+    analysis_status = get_case_analysis_status(analysis_database)
+    # count complete and incomplete cases
+    analysis_counts = count_completed_cases(analysis_status)  
+      
+    return render_template('index.html',
+                           projects=projects,
+                           analysis_counts=analysis_counts)
 
 
 @app.route('/<project_name>')
 def project_page(project_name):
     
+    analysis_database = 'analysis_review_case.db'
+    
     #database = 'waterzooi.db'
-    database = 'waterzooi_db_test.db'
+    database = 'waterzooi_db_case.db'
     # get the project info for project_name from db
     project = get_project_info(project_name, database)
     # get case information
@@ -207,12 +220,19 @@ def project_page(project_name):
     seq_date = get_last_sequencing(project['project_id'], database)
     # get library definitions
     library_names = {i: get_library_design(i) for i in library_types}
+    # get the analysis status of each case
+    analysis_status = get_case_analysis_status(analysis_database, project_name)
+    # count complete and incomplete cases
+    analysis_counts = count_completed_cases(analysis_status)      
+    
     return render_template('project.html', project=project, cases=cases,
                            assays=assays, assay_names = assay_names,
                            samples_libraries = samples_libraries,
                            seq_date=seq_date, species=species, 
                            library_types = library_types,
-                           library_names=library_names
+                           library_names=library_names,
+                           analysis_status=analysis_status,
+                           analysis_counts=analysis_counts
                            )
     
 
