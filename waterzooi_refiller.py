@@ -975,6 +975,12 @@ def find_sequencing_attributes(limskeys, case_data):
                         'barcode': d['barcode'],
                         'lane': d['lane'],
                         'project': d['project'],
+                        'sample': d['sampleId'],
+                        'donor': d['donor'],
+                        'group_id': d['groupId'],
+                        'library_type': d['libraryDesign'],                   
+                        'tissue_origin': d['tissueOrigin'],
+                        'tissue_type': d['tissueType'],
                         'run': d['run']}
     
     return D
@@ -1106,32 +1112,32 @@ def get_workflow_inputs(case_data):
     return D
 
 
-def identify_parent_children_workflows(workflow_inputs, files):
-    '''
-    (dict, dict) -> dict     
+# def identify_parent_children_workflows(workflow_inputs, files):
+#     '''
+#     (dict, dict) -> dict     
     
-    Returns a dictionary of children: parents workflows relationsips for a case
+#     Returns a dictionary of children: parents workflows relationsips for a case
         
-    Parameters
-    ----------
-    - workflow_inouts (dict): Dictionary of workflows and their input files for a case
-    - files (dict): Dictionary of file swids matched to their workflow run id for a case    
-    '''
+#     Parameters
+#     ----------
+#     - workflow_inputs (dict): Dictionary of workflows and their input files for a case
+#     - files (dict): Dictionary of file swids matched to their workflow run id for a case    
+#     '''
     
-    # parents record child-parent workflow relationships
-    D = {}
+#     # parents record child-parent workflow relationships
+#     D = {}
     
-    for workflow in workflow_inputs:
-        if workflow_inputs[workflow]:
-            parent_workflows = sorted(list(set([files[i] for i in workflow_inputs[workflow] if i in files])))
-        else:
-            parent_workflows = ['NA']
-        if workflow not in D:
-            D[workflow] = parent_workflows
-        else:
-            assert D[workflow] == parent_workflows
+#     for workflow in workflow_inputs:
+#         if workflow_inputs[workflow]:
+#             parent_workflows = sorted(list(set([files[i] for i in workflow_inputs[workflow] if i in files])))
+#         else:
+#             parent_workflows = ['NA']
+#         if workflow not in D:
+#             D[workflow] = parent_workflows
+#         else:
+#             assert D[workflow] == parent_workflows
     
-    return D
+#     return D
 
 
 
