@@ -9,22 +9,26 @@ Created on Sun Aug 13 21:11:22 2023
 from utilities import connect_to_db, convert_epoch_time
 
 
-def get_project_info(project_name, database):
+def get_project_info(database, project_name=None):
     '''
-    (str, str) -> list
+    (str, str | None) -> list
     
-    Returns a list with project information extracted from database for project_name 
+    Returns a list with project information extracted from database for all projects 
+    of for a single project if project_name is defined 
     
     Parameters
     ----------
-    - project_name (str): Project of interest
     - database (str): Path to the sqlite database
+    - project_name (None | str): Project of interest
     '''
     
     # connect to db
     conn = connect_to_db(database)
-    # extract project info
-    project = conn.execute('SELECT * FROM Projects WHERE project_id=?', (project_name,)).fetchall()[0]
+    if project_name:
+        # extract project info
+        project = conn.execute('SELECT * FROM Projects WHERE project_id=?', (project_name,)).fetchall()
+    else:
+        project = conn.execute('SELECT * FROM Projects').fetchall()
     conn.close()
     
     return project
