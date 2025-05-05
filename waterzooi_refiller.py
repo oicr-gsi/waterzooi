@@ -53,7 +53,7 @@ def define_column_names():
                     'Projects': ['project_id', 'pipeline', 'last_updated', 'cases', 'samples',
                                  'library_types', 'assays', 'deliverables', 'active'],
                     'Files': ['file_swid', 'project_id', 'md5sum', 'wfrun_id', 'file', 'attributes', 'creation_date', 'limskey', 'case_id', 'donor_id'],
-                    'Libraries': ['library', 'lims_id', 'case_id', 'donor_id', 'tissue_type', 'tissue_origin',
+                    'Libraries': ['library', 'lims_id', 'sample_id', 'case_id', 'donor_id', 'tissue_type', 'tissue_origin',
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
                     'Workflow_Inputs': ['library', 'run', 'lane', 'wfrun_id', 'limskey', 'barcode', 'platform', 'project_id', 'case_id', 'donor_id'],
                     'Samples': ['case_id', 'assay', 'donor_id', 'ext_id', 'species', 'sex', 'miso', 'project_id', 'sequencing_status'],
@@ -78,7 +78,7 @@ def define_column_types():
                                  'VARCHAR(572)', 'INT'],
                     'Files': ['VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(256)',
                               'VARCHAR(572)', 'TEXT', 'TEXT', 'INT', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(128)'],
-                    'Libraries': ['VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(572)',
+                    'Libraries': ['VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(572)',
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)',
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(128)'],
                     'Workflow_Inputs': ['VARCHAR(128)', 'VARCHAR(256)', 'INTEGER', 'VARCHAR(572)', 
@@ -641,7 +641,7 @@ def collect_case_library_info(case_data):
              'project_id': project, 'group_id': group_id, 
              'group_id_description': group_id_description,
              'library_type': library_type, 'tissue_type': tissue_type,
-             'tissue_origin': tissue_origin, 'lims_id': lims_id, 'sample': sample}
+             'tissue_origin': tissue_origin, 'lims_id': lims_id, 'sample_id': sample}
         
         if library not in D:
             D[library] = [d] 
@@ -2713,8 +2713,8 @@ def generate_database(database, provenance_data_file):
     
     
     # update the checksums for donors
-    # add_checksums_info_to_db(database, cases_to_update, 'Checksums')
-    # print('added md5sums to database')
+    add_checksums_info_to_db(database, cases_to_update, 'Checksums')
+    print('added md5sums to database')
     
  
    
