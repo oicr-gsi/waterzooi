@@ -1,0 +1,161 @@
+{% extends 'project_base.html' %}
+
+
+{% block link %}
+  <a href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
+  <a href="{{ url_for('sequencing', project_name=project['project_id']) }}">Sequencing</a>
+  {% for i in assays %}
+    {% if i == current_assay %}
+      <a class="selected" href="{{ url_for('analysis', project_name=project['project_id'], assay=i | format_identifier) }}">{{i}}</a>
+    {% else %}
+      <a href="{{ url_for('analysis', project_name=project['project_id'], assay=i | format_identifier) }}">{{i}}</a>   
+    {% endif %}  
+  {% endfor %}   
+{% endblock %}
+
+
+{% block content %}
+  <div class="project_title">
+    {% if cases %}
+    <p style="font-size:22px; font-style:normal;"> Analysis data for <span id ="count"> {{ cases|length }} </span> cases</p>
+    {% else %}
+      <span style="font-size:30px; font-style:normal;"> No cases to display</span>
+    {% endif %}  
+  </div> 
+    
+  {% if cases %}
+    <div class="download-dropdown">
+      <button class="download-dropbtn">Download json</button>
+      <div class="download-dropdown-content">
+        <form method="POST" action ="">
+          {% if deliverable == 'selected' %}
+            <input class="checkbox_small" type="checkbox" name="deliverable" value="selected" id="deliverable" checked/><label>selected</label><br>      
+          {% else %}
+            <input class="checkbox_small" type="checkbox" name="deliverable" value="selected" id="deliverable"/><label>selected</label><br>      
+          {% endif %}
+          {% if deliverable == 'standard' %}
+            <input class="checkbox_small" type="checkbox" name="deliverable" value="standard" id="deliverable" checked/><label>standard</label><br>      
+          {% else %}
+            <input class="checkbox_small" type="checkbox" name="deliverable" value="standard" id="deliverable"/><label>standard</label><br>      
+          {% endif %}
+          <button class="select_button_small" type = "submit" value="submit">Download</button>
+        </form>          
+      </div>
+    </div>  
+    
+    <div class="search_container">
+      <input type="text" id="search_table"  onkeyup="searchFunction()" placeholder="Search.." title="Type in a keyword">
+    </div>
+
+    <table id="wgs_table">
+      <thead>
+        <th>Cases</th>
+        <th>Donors</th>
+        <th>Analysis groups</th>
+        <th>Samples</th>
+        <th>Call-ready</th>
+        <th>Downstream</th>
+        <th>Reviewed</th>
+        <th><div class="tooltip">Sequencing status<span class="tooltiptext">Complete sequencing?</span></div></th>
+        <th><div class="tooltip">Analysis status<span class="tooltiptext">Complete data?</span></div></th>
+        {% for i in analysis_workflows %}
+          <th>{{i}}</th>  
+        {% endfor %}
+    </thead>     
+
+      {% for i in case_names %}
+         <tbody>
+            <tr>
+              <td> {{i}} </td>
+              <td> {{donors[i]}}</td>
+              <td>{{ case_data[i] | length }}</td>
+              <td>
+                <dl>
+                  {% for j in samples[i] %}
+                    <dt>
+                      {{j}}
+                    </dt>
+                    <br>
+                  {% endfor %}
+                </dl>        
+              </td>
+              <td>{{ workflow_counts[i]['callready'] }}</td>
+              <td>{{ workflow_counts[i]['downstream'] }}</td>
+              <td>
+                <a class="project_links" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=current_assay | format_identifier, case=i | format_identifier, )}}">
+                  <button class="review_button">Review</button>
+                </a>        
+              </td>
+              <td>
+                {% if sequencing_status[project['project_id']][i] %}
+                  <span style="font-size:16px;color:#70db70">&#10004;</span>
+                {% else %}
+                  <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                {% endif %}
+              </td>
+              {% if cases[i]['valid'] %}
+                 <td><span style="font-size:16px;color:#70db70">&#10004;</span></td>
+              {% else %}
+                  <td><span style="font-size:16px;color:#ff3300;">&#10006;</span></td>
+              {% endif %} 
+              
+              
+              
+              
+              
+              {% for workflow in analysis_workflows %}
+                  {% if workflow in workflow_counts[i]['analysis'] %}
+                    <td>{{ workflow_counts[i]['analysis'][workflow] }}</td>
+                  {% else %}
+                    <td>0</td> 
+                  {% endif %}
+              {% endfor %} 
+            </tr>
+         
+
+
+
+
+         </tbody>
+
+
+
+      {% endfor %} 
+
+                     
+    </table>
+
+
+
+
+  <footer>
+    <p class="data_update"> Data last updated: {{project['last_updated'].split('_')[0]}} </p>
+  </footer>
+  
+  <script>
+    function searchFunction() {
+      var input, filter, table, tr, td, i, txtValue;
+      var rowCount = 0    
+      input = document.getElementById("search_table");
+      filter = input.value.toUpperCase();
+      table = document.getElementById("project_table");
+      tr = table.getElementsByTagName("tr");
+      for (i = 1; i < tr.length; i++) {
+        td= tr[i];
+        if (td) {
+          txtValue = td.textContent || td.innerText;
+          if (txtValue.toUpperCase().indexOf(filter) > -1) {
+            tr[i].style.display = "";
+            rowCount++;
+          } else {
+            tr[i].style.display = "none";
+          }
+        }       
+      }
+      document.getElementById("count").innerHTML = rowCount
+    }
+  </script>
+
+  {% endif %}
+  
+{% endblock %}

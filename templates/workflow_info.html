@@ -1,0 +1,138 @@
+{% extends 'project_base.html' %}
+
+
+{% block link %}
+  <a href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
+  <a href="{{ url_for('analysis', project_name=project['project_id'], assay=assay | format_identifier) }}">{{assay}}</a>   
+  <a class="selected" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier)}}">{{case}}</a>
+{% endblock %}
+
+
+{% block content %}
+
+  <table id="block_header_table" style="margin-top:60px;">
+    <tr>
+      <th>Workflow id</th>
+      <th>Name</th>
+      <th>Version</th>
+    </tr>
+    <tr>
+      <td>{{ workflow_id }}</td>
+      <td>{{ workflow_info[workflow_id].0 }}</td>
+      <td>{{ workflow_info[workflow_id].1 }}</td>
+    </tr>
+  </table>
+  
+  
+
+  <h2> Output files: </h2>     
+  
+  {% if outputfiles %}
+    <table id="wgs_table">
+      <tr>
+        <th>Samples</th>
+        <th>Files</th>
+      </tr>
+      {% set samples = outputfiles.keys() | sort %}
+      {% for i in samples %}
+        {% set rowNum = outputfiles[i] | length %}
+        <tbody>       
+          <tr>
+            {% if ';' in i %}
+            <td rowspan="{{rowNum}}">
+              <dl>
+                {% for k in i.split(';') %}
+                  <dt>{{k}}</dt>
+                {% endfor %}
+              </dl>
+            </td>
+            {% else %}
+              <td rowspan="{{rowNum}}">{{ i }}</td>
+            {% endif %} 
+                  
+            <td>{{ outputfiles[i].0 }}</td>
+            {% for j in outputfiles[i][1:] %}
+              <tr>
+                <td>{{ j }}</td>
+              </tr>        
+             {% endfor %}
+          </tr>
+         </tbody>    
+      {% endfor %}
+    </table>
+  {% else %}
+    <p style="font-size:22px; font-style:bold;"> No output file to display </p>     
+  {% endif %}
+  
+
+
+
+
+
+
+  {% if child_to_parents[workflow_id] != ['NA'] %}  
+    <h2> Parent workflows: </h2> 
+
+    <table id="workflow_table">
+      <tr>
+        <th colspan="2">Parents</th>
+      </tr>
+      <tr>    
+        <th>Name</th>
+        <th>Workflow id</th>
+      </tr>
+      {% for parent in child_to_parents[workflow_id] | sort %}
+        <tr>
+          <td>{{ workflow_info[parent].0 }}</td>
+          <td>
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=parent | basename) }}">
+              {{parent}}
+            </a>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+
+{% endif %}  
+
+
+{% if parent_to_children[workflow_id] %}  
+  <h2> Downstream workflows: </h2> 
+
+  <table id="workflow_table">
+    <tr>
+      <th colspan="2">Children</th>  
+    </tr>
+    <tr>
+      <th>Name</th>
+      <th>Workflow id</th>
+    </tr>  
+    {% for child in parent_to_children[workflow_id] %}
+      <tr>
+        <td>{{ workflow_info[child].0 }}</td>
+          <td>
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=child | basename) }}">
+              {{child}}
+            </a>
+          </td>
+      </tr>  
+    {% endfor %}
+  </table>
+
+{% endif %}  
+
+
+
+
+    
+  <footer>
+    <p class="data_update"> Data last updated: {{project['last_updated'].split('_')[0]}} </p>
+  </footer>
+  
+  
+
+
+
+
+{% endblock %}
+

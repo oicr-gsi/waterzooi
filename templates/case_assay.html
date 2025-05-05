@@ -1,0 +1,176 @@
+{% extends 'project_base.html' %}
+
+
+{% block link %}
+  <a href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
+  <a href="{{ url_for('sequencing', project_name=project['project_id']) }}">Sequencing</a> 
+  {% for i in assays %}
+    <a href="{{ url_for('analysis', project_name=project['project_id'], assay= i | format_identifier) }}">{{i}}</a>
+  {% endfor %}   
+  <a class="split" href="{{ miso_link }}" target="_blank">{{ case }}</a> 
+{% endblock %}
+
+
+{% block content %}
+  <div class="project_title">
+    <p style="font-size:18px; font-family: Arial, Helvetica, sans-serif; margin-top: 50px"> Analysis templates for case {{case}} </p>
+  </div> 
+
+
+
+  {% for i in range(case_data | length) %} 
+    <form method="POST" action = "">
+        <div class="somatic_block">
+          <table id="block_header_table">
+            <tr>
+              <td>{{ most_recent[i] | readable_time}}</td>
+              {% if case_analysis[i]['valid'] %}
+                <td><div class="tooltip">Complete:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:24px;color:#70db70">&#10004;</span></td>
+              {% else %}
+                <td><div class="tooltip">Complete:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:24px;color:#ff3300;">&#10006;</span></td>
+              {% endif %}
+              <td>
+                <button class="select_button" id="select" type = "submit" value="submit">Select workflows</button>
+              </td>
+              <td>
+                <div class="download-dropdown-small">
+                  <button class="download-dropbtn-small">Download json</button>
+                    <div class="download-dropdown-content-small">
+                      <button class="download_button_small"><a href="#{{url_for('download_block_data', project_name='truc', pipeline='WG', case=case, pair='truc', anchor_wf='anchor_wf', table='WGS_blocks', selection='all')}}">all</a></button>
+                      <br>
+                      <button class="download_button_small"><a href="#{{url_for('download_block_data', project_name='truc', pipeline='WG', case=case, pair='truc', anchor_wf='anchor_wf', table='WGS_blocks', selection='standard')}}">standard</a></button>
+                    </div>
+                </div>
+              </td>                  
+            </tr>
+          </table>  
+        
+          <p style="font-size:16px;"> Call-ready workflows </p>     
+
+            <table id="block_table">
+              <thead>
+                <th>workflow_run_id</th>
+                <th>workflow</th>
+                <th>file count</th>
+                <th>lane count</th>
+                <th>date</th>      
+                <th>samples</th>
+                <th>select</th> 
+              </thead>     
+            
+              {% for workflow_id in case_data[i]['callready'] %}
+                <tr>  
+                  <td>
+                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | basename) }}">
+                      {{ workflow_id | basename | shorten_workflow_id }}
+                    </a>
+                  </td> 
+                  <td>{{ workflow_names[i][workflow_id] }} </td> 
+                  <td>{{ file_counts[workflow_id | basename] }} </td> 
+                  <td>{{ amount_data[workflow_id | basename] }} </td> 
+                  <td>{{ creation_dates[workflow_id | basename] | readable_time}} </td> 
+                  <td>
+                    <dl>
+                      {% for j in samples[workflow_id | basename] %}
+                        <dt>
+                          {{j}}
+                        </dt>
+                        <br>
+                      {% endfor %}
+                    </dl>        
+                  </td>
+                  <td>
+                    {% if selected[bmpp_run] %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow" checked/>
+                    {% else %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow"/>  
+                    {% endif %}    
+                  </td>
+                </tr>
+              {% endfor %}              
+            </table>  
+
+            <p style="font-size:16px;"> Analysis workflows </p>     
+
+            <table id="block_table">
+              <thead>
+                <th>workflow_run_id</th>
+                <th>workflow</th>
+                <th>parent</th>
+                <th>file count</th>
+                <th>lane count</th>
+                <th>date</th>     
+                <th>samples</th>
+                <th>select</th>
+              </thead>     
+                 
+              {% for workflow_id in case_data[i]['downstream'] %}
+                <tr>  
+                  <td>
+                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | basename) }}">
+                      {{ workflow_id | basename | shorten_workflow_id }}
+                    </a>
+                  </td>
+                  <td>{{ workflow_names[i][workflow_id] }} </td> 
+                  <td>
+                    {% for parent in child_to_parents[workflow_id | basename] %}
+                      <dl>
+                        <dt>
+                          <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=parent | basename) }}">
+                            {{parent | shorten_workflow_id}}
+                          </a> 
+                        </dt>
+                      </dl>        
+                    {% endfor %}
+                  <td>{{ file_counts[workflow_id | basename] }} </td> 
+                  <td>{{ amount_data[workflow_id | basename] }} </td> 
+                  <td>{{ creation_dates[workflow_id | basename] | readable_time}} </td> 
+                  <td>
+                    <dl>
+                      {% for j in samples[workflow_id | basename] %}
+                        <dt>
+                          {{j}}
+                        </dt>
+                        <br>
+                      {% endfor %}
+                    </dl>        
+                  </td>
+                  <td>
+                    {% if selected[bmpp_run] %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow" checked/>
+                    {% else %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow"/>  
+                    {% endif %}    
+                  </td>
+                </tr>
+              {% endfor %}              
+            
+              {% for workflow in missing_workflows[i] %}
+                <tr>
+                  <td>NA</td>  
+                  <td>{{workflow}}</td>
+                  <td>NA</td>
+                  <td>NA</td>
+                  <td>NA</td>
+                  <td>NA</td>     
+                  <td>NA</td>
+                  <td>NA</td>
+                </tr>
+              {% endfor %}
+            </table>  
+        </div>
+    </form> 
+  {% endfor %}          
+              
+             
+            
+         
+            
+           
+
+  <footer>
+    <p class="data_update"> Data last updated: {{project['last_updated'].split('_')[0]}} </p>
+  </footer>
+
+{% endblock %}
+
