@@ -16,7 +16,7 @@ import matplotlib
 matplotlib.use('agg')
 from utilities import connect_to_db, get_miso_sample_link,\
     get_pipelines, get_workflow_names, get_library_design, secret_key_generator, \
-    get_children_workflows, get_case_md5sums, get_assay_number, code_to_assay, convert_epoch_time
+    get_children_workflows, get_case_md5sums, convert_epoch_time
 from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_json, \
     get_parent_workflows, get_workflows_analysis_date, get_workflow_file_count, \
     get_WGTS_blocks_info, get_sequencing_platform, get_selected_workflows, \
@@ -176,14 +176,9 @@ def index():
     analysis_database = 'analysis_review_case.db'
     database = 'waterzooi_db_case.db'
     
-    # connect to db and extract project info
-    #conn = connect_to_db('waterzooi.db')
-    conn = connect_to_db(database)
-        
-    data = conn.execute('SELECT * FROM Projects').fetchall()
-    conn.close()
-    
-    projects = sorted([(i['project_id'], i) for i in data])
+    # extract project info
+    projects = get_project_info(database)
+    projects = sorted([(i['project_id'], i) for i in projects])
     projects = [i[1] for i in projects]
     
     # get analysis status of each case in each project
@@ -209,7 +204,7 @@ def project_page(project_name):
     #database = 'waterzooi.db'
     database = 'waterzooi_db_case.db'
     # get the project info for project_name from db
-    project = get_project_info(project_name, database)
+    project = get_project_info(database, project_name)[0]
     # get case information
     cases = get_cases(project_name, database)
     # sort by case id
@@ -251,14 +246,25 @@ def project_page(project_name):
 def sequencing(project_name):
     
     #database = 'waterzooi.db'
-    database = 'waterzooi_db_test.db'
+    database = 'waterzooi_db_case.db'
     
     # get the project info for project_name from db
-    project = get_project_info(project_name, database)
+    project = get_project_info(database, project_name)[0]
     # get sequence file information
     files = collect_sequence_info(project_name, database)
+    
+        
+    
+    
+    
     # re-organize sequence information
     sequences = get_sequences(files)
+    
+    
+    print(sequences)
+    
+    
+    
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
@@ -310,16 +316,18 @@ def sequencing(project_name):
 @app.route('/<project_name>/<assay>', methods=['POST', 'GET'])
 def analysis(project_name, assay):
     
-    database = 'waterzooi_db_test.db'
+    #database = 'waterzooi_db_test.db'
+    database = 'waterzooi_db_case.db'
+    
     workflow_db = 'workflows.db'
-    analysis_db = 'analysis_review.db'
+    analysis_database = 'analysis_review_case.db'
     
     assay = assay.replace('+:+', '/')
         
     # get the project info for project_name from db
-    project = get_project_info(project_name, database)
+    project = get_project_info(database, project_name)[0]
     # get the cases with analysis data for that project and assay
-    cases = get_cases_with_analysis(analysis_db, project_name, assay)
+    cases = get_cases_with_analysis(analysis_database, project_name, assay)
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
     # keep only cases with up to date data between resources
@@ -331,7 +339,7 @@ def analysis(project_name, assay):
     to_remove = list(set(to_remove))
     if to_remove:
         alert = 'removing {0} cases for which data is not in sync between {1} and {2}'
-        print(alert.format(len(to_remove), os.path.basename(database), os.path.basename(analysis_db)))
+        print(alert.format(len(to_remove), os.path.basename(database), os.path.basename(analysis_database)))
         for i in to_remove:
             del cases[i]
     
@@ -352,7 +360,12 @@ def analysis(project_name, assay):
     
     # add links to miso and dimsum
     
+    ## add sequencing status
     
+    ## add analysis status
+    
+    
+    ## add error message
         
     # get the assays
     assay_names = get_assays(database, project_name)
@@ -380,6 +393,13 @@ def analysis(project_name, assay):
     ## get the assays from the project table
     
     
+    
+    
+    # get the analysis status of each case
+    analysis_status = get_case_analysis_status(analysis_database, project_name)
+    # get the sequencing status of each case
+    sequencing_status = get_case_sequencing_status(database, project_name)
+        
     
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
@@ -412,21 +432,25 @@ def analysis(project_name, assay):
                            case_names=case_names,
                            case_data=case_data,
                            analysis_workflows=analysis_workflows,
-                           workflow_counts=workflow_counts
+                           workflow_counts=workflow_counts,
+                           analysis_status=analysis_status,
+                           sequencing_status=sequencing_status
                            )
 
 @app.route('/<project_name>/<assay>/<case>/', methods = ['POST', 'GET'])
 def case_analysis(project_name, assay, case):
     
-    database = 'waterzooi_db_test.db'
+    #database = 'waterzooi_db_test.db'
+    database = 'waterzooi_db_case.db'
+    
     workflow_db = 'workflows.db'
-    analysis_db = 'analysis_review.db'
+    analysis_db = 'analysis_review_case.db'
     
     assay = assay.replace('+:+', '/')
     case = case.replace('+:+', '/')
     
     # get the project info for project_name from db
-    project = get_project_info(project_name, database)
+    project = get_project_info(database, project_name)[0]
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_db, project_name, assay)
     case_analysis = cases[case]
@@ -592,7 +616,7 @@ def show_workflow(project_name, assay, case, wfrunid):
         
     
     # get the project info for project_name from db
-    project = get_project_info(project_name, database)
+    project = get_project_info(database, project_name)[0]
     
     # get the workflow info for each workflow in case
     
