@@ -28,8 +28,8 @@ from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_
     get_input_sequences, get_cases_with_analysis, get_case_analysis_samples, get_case_analysis_workflows, \
     count_case_analysis_workflows, most_recent_analysis_workflow, get_analysis_workflow_name, \
     get_case_workflow_samples, get_assays, get_missing_workflows, get_case_parent_to_children_workflows, \
-    get_case_children_to_parents_workflows, get_case_workflow_info, map_files_to_limskeys, \
-    map_limskey_to_sample, get_workflow_output_files, group_files_by_samples, map_samples_to_files
+    get_case_children_to_parents_workflows, get_case_workflow_info, get_workflow_output_files, \
+    delete_cases_with_distinct_checksums, map_donors_to_cases, list_assay_analysis_workflows, get_input_sequences    
 from whole_transcriptome import get_WT_call_ready_cases, get_WT_standard_deliverables, \
     create_WT_project_block_json, create_WT_block_json
 from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
@@ -328,41 +328,26 @@ def analysis(project_name, assay):
     project = get_project_info(database, project_name)[0]
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_database, project_name, assay)
+    
+    print(cases)
+    
+    
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
     # keep only cases with up to date data between resources
-    to_remove = []
-    for i in cases:
-        for j in cases[i]:
-            if j['md5sum'] != md5sums[i]:
-                to_remove.append(i)
-    to_remove = list(set(to_remove))
-    if to_remove:
-        alert = 'removing {0} cases for which data is not in sync between {1} and {2}'
-        print(alert.format(len(to_remove), os.path.basename(database), os.path.basename(analysis_database)))
-        for i in to_remove:
-            del cases[i]
-    
+    delete_cases_with_distinct_checksums(cases, md5sums)
     # get the donor
-    donors = {}
-    for i in cases:
-        for d in cases[i]:
-            donor = d['donor']
-            if i in donors:
-                assert donor == donors[i]
-            else:
-                donors[i] = donor
+    donors = map_donors_to_cases(cases)
+
     
     
-    #### put code in functions
+   
     
     # add links to workflows
     
     # add links to miso and dimsum
     
-    ## add sequencing status
-    
-    ## add analysis status
+   
     
     
     ## add error message
@@ -370,11 +355,6 @@ def analysis(project_name, assay):
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
-    
-    
-    
-    
-    
     # get the samples analyzed in the assay for each case
     samples = get_case_analysis_samples(cases)
     case_names = sorted(list(cases.keys()))
@@ -382,19 +362,8 @@ def analysis(project_name, assay):
     workflow_counts = count_case_analysis_workflows(cases)
     # re-organized the workflows
     case_data = get_case_analysis_workflows(cases)
-    # get all the analysis workflows
-    analysis_workflows = []
-    for case in case_data:
-        for d in case_data[case]:
-            analysis_workflows.extend(list(d['analysis'].keys()))
-    analysis_workflows = sorted(list(set(analysis_workflows)))    
-    
-    
-    ## get the assays from the project table
-    
-    
-    
-    
+    # get all the analysis workflows across each case of the same assay
+    analysis_workflows = list_assay_analysis_workflows(case_data)
     # get the analysis status of each case
     analysis_status = get_case_analysis_status(analysis_database, project_name)
     # get the sequencing status of each case
@@ -460,38 +429,21 @@ def case_analysis(project_name, assay, case):
     creation_dates = get_workflows_analysis_date(project_name, database)
     # get the most recent creation date for each template
     most_recent = most_recent_analysis_workflow(case_data, creation_dates)
-    #most_recent = list(map(lambda x: convert_epoch_time(x), most_recent))
     # get the workflow names    
     workflow_names = [get_analysis_workflow_name(case_data[i]['analysis']) for i in range(len(case_data))]
+    # get the sequencing status of the case
+    sequencing_status = get_case_sequencing_status(database, project_name)
+    sequencing_status = sequencing_status[project_name][case]
     # get the file count of each workflow in project
     file_counts = get_workflow_file_count(project_name, database)
     # get the amount of data for each workflow
     amount_data = get_amount_data(project_name, database)
     # get the samples corresponding to each worklow id
     samples = get_case_workflow_samples(database, case)
-    
-    
-    print('6d13ee0546e10e5bec0ae93449e36826aec080013732c4e9525fb5489b621eda' in samples)
-    
-    
-   ##### a library may belong to multiple cases
-   ##### need to allow for library to not be unique
-   ##### library, case can be different
-   
-   
-   
-   
-   
-    
-    
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
-    
-    
-    
-    
-    # get the number of lane of sequence per sample 
+     
     
     
     selected = get_selected_workflows(project_name, workflow_db, 'Workflows')
@@ -533,7 +485,6 @@ def case_analysis(project_name, assay, case):
     #### add lane level alignments
     
     
-    #### fix position of case in bar
     
     
     
@@ -594,7 +545,8 @@ def case_analysis(project_name, assay, case):
                            samples=samples,
                            selected=selected,
                            missing_workflows=missing_workflows,
-                           child_to_parents=child_to_parents
+                           child_to_parents=child_to_parents,
+                           sequencing_status=sequencing_status
                            
                            
                            )
@@ -607,121 +559,24 @@ def case_analysis(project_name, assay, case):
 @app.route('/<project_name>/<assay>/<case>/<path:wfrunid>')
 def show_workflow(project_name, assay, case, wfrunid):
     
-    #database = 'waterzooi.db'
-    database = 'waterzooi_db_test.db'
-    
+    database = 'waterzooi_db_case.db'
+      
     assay = assay.replace('+:+', '/')
     case = case.replace('+:+', '/')
-    
-        
+    wfrunid = wfrunid.replace('+:+', '/')
     
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
-    
-    # get the workflow info for each workflow in case
-    
     # get the parent and children workflows
     parent_to_children = get_case_parent_to_children_workflows(database, case)
     child_to_parents = get_case_children_to_parents_workflows(parent_to_children)
     # get workflow name and version
     workflow_info = get_case_workflow_info(database, case)
-    
-    # get the samples corresponding to each workflow run
-    samples = get_case_workflow_samples(database, case)
-    
-    # get the workflow outputfiles sorted by samples
-    files_to_limskeys = map_files_to_limskeys(database, case)
-    limskey_to_sample = map_limskey_to_sample(database, case)
-    workflow_outputs = get_workflow_output_files(files_to_limskeys, limskey_to_sample)
-    workflow_outputs = workflow_outputs[wfrunid]
-    # group files by samples
-    outputfiles = group_files_by_samples(map_samples_to_files(workflow_outputs))
-    
-    # # get the workflow names
-    # workflow_names = get_workflow_names(project_name, database)
-       
-    # # find the parents of each workflow
-    # parents = get_parent_workflows(project_name, database)
-    # if workflow_id in parents:
-    #     parents = parents[workflow_id]
-    # else:
-    #     parents = {}
-    
-    # # find the children of each workflow
-    # D = get_children_workflows(project_name, database)
-    # children = {}
-    # if workflow_id in D:
-    #     D = D[workflow_id]
-    #     for i in D:
-    #         if i['wf'] in children:
-    #             children[i['wf']].append(i['children_id'])
-    #         else:
-    #             children[i['wf']] = [i['children_id']]
-    
-    # # get the number of rows in table
-    # rows, parent_rows, children_rows = 0, 0, 0
-    # for i in parents:
-    #     parent_rows += len(parents[i])
-    # for i in children:
-    #     children_rows += len(children[i])
-    # rows = max([parent_rows, children_rows])
-    # if parent_rows > children_rows:
-    #     parent_rows = rows
-    # elif parent_rows < children_rows:
-    #     children_rows = rows
-    
-    # # get input worflow sequences
-    # limskeys = get_workflow_limskeys(project_name, database, 'Workflow_Inputs')
-    # limskeys = limskeys[workflow_id]
-    # # get input sequences
-    # D = get_input_sequences(project_name, database)
-    # input_sequences = {i:D[i] for i in limskeys}
-
-    # # map file swids to file names
-    # fastqs = map_fileswid_to_filename(project_name, database, 'Files')
-    
-    # # map library to limskey
-    # all_libraries = map_limskey_to_library(project_name, database, table='Workflow_Inputs')
-    # libraries = all_libraries[workflow_id]
-    
-    
-    # # map libraries to samples
-    # all_samples = map_library_to_sample(project_name, database, table = 'Libraries')
-    # samples = all_samples[case]    
-    
-    # sequences = []
-    # for i in limskeys:
-    #     library = libraries[i]
-    #     sample = samples[library]
-    #     swid1, swid2 = input_sequences[i][0], input_sequences[i][1]
-    #     file1, file2 = fastqs[swid1], fastqs[swid2]
-    #     seq = [[swid1, file1], [swid2, file2]]
-    #     seq.sort(key=lambda x: x[1])
-    #     for j in seq:
-    #         sequences.append([sample, library, i, j[0], j[1]])
-    # sequences.sort(key=lambda x: x[0])
-    
-    # # get workflow output files
-    # donors = map_library_to_case(project_name, database, table = 'Libraries')
-    # workflow_outputfiles = get_workflow_output(project_name, database, all_libraries, all_samples, donors, 'Files')
-    # files = workflow_outputfiles[workflow_id]
-     
-    
-    # return render_template('workflow_info.html',
-    #                        project=project,
-    #                        case=case,
-    #                        sample_pair=sample_pair,
-    #                        parents=parents,
-    #                        children=children,
-    #                        parent_rows=parent_rows,
-    #                        children_rows=children_rows,
-    #                        rows=rows,
-    #                        workflow_id=workflow_id,
-    #                        workflow_names=workflow_names,
-    #                        files=files,
-    #                        sequences=sequences
-    #                        )
-
+    # get the output files
+    outputfiles = get_workflow_output_files(database, wfrunid)
+    # get the input sequences
+    input_sequences = get_input_sequences(database, case, wfrunid)
+        
     return render_template('workflow_info.html',
                        project=project,
                        case=case,
@@ -730,23 +585,9 @@ def show_workflow(project_name, assay, case, wfrunid):
                        workflow_id=wfrunid,
                        child_to_parents=child_to_parents,
                        parent_to_children=parent_to_children,
-                       outputfiles=outputfiles
+                       outputfiles=outputfiles,
+                       input_sequences=input_sequences
                        )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -999,98 +840,98 @@ def ex_case(project_name, case, sample_pair):
                            )
 
 
-@app.route('/<project_name>/<pipeline>/<case>/<sample_pair>/<path:workflow_id>')
-def workflow(project_name, pipeline, case, sample_pair, workflow_id):
+# @app.route('/<project_name>/<pipeline>/<case>/<sample_pair>/<path:workflow_id>')
+# def workflow(project_name, pipeline, case, sample_pair, workflow_id):
     
-    database = 'waterzooi.db'
+#     database = 'waterzooi.db'
     
-    # get the project info for project_name from db
-    project = get_project_info(project_name, database)
-    # get the workflow names
-    workflow_names = get_workflow_names(project_name, database)
+#     # get the project info for project_name from db
+#     project = get_project_info(project_name, database)
+#     # get the workflow names
+#     workflow_names = get_workflow_names(project_name, database)
        
-    # find the parents of each workflow
-    parents = get_parent_workflows(project_name, database)
-    if workflow_id in parents:
-        parents = parents[workflow_id]
-    else:
-        parents = {}
+#     # find the parents of each workflow
+#     parents = get_parent_workflows(project_name, database)
+#     if workflow_id in parents:
+#         parents = parents[workflow_id]
+#     else:
+#         parents = {}
     
-    # find the children of each workflow
-    D = get_children_workflows(project_name, database)
-    children = {}
-    if workflow_id in D:
-        D = D[workflow_id]
-        for i in D:
-            if i['wf'] in children:
-                children[i['wf']].append(i['children_id'])
-            else:
-                children[i['wf']] = [i['children_id']]
+#     # find the children of each workflow
+#     D = get_children_workflows(project_name, database)
+#     children = {}
+#     if workflow_id in D:
+#         D = D[workflow_id]
+#         for i in D:
+#             if i['wf'] in children:
+#                 children[i['wf']].append(i['children_id'])
+#             else:
+#                 children[i['wf']] = [i['children_id']]
     
-    # get the number of rows in table
-    rows, parent_rows, children_rows = 0, 0, 0
-    for i in parents:
-        parent_rows += len(parents[i])
-    for i in children:
-        children_rows += len(children[i])
-    rows = max([parent_rows, children_rows])
-    if parent_rows > children_rows:
-        parent_rows = rows
-    elif parent_rows < children_rows:
-        children_rows = rows
+#     # get the number of rows in table
+#     rows, parent_rows, children_rows = 0, 0, 0
+#     for i in parents:
+#         parent_rows += len(parents[i])
+#     for i in children:
+#         children_rows += len(children[i])
+#     rows = max([parent_rows, children_rows])
+#     if parent_rows > children_rows:
+#         parent_rows = rows
+#     elif parent_rows < children_rows:
+#         children_rows = rows
     
-    # get input worflow sequences
-    limskeys = get_workflow_limskeys(project_name, database, 'Workflow_Inputs')
-    limskeys = limskeys[workflow_id]
-    # get input sequences
-    D = get_input_sequences(project_name, database)
-    input_sequences = {i:D[i] for i in limskeys}
+#     # get input worflow sequences
+#     limskeys = get_workflow_limskeys(project_name, database, 'Workflow_Inputs')
+#     limskeys = limskeys[workflow_id]
+#     # get input sequences
+#     D = get_input_sequences(project_name, database)
+#     input_sequences = {i:D[i] for i in limskeys}
 
-    # map file swids to file names
-    fastqs = map_fileswid_to_filename(project_name, database, 'Files')
+#     # map file swids to file names
+#     fastqs = map_fileswid_to_filename(project_name, database, 'Files')
     
-    # map library to limskey
-    all_libraries = map_limskey_to_library(project_name, database, table='Workflow_Inputs')
-    libraries = all_libraries[workflow_id]
+#     # map library to limskey
+#     all_libraries = map_limskey_to_library(project_name, database, table='Workflow_Inputs')
+#     libraries = all_libraries[workflow_id]
     
     
-    # map libraries to samples
-    all_samples = map_library_to_sample(project_name, database, table = 'Libraries')
-    samples = all_samples[case]    
+#     # map libraries to samples
+#     all_samples = map_library_to_sample(project_name, database, table = 'Libraries')
+#     samples = all_samples[case]    
     
-    sequences = []
-    for i in limskeys:
-        library = libraries[i]
-        sample = samples[library]
-        swid1, swid2 = input_sequences[i][0], input_sequences[i][1]
-        file1, file2 = fastqs[swid1], fastqs[swid2]
-        seq = [[swid1, file1], [swid2, file2]]
-        seq.sort(key=lambda x: x[1])
-        for j in seq:
-            sequences.append([sample, library, i, j[0], j[1]])
-    sequences.sort(key=lambda x: x[0])
+#     sequences = []
+#     for i in limskeys:
+#         library = libraries[i]
+#         sample = samples[library]
+#         swid1, swid2 = input_sequences[i][0], input_sequences[i][1]
+#         file1, file2 = fastqs[swid1], fastqs[swid2]
+#         seq = [[swid1, file1], [swid2, file2]]
+#         seq.sort(key=lambda x: x[1])
+#         for j in seq:
+#             sequences.append([sample, library, i, j[0], j[1]])
+#     sequences.sort(key=lambda x: x[0])
     
-    # get workflow output files
-    donors = map_library_to_case(project_name, database, table = 'Libraries')
-    workflow_outputfiles = get_workflow_output(project_name, database, all_libraries, all_samples, donors, 'Files')
-    files = workflow_outputfiles[workflow_id]
+#     # get workflow output files
+#     donors = map_library_to_case(project_name, database, table = 'Libraries')
+#     workflow_outputfiles = get_workflow_output(project_name, database, all_libraries, all_samples, donors, 'Files')
+#     files = workflow_outputfiles[workflow_id]
      
     
-    return render_template('workflow.html',
-                           project=project,
-                           pipeline=pipeline,
-                           case=case,
-                           sample_pair=sample_pair,
-                           parents=parents,
-                           children=children,
-                           parent_rows=parent_rows,
-                           children_rows=children_rows,
-                           rows=rows,
-                           workflow_id=workflow_id,
-                           workflow_names=workflow_names,
-                           files=files,
-                           sequences=sequences
-                           )
+#     return render_template('workflow.html',
+#                            project=project,
+#                            pipeline=pipeline,
+#                            case=case,
+#                            sample_pair=sample_pair,
+#                            parents=parents,
+#                            children=children,
+#                            parent_rows=parent_rows,
+#                            children_rows=children_rows,
+#                            rows=rows,
+#                            workflow_id=workflow_id,
+#                            workflow_names=workflow_names,
+#                            files=files,
+#                            sequences=sequences
+#                            )
 
 
 @app.route('/<project_name>/whole_transcriptome', methods = ['POST', 'GET'])
