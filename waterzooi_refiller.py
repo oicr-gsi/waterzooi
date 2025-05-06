@@ -893,7 +893,7 @@ def collect_workflow_info(case_data):
         wf = d['wf']
         wfv = d['wfv']
         limskeys = d['limsIds'].split(',')
-        file_count = len(d['files'])
+        file_count = len(list(map(lambda x: x.strip(), json.loads(d['files']))))   
         sequencing_attributes = find_sequencing_attributes(limskeys, case_data)
         lane_count = len([sequencing_attributes[i]['lane'] for i in sequencing_attributes])
          
