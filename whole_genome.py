@@ -8,6 +8,7 @@ Created on Fri Jun  9 10:42:36 2023
 import os
 import itertools
 import json
+import time
 from utilities import connect_to_db, convert_epoch_time, remove_non_analysis_workflows,\
     get_children_workflows, get_workflow_names, get_donors
 
@@ -1168,33 +1169,7 @@ def get_sample_sequencing_amount(project_name, case, samples, database, workflow
 
 
 
-def get_input_sequences(project_name, database):
-    '''
-    (str, str) -> dict
-    
-    Returns a dictionary with file swid for each limskey
-    corresponding to fastq-generating workflows casava and bcl2fastq for the project of interest
-       
-    Parameters
-    ----------
-    - project_name (str): Name of project of interest
-    - database (str): Path to the sqlite database 
-    '''
-    
-    # ignore fastq-import workflows because files from these workflows are not released    
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT Files.file_swid, Files.limskey FROM Files WHERE \
-                        Files.project_id = ? AND LOWER(Files.workflow) \
-                        IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
-                        'fileimport', 'import_fastq');", (project_name,)).fetchall()
-    conn.close()
 
-    D = {}
-    for i in data:
-        if i['limskey'] not in D:
-            D[i['limskey']] = []
-        D[i['limskey']].append(i['file_swid'])
-    return D    
 
 
 
@@ -1206,7 +1181,7 @@ def get_cases_with_analysis(analysis_db, project_name, assay):
     
     Parameters
     ----------
-    - analysis_db (str): Path to the database sorting analysis data
+    - analysis_db (str): Path to the database storing analysis data
     - project_name (str): Name of the project of interest
     - assay (str): Name of the assay
     '''
@@ -1231,6 +1206,58 @@ def get_cases_with_analysis(analysis_db, project_name, assay):
     return D    
 
 
+
+
+def delete_cases_with_distinct_checksums(cases, md5sums):
+    '''
+    (dict, dict) -> dict
+    
+    Removes cases when databases are in sync (ie, cases have different md5sums)
+    and modify cases in places
+       
+    Parameters
+    ----------
+    - cases (dict): Dictionary with analysis data from the analysis review database
+    - md5sums (dict): Dictionary with md5sums for each case in the main waterzooi database
+    '''
+    
+    # keep only cases with up to date data between resources
+    to_remove = []
+    for i in cases:
+        for j in cases[i]:
+            if j['md5sum'] != md5sums[i]:
+                to_remove.append(i)
+    to_remove = list(set(to_remove))
+    if to_remove:
+        alert = 'removing {0} cases for which data is not in sync between waterzooi and analysis databases'
+        print(alert.format(len(to_remove)))
+        for i in to_remove:
+            del cases[i]
+
+
+
+def map_donors_to_cases(cases):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with case and corresponding donor identifier
+        
+    Parameters
+    ----------
+    - cases (dict): Dictionary with analysis data from the analysis review database
+    '''
+
+    # get the donor
+    donors = {}
+    for i in cases:
+        for d in cases[i]:
+            donor = d['donor']
+            if i in donors:
+                assert donor == donors[i]
+            else:
+                donors[i] = donor
+
+    return donors
 
 
 
@@ -1350,6 +1377,30 @@ def get_case_analysis_workflows(cases):
     return D
         
 
+
+def list_assay_analysis_workflows(case_data):
+    '''
+    (dict) -> list
+        
+    Returns a list of all the expected analysis workflows for an essay
+    
+    Parameters
+    ----------
+    - (case_data): Dictionary with analysis workflow ids organized for each case with the same assay
+    '''
+    
+    # get all the analysis workflows
+    analysis_workflows = []
+    for case in case_data:
+        for d in case_data[case]:
+            analysis_workflows.extend(list(d['analysis'].keys()))
+    analysis_workflows = sorted(list(set(analysis_workflows)))    
+    
+    return analysis_workflows
+
+
+
+
 def most_recent_analysis_workflow(case_data, creation_dates):
     '''
     (list, dict) -> list
@@ -1367,12 +1418,17 @@ def most_recent_analysis_workflow(case_data, creation_dates):
     for template in case_data:
         L = []
         for workflow_id in template['callready']:
-            L.append(creation_dates[os.path.basename(workflow_id)])
+            #L.append(creation_dates[os.path.basename(workflow_id)])
+            L.append(creation_dates[workflow_id])
         for workflow_id in template['downstream']:
-            L.append(creation_dates[os.path.basename(workflow_id)])
+            L.append(creation_dates[workflow_id])
         
         L.sort()
-        most_recent.append(L[-1])
+        try:
+            date = time.strftime('%Y-%m-%d', time.localtime(int(L[-1])))
+        except:
+            date = 'NA'
+        most_recent.append(date)
         
     return most_recent
 
@@ -1562,190 +1618,266 @@ def get_case_workflow_info(database, case):
     
 
 
-def map_files_to_limskeys(database, case):
+# def map_files_to_limskeys(database, case):
+#     '''
+    
+    
+    
+#     '''
+    
+#     D = {}
+    
+    
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT file_swid, wfrun_id, file, limskey FROM Files \
+#                         WHERE case_id = ?", (case,)).fetchall()
+#     conn.close()
+                        
+#     for i in data:
+#         limskeys = i['limskey'].split(';')                    
+#         file_swid = i['file_swid']
+#         file = i['file']
+#         wfrunid = i['wfrun_id']                
+                        
+#         for limskey in limskeys:
+#             if wfrunid not in D:
+#                 D[wfrunid] = {}
+#             if limskey in D[wfrunid]:
+#                 D[wfrunid][limskey].append({'file': file, 'file_swid': file_swid})
+#             else:
+#                 D[wfrunid][limskey] = [{'file': file, 'file_swid': file_swid}]    
+                
+#     return D                        
+                        
+    
+
+# def map_limskey_to_sample(database, case):
+#     '''
+    
+    
+#     '''
+    
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT Workflow_Inputs.wfrun_id, Workflow_Inputs.limskey, \
+#                         Libraries.donor_id, Libraries.tissue_type, \
+#                         Libraries.tissue_origin, Libraries.library_type, Libraries.group_id FROM \
+#                         Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.library=Libraries.library \
+#                         AND Libraries.case_id = ?;", (case,)).fetchall()     
+#     conn.close()
+    
+#     D = {}
+#     for i in data:
+#         limskey = i['limskey']
+#         donor = i['donor_id']
+#         tissue_origin = i['tissue_origin']
+#         tissue_type = i['tissue_type']
+#         library_type = i['library_type']
+#         groupid = i['group_id'] 
+#         wfrunid = i['wfrun_id']
+#         sample = '_'.join([donor, tissue_origin, tissue_type, library_type, groupid]) 
+        
+#         if wfrunid not in D:
+#             D[wfrunid] = {}
+#         if limskey in D[wfrunid]:
+#             assert sample == D[wfrunid][limskey]
+#         else:
+#             D[wfrunid][limskey] = sample
+            
+#     return D    
+
+
+
+
+
+
+
+
+
+# def get_workflow_output_files(files_to_limskeys, limskey_to_sample):
+#     '''
+    
+    
+#     '''
+    
+#     D = {}
+    
+#     for wfrunid in files_to_limskeys:
+#         for limskey in files_to_limskeys[wfrunid]:
+            
+#             # this should be always be true - let's see the new olive
+#             if wfrunid in limskey_to_sample and limskey in limskey_to_sample[wfrunid]:
+            
+                
+#                 sample = limskey_to_sample[wfrunid][limskey]
+#                 if wfrunid not in D:
+#                     D[wfrunid] = {}
+#                 for d in files_to_limskeys[wfrunid][limskey]:
+#                     file = d['file']
+#                     file_swid = d['file_swid']
+            
+#                     if sample not in D[wfrunid]:
+#                         D[wfrunid][sample] = {}
+#                     if file in D[wfrunid][sample]:
+#                         assert limskey not in D[wfrunid][sample][file]['limskey']
+#                         D[wfrunid][sample][file]['limskey'].append(limskey)
+#                     else:
+#                         D[wfrunid][sample][file] = {'file': file, 'file_swid': file_swid, 'limskey': [limskey]}
+   
+#     return D
+    
+    
+# def map_samples_to_files(outputfiles):
+#     '''
+#     (dict) -> dict
+    
+    
+#     '''
+
+#     D = {}
+    
+#     for sample in outputfiles:
+#         for file in outputfiles[sample]:
+#             if file in D:
+#                 D[file].append(sample)
+#             else:
+#                 D[file] = [sample]
+#             D[file] = sorted(list(set(D[file])))
+    
+#     return D
+
+
+
+# def group_files_by_samples(files_to_samples):
+#     '''
+    
+    
+#     '''
+    
+#     D = {}
+    
+#     for file in files_to_samples:
+#         sample = ';'.join(files_to_samples[file])
+#         if sample in D:
+#             D[sample].append(file)
+#         else:
+#             D[sample] = [file]
+ 
+#     return D
+
+
+
+
+
+
+
+def get_workflow_output_files(database, wfrun_id):
+    '''
+    (str, str) ->
+    
+    Returns a dictionary with the output files of workflow with wfrun_id grouped by sample 
+    
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - wfrun_id (str): Workflow run identifier
     '''
     
-    
-    
-    '''
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT Files.file, Files.file_swid, Libraries.sample_id FROM Files JOIN \
+                        Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.wfrun_id = Files.wfrun_id \
+                        AND Files.limskey = Workflow_Inputs.limskey AND Files.limskey = Libraries.lims_id \
+                        AND Libraries.lims_id = Workflow_Inputs.limskey AND Files.wfrun_id = ?", (wfrun_id,)).fetchall()
+    conn.close()   
     
     D = {}
     
-    
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT file_swid, wfrun_id, file, limskey FROM Files \
-                        WHERE case_id = ?", (case,)).fetchall()
-    conn.close()
-                        
     for i in data:
-        limskeys = i['limskey'].split(';')                    
+        sample = i['sample_id']
+        file = i['file']
+        if file in D:
+            D[file].append(sample)
+        else:
+            D[file] = [sample]
+        D[file] = sorted(list(set(D[file])))
+            
+    # group samples sharing the same files
+    S = {}
+    for file in D:
+        sample = ';'.join(D[file])
+        if sample in S:
+            S[sample].append(file)
+        else:
+            S[sample] = [file]
+       
+    return S
+
+
+
+
+def map_limskeys_to_workflow(database, wfrun_id):
+    '''
+    (str, str) -> list
+
+    Returns a list of limskeys matching workflow with identifier wfrun_id 
+
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi
+    - wfrun_id (str): Workflow unique identifier
+    '''
+
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT Workflow_Inputs.limskey FROM Workflow_Inputs \
+                        WHERE Workflow_Inputs.wfrun_id = ?;", (wfrun_id,)).fetchall()
+    conn.close()
+    
+    limskeys = [i['limskey'] for i in data]
+    
+    return limskeys
+
+
+def get_input_sequences(database, case, wfrun_id):
+    '''
+    (str, str, str) -> dict
+    
+    Returns a dictionary with input sequences  of worflow with identifier wfrun_id
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi
+    - case (str): Case identifier
+    - wfrun_id (str): Workflow unique identifier
+    '''
+    
+    # get the limskeys matching the workflow
+    limskeys = map_limskeys_to_workflow(database, wfrun_id)
+
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT Files.file_swid, Files.file, Files.limskey, Libraries.library, \
+                        Libraries.sample_id FROM Files JOIN Libraries JOIN Workflows \
+                        WHERE Files.wfrun_id = Workflows.wfrun_id AND Files.limskey = Libraries.lims_id \
+                        AND LOWER(Workflows.wf) IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
+                        'fileimport', 'import_fastq') AND Files.case_id = ?;", (case,)).fetchall()
+    conn.close()
+    
+    D = {}
+    
+    for i in data:
+        sample = i['sample_id']
+        library = i['library']
+        limskey = i['limskey']
         file_swid = i['file_swid']
         file = i['file']
-        wfrunid = i['wfrun_id']                
-                        
-        for limskey in limskeys:
-            if wfrunid not in D:
-                D[wfrunid] = {}
-            if limskey in D[wfrunid]:
-                D[wfrunid][limskey].append({'file': file, 'file_swid': file_swid})
-            else:
-                D[wfrunid][limskey] = [{'file': file, 'file_swid': file_swid}]    
-                
-    return D                        
-                        
-    
-
-def map_limskey_to_sample(database, case):
-    '''
-    
-    
-    '''
-    
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT Workflow_Inputs.wfrun_id, Workflow_Inputs.limskey, \
-                        Libraries.donor_id, Libraries.tissue_type, \
-                        Libraries.tissue_origin, Libraries.library_type, Libraries.group_id FROM \
-                        Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.library=Libraries.library \
-                        AND Libraries.case_id = ?;", (case,)).fetchall()     
-    conn.close()
-    
-    D = {}
-    for i in data:
-        limskey = i['limskey']
-        donor = i['donor_id']
-        tissue_origin = i['tissue_origin']
-        tissue_type = i['tissue_type']
-        library_type = i['library_type']
-        groupid = i['group_id'] 
-        wfrunid = i['wfrun_id']
-        sample = '_'.join([donor, tissue_origin, tissue_type, library_type, groupid]) 
         
-        if wfrunid not in D:
-            D[wfrunid] = {}
-        if limskey in D[wfrunid]:
-            assert sample == D[wfrunid][limskey]
-        else:
-            D[wfrunid][limskey] = sample
-            
-    return D    
-
-
-
-
-
-
-
-
-
-def get_workflow_output_files(files_to_limskeys, limskey_to_sample):
-    '''
-    
-    
-    '''
-    
-    D = {}
-    
-    for wfrunid in files_to_limskeys:
-        for limskey in files_to_limskeys[wfrunid]:
-            
-            # this should be always be true - let's see the new olive
-            if wfrunid in limskey_to_sample and limskey in limskey_to_sample[wfrunid]:
-            
-                
-                sample = limskey_to_sample[wfrunid][limskey]
-                if wfrunid not in D:
-                    D[wfrunid] = {}
-                for d in files_to_limskeys[wfrunid][limskey]:
-                    file = d['file']
-                    file_swid = d['file_swid']
-            
-                    if sample not in D[wfrunid]:
-                        D[wfrunid][sample] = {}
-                    if file in D[wfrunid][sample]:
-                        assert limskey not in D[wfrunid][sample][file]['limskey']
-                        D[wfrunid][sample][file]['limskey'].append(limskey)
-                    else:
-                        D[wfrunid][sample][file] = {'file': file, 'file_swid': file_swid, 'limskey': [limskey]}
-   
-    return D
-    
-    
-def map_samples_to_files(outputfiles):
-    '''
-    (dict) -> dict
-    
-    
-    '''
-
-    D = {}
-    
-    for sample in outputfiles:
-        for file in outputfiles[sample]:
-            if file in D:
-                D[file].append(sample)
+        # check that limskey match the limskeys of workflow wfrun_id
+        if limskey in limskeys:
+            if sample not in D:
+                D[sample] = [[sample, library, limskey, file_swid, file]]
             else:
-                D[file] = [sample]
-            D[file] = sorted(list(set(D[file])))
+                D[sample].append([sample, library, limskey, file_swid, file])
+    
+    # sort according to sample and sequences
+    for sample in D:
+        D[sample].sort(key=lambda x: (x[0], x[2], x[-1]))
     
     return D
-
-
-
-def group_files_by_samples(files_to_samples):
-    '''
-    
-    
-    '''
-    
-    D = {}
-    
-    for file in files_to_samples:
-        sample = ';'.join(files_to_samples[file])
-        if sample in D:
-            D[sample].append(file)
-        else:
-            D[sample] = [file]
- 
-    return D
-
-{'NEOPOC_58009002_Ly_R_WG_058-009-002_BC': {'/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/gatk.recalibration.csv': {'file': '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/gatk.recalibration.csv',
-   'file_swid': 'vidarr:research/file/3e1a93e8eccabf49c04f083359920862851f8e0bf323307952fc221328a1a513',
-   'limskey': ['7748_1_LDI117186',
-    '7748_2_LDI117186',
-    '7748_3_LDI117186',
-    '7748_4_LDI117186',
-    '7748_5_LDI117186',
-    '7748_6_LDI117186',
-    '7748_7_LDI117186',
-    '7748_8_LDI117186']},
-  '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/NEOPOC_58009002_Ly_R_WG_058-009-002_BC.filter.deduped.recalibrated.bam': {'file': '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/NEOPOC_58009002_Ly_R_WG_058-009-002_BC.filter.deduped.recalibrated.bam',
-   'file_swid': 'vidarr:research/file/566a6343e31ae5b8bf1339dee6daa055c22202aac1b0ad1399d03c019c9f6073',
-   'limskey': ['7748_1_LDI117186',
-    '7748_2_LDI117186',
-    '7748_3_LDI117186',
-    '7748_4_LDI117186',
-    '7748_5_LDI117186',
-    '7748_6_LDI117186',
-    '7748_7_LDI117186',
-    '7748_8_LDI117186']},
-  '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/gatk.recalibration.pdf': {'file': '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/gatk.recalibration.pdf',
-   'file_swid': 'vidarr:research/file/5ed7bc74c5ea5bbbd36b5e9bd4890939a8c53f506a34b81e33ebe246ef802589',
-   'limskey': ['7748_1_LDI117186',
-    '7748_2_LDI117186',
-    '7748_3_LDI117186',
-    '7748_4_LDI117186',
-    '7748_5_LDI117186',
-    '7748_6_LDI117186',
-    '7748_7_LDI117186',
-    '7748_8_LDI117186']},
-  '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/NEOPOC_58009002_Ly_R_WG_058-009-002_BC.filter.deduped.recalibrated.bai': {'file': '/.mounts/labs/prod/vidarr/output-research/5b73/eea4/413c/5b73eea4413c42574e62ca5ef8739c886b8fb5336c0d5408f6dc21e79acd7e18/NEOPOC_58009002_Ly_R_WG_058-009-002_BC.filter.deduped.recalibrated.bai',
-   'file_swid': 'vidarr:research/file/9e7ea470ae0f980c098b214141c47b4c9c2c52fb7849c2496dce9d9263b10bed',
-   'limskey': ['7748_1_LDI117186',
-    '7748_2_LDI117186',
-    '7748_3_LDI117186',
-    '7748_4_LDI117186',
-    '7748_5_LDI117186',
-    '7748_6_LDI117186',
-    '7748_7_LDI117186',
-    '7748_8_LDI117186']}}}    
-    
