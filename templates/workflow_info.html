@@ -85,7 +85,7 @@
         <tr>
           <td>{{ workflow_info[parent].0 }}</td>
           <td>
-            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=parent | basename) }}">
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=parent | format_identifier) }}">
               {{parent}}
             </a>
           </td>
@@ -96,7 +96,7 @@
 {% endif %}  
 
 
-{% if parent_to_children[workflow_id] %}  
+{% if parent_to_children[workflow_id] != ['NA'] %}  
   <h2> Downstream workflows: </h2> 
 
   <table id="workflow_table">
@@ -111,7 +111,7 @@
       <tr>
         <td>{{ workflow_info[child].0 }}</td>
           <td>
-            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=child | basename) }}">
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=child | format_identifier) }}">
               {{child}}
             </a>
           </td>
@@ -120,6 +120,35 @@
   </table>
 
 {% endif %}  
+
+
+
+<h2> Input sequences: </h2>   
+
+<table id="simple_table">
+  <tr>
+    <th>Samples</th>
+    <th>Libraries</th>
+    <th>Limskeys</th>
+    <th>File swids</th>
+    <th>Files</th>
+  </tr>
+  
+  {% set sampleseq = input_sequences.keys() | sort %}
+  {% for i in sampleseq %}
+    {% for j in range(input_sequences[i] | length) %}
+      <tr>      
+        {% for k in input_sequences[i][j] %}
+          <td>
+            {{k}}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  {% endfor %}
+</table>
+
+
 
 
 
