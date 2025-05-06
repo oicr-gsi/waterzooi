@@ -23,11 +23,16 @@
         <div class="somatic_block">
           <table id="block_header_table">
             <tr>
-              <td>{{ most_recent[i] | readable_time}}</td>
-              {% if case_analysis[i]['valid'] %}
-                <td><div class="tooltip">Complete:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:24px;color:#70db70">&#10004;</span></td>
+              <td>{{ most_recent[i] }}</td>
+              {% if sequencing_status %}
+                <td><div class="tooltip">Sequencing status:<span class="tooltiptext">Sequencing complete?</span></div> <span style="font-size:16px;color:#70db70">&#10004;</span></td>
               {% else %}
-                <td><div class="tooltip">Complete:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:24px;color:#ff3300;">&#10006;</span></td>
+                <td><div class="tooltip">Sequencing status:<span class="tooltiptext">Sequencing complete?</span></div> <span style="font-size:16px;color:#ff3300;">&#10006;</span></td>
+              {% endif %}
+              {% if case_analysis[i]['valid'] %}
+                <td><div class="tooltip">Analysis status:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:16px;color:#70db70">&#10004;</span></td>
+              {% else %}
+                <td><div class="tooltip">Analysis status:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:16px;color:#ff3300;">&#10006;</span></td>
               {% endif %}
               <td>
                 <button class="select_button" id="select" type = "submit" value="submit">Select workflows</button>
@@ -61,17 +66,17 @@
               {% for workflow_id in case_data[i]['callready'] %}
                 <tr>  
                   <td>
-                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | basename) }}">
+                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
                       {{ workflow_id | basename | shorten_workflow_id }}
                     </a>
                   </td> 
                   <td>{{ workflow_names[i][workflow_id] }} </td> 
-                  <td>{{ file_counts[workflow_id | basename] }} </td> 
-                  <td>{{ amount_data[workflow_id | basename] }} </td> 
-                  <td>{{ creation_dates[workflow_id | basename] | readable_time}} </td> 
+                  <td>{{ file_counts[workflow_id] }} </td> 
+                  <td>{{ amount_data[workflow_id] }} </td> 
+                  <td>{{ creation_dates[workflow_id] }} </td> 
                   <td>
                     <dl>
-                      {% for j in samples[workflow_id | basename] %}
+                      {% for j in samples[workflow_id] %}
                         <dt>
                           {{j}}
                         </dt>
@@ -107,27 +112,27 @@
               {% for workflow_id in case_data[i]['downstream'] %}
                 <tr>  
                   <td>
-                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | basename) }}">
+                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
                       {{ workflow_id | basename | shorten_workflow_id }}
                     </a>
                   </td>
                   <td>{{ workflow_names[i][workflow_id] }} </td> 
                   <td>
-                    {% for parent in child_to_parents[workflow_id | basename] %}
+                    {% for parent in child_to_parents[workflow_id] %}
                       <dl>
                         <dt>
-                          <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=parent | basename) }}">
-                            {{parent | shorten_workflow_id}}
+                          <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=parent | format_identifier) }}">
+                            {{parent | basename | shorten_workflow_id}}
                           </a> 
                         </dt>
                       </dl>        
                     {% endfor %}
-                  <td>{{ file_counts[workflow_id | basename] }} </td> 
-                  <td>{{ amount_data[workflow_id | basename] }} </td> 
-                  <td>{{ creation_dates[workflow_id | basename] | readable_time}} </td> 
+                  <td>{{ file_counts[workflow_id] }} </td> 
+                  <td>{{ amount_data[workflow_id] }} </td> 
+                  <td>{{ creation_dates[workflow_id] }} </td> 
                   <td>
                     <dl>
-                      {% for j in samples[workflow_id | basename] %}
+                      {% for j in samples[workflow_id] %}
                         <dt>
                           {{j}}
                         </dt>
