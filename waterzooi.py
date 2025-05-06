@@ -29,7 +29,8 @@ from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_
     count_case_analysis_workflows, most_recent_analysis_workflow, get_analysis_workflow_name, \
     get_case_workflow_samples, get_assays, get_missing_workflows, get_case_parent_to_children_workflows, \
     get_case_children_to_parents_workflows, get_case_workflow_info, get_workflow_output_files, \
-    delete_cases_with_distinct_checksums, map_donors_to_cases, list_assay_analysis_workflows, get_input_sequences    
+    delete_cases_with_distinct_checksums, map_donors_to_cases, list_assay_analysis_workflows, \
+    get_input_sequences, get_sequencing_input
 from whole_transcriptome import get_WT_call_ready_cases, get_WT_standard_deliverables, \
     create_WT_project_block_json, create_WT_block_json
 from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
@@ -329,7 +330,7 @@ def analysis(project_name, assay):
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_database, project_name, assay)
     
-    print(cases)
+    
     
     
     # check that analysis is up to date with the waterzooi database
@@ -443,7 +444,9 @@ def case_analysis(project_name, assay, case):
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
-     
+    
+    # map limskeys and libraries to sequencing workflows
+    seq_inputs = get_sequencing_input(database, case)
     
     
     selected = get_selected_workflows(project_name, workflow_db, 'Workflows')
@@ -458,8 +461,9 @@ def case_analysis(project_name, assay, case):
     
     
     
+    # sort sequencing workflows according to limskeys
     
-    
+    # remove input sequences in workflow view for bcl2fastq workflows
     
     #### add downloadable
     
@@ -479,7 +483,7 @@ def case_analysis(project_name, assay, case):
     
     #### create graph
     
-    #### add sequencing
+ 
     
     
     #### add lane level alignments
@@ -546,7 +550,8 @@ def case_analysis(project_name, assay, case):
                            selected=selected,
                            missing_workflows=missing_workflows,
                            child_to_parents=child_to_parents,
-                           sequencing_status=sequencing_status
+                           sequencing_status=sequencing_status,
+                           seq_inputs=seq_inputs
                            
                            
                            )

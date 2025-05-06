@@ -163,7 +163,49 @@
                 </tr>
               {% endfor %}
             </table>  
-        </div>
+        
+        
+            <p style="font-size:16px;"> Sequencing </p>     
+
+            <table id="block_table">
+              <thead>
+                <th>workflow</th>
+                <th>workflow_run_id</th>
+                <th>limskey</th>
+                <th>library</th>
+                <th>date</th>     
+                <th>samples</th>
+                <th>select</th>
+              </thead>     
+            
+              {% for workflow in case_data[i]['sequencing'] %}
+                {% for workflow_id in case_data[i]['sequencing'][workflow] %}
+                  <tr>  
+                    <td>{{ workflow }} </td> 
+                    <td>
+                      <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
+                        {{ workflow_id | basename | shorten_workflow_id }}
+                      </a>
+                    </td>
+                    <td>{{ seq_inputs[workflow_id]['limskey'] }} </td> 
+                    <td>{{ seq_inputs[workflow_id]['library'] }} </td> 
+                    <td>{{ creation_dates[workflow_id] }} </td> 
+                    <td>
+                      {{ samples[workflow_id].0 }}
+                    </td>
+                    <td>
+                      {% if selected[bmpp_run] %}
+                        <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow" checked/>
+                      {% else %}
+                        <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow"/>  
+                      {% endif %}    
+                    </td>
+                  </tr>
+                {% endfor %}              
+              {% endfor %}
+            </table>  
+             
+          </div>
     </form> 
   {% endfor %}          
               

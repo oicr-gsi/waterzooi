@@ -1375,7 +1375,49 @@ def get_case_analysis_workflows(cases):
           
 
     return D
+
+
+def get_sequencing_input(database, case):
+    '''
+    (str, str) -> dict
         
+    Returns a dictionary with limskey and library for each sequencing workflow id of a case
+    
+    Paramaters
+    ----------
+    - database (str): Path to the main waterzooi database
+    - case (str): Case identifier
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT Workflow_Inputs.limskey, Workflow_Inputs.library, \
+                        Workflow_Inputs.wfrun_id FROM Workflow_Inputs JOIN Workflows \
+                        WHERE  Workflow_Inputs.wfrun_id = Workflows.wfrun_id \
+                        AND LOWER(Workflows.wf) IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
+                        'fileimport', 'import_fastq') AND Workflow_Inputs.case_id = ?;", (case,)).fetchall()
+    conn.close()
+
+    D = {}
+    for i in data:
+        limskey = i['limskey']
+        library = i['library']
+        wfrun_id = i['wfrun_id']
+        
+        assert wfrun_id not in D
+        D[wfrun_id] = {'limskey': limskey, 'library': library}
+       
+    return D
+
+
+
+
+
+
+
+
+
+
+    
 
 
 def list_assay_analysis_workflows(case_data):
