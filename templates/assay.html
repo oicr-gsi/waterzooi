@@ -93,40 +93,24 @@
                   <span style="font-size:16px;color:#ff3300;">&#10006;</span>
                 {% endif %}
               </td>
-              {% if cases[i]['valid'] %}
-                 <td><span style="font-size:16px;color:#70db70">&#10004;</span></td>
-              {% else %}
-                  <td><span style="font-size:16px;color:#ff3300;">&#10006;</span></td>
-              {% endif %} 
-              
-              
-              
-              
-              
+              <td>
+                {% if cases[i]['valid'] %}
+                  <span style="font-size:16px;color:#70db70">&#10004;</span>
+                {% else %}
+                  <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                {% endif %} 
+              </td>
               {% for workflow in analysis_workflows %}
-                  {% if workflow in workflow_counts[i]['analysis'] %}
-                    <td>{{ workflow_counts[i]['analysis'][workflow] }}</td>
-                  {% else %}
-                    <td>0</td> 
-                  {% endif %}
+                {% if workflow in workflow_counts[i]['analysis'] %}
+                  <td>{{ workflow_counts[i]['analysis'][workflow] }}</td>
+                {% else %}
+                  <td>0</td> 
+                {% endif %}
               {% endfor %} 
             </tr>
-         
-
-
-
-
-         </tbody>
-
-
-
+        </tbody>
       {% endfor %} 
-
-                     
     </table>
-
-
-
 
   <footer>
     <p class="data_update"> Data last updated: {{project['last_updated'].split('_')[0]}} </p>
