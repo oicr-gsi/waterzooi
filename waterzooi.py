@@ -1337,25 +1337,53 @@ def download_cases_table(project_name):
     - project_name (str): Name of project of interest
     '''
     
-    database = 'waterzooi.db'
+    database = 'waterzooi_db_case.db'
+    analysis_database = 'analysis_review_case.db'
     
     # get case information
     cases = get_cases(project_name, database)
-    # get library and sample counts
-    counts = get_sample_counts(project_name, database)
-    # count libraries for each library type
-    # get the library types
-    library_types =  get_library_types(project_name, database)
-    libraries = count_libraries(project_name, library_types, cases, database)
-    
+    # sort by case id
+    cases = sorted(cases, key=lambda d: d['case_id']) 
+    # get the samples and libraries for each case respectively sorted by tissue and library type
+    samples_libraries = extract_samples_libraries_per_case(project_name, database)
+    # get the project info for project_name from db
+    project = get_project_info(database, project_name)[0]
+    library_types = sorted(list(map(lambda x: x.strip(), project['library_types'].split(','))))
+    # get the analysis status of each case
+    analysis_status = get_case_analysis_status(analysis_database, project_name)
+    # get the sequencing status of each case
+    sequencing_status = get_case_sequencing_status(database, project_name)
+
     D = {}
     for i in cases:
-        donor = i['case_id']
-        D[donor] = i
-        D[donor]['normal'] = counts[donor]['normal']
-        D[donor]['tumor'] = counts[donor]['tumor']
+        case = i['case_id']
+        D[case] = {'donor': i['donor_id'], 'external_id': i['ext_id'], 'assay': i['assay']}
+        if sequencing_status[project['project_id']][i['case_id']]:
+            seq_status = 'complete'
+        else:
+            seq_status = 'incomplete'
+        D[case]['sequencing_status'] = seq_status
+        if analysis_status[project['project_id']][i['case_id']]:
+            data_status = 'complete'
+        else:
+            data_status = 'incomplete'
+        D[case]['analysis_status'] = data_status
+        if 'normal' in samples_libraries[i['case_id']]['samples']:
+            normal_count = len(samples_libraries[i['case_id']]['samples']['normal'])
+        else:
+            normal_count = 0
+        D[case]['normal'] = normal_count
+        if 'tumor' in samples_libraries[i['case_id']]['samples']:
+            tumor_count = len(samples_libraries[i['case_id']]['samples']['tumor'])
+        else:
+            tumor_count = 0
+        D[case]['tumor'] = tumor_count
         for library_type in library_types:
-            D[donor][library_type] = len(libraries[donor][library_type])
+            if library_type in samples_libraries[i['case_id']]['libraries']:
+                D[case][library_type] = len(samples_libraries[i['case_id']]['libraries'][library_type])
+            else:
+                D[case][library_type] = 0
+        
         
     data = pd.DataFrame(D.values())
     data.to_excel('{0}_cases.xlsx'.format(project_name), index=False)
