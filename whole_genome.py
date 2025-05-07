@@ -1935,3 +1935,44 @@ def get_input_sequences(database, case, wfrun_id):
         D[sample].sort(key=lambda x: (x[0], x[2], x[-1]))
     
     return D
+
+
+
+
+def get_pipeline_standard_deliverables():
+    '''
+    (None) -> dict
+    
+    Returns a dictionary with the file extensions or file endings for each workflow
+    for which output files are released as part of the standard WGS package
+    
+    Parameters
+    ----------
+     None
+    
+    '''
+    
+    deliverables = {'bammergepreprocessing': ['.bai', '.bam'],
+                    'varianteffectpredictor': ['.mutect2.filtered.vep.vcf.gz',
+                                               '.mutect2.filtered.vep.vcf.gz.tbi',
+                                               '.mutect2.filtered.maf.gz'],
+                    'delly': ['.somatic_filtered.delly.merged.vcf.gz',
+                      '.somatic_filtered.delly.merged.vcf.gz.tbi'],
+                    'sequenza': ['results.zip', 'summary.pdf', 'alternative_solutions.json'],
+                    'mavis': ['.tab', '.zip'],
+                    'star': ['.bai', '.bam'],
+                    'rsem': ['.genes.results', '.isoforms.results', '.transcript.bam'],
+                    'starfusion': ['.tsv'],
+                    'arriba': ['.tsv', '.fusions.pdf'],
+                    'hrdetect': ['.signatures.json'],
+                    'msisensor': ['.msi', '.msi_germline', '.msi_somatic', '.msi.booted'],
+                    'purple': ['.purple.purity.tsv', '.purple.purity.qc', '.purple.qc',
+                               '.purple.purity.range.tsv', '.purple.cnv.somatic.tsv',
+                               'purple.cnv.gene.tsv', '.purple.segment.tsv',
+                               '.solPrimary.purple.zip', '.purple_alternates.zip',
+                               '.purple.somatic.vcf.gz'],
+                    'gridds': ['.purple.sv.vcf.gz']}
+    
+    return deliverables
+
+
