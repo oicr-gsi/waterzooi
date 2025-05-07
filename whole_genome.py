@@ -1371,9 +1371,21 @@ def get_case_analysis_workflows(cases):
                 for j in d['template']['Analysis'][i]:
                     analysis[i].append(j['workflow_id'])
             analysis[i] = list(set(analysis[i]))   
-            D[case].append({'callready': callready, 'downstream': downstream, 'sequencing': sequencing, 'analysis': analysis})
-          
-
+            alignments = {}
+            for i in d['template']['Data']:
+                if i != 'Sequencing':
+                    for k in d['template']['Data'][i]['workflows']:
+                        wfname = k['workflow_name']
+                        workflow_id = k['workflow_id']   
+                        if wfname not in alignments:
+                            alignments[wfname] = []
+                        alignments[wfname].append(workflow_id)
+                        alignments[wfname] = list(set(alignments[wfname]))
+                        
+            D[case].append({'callready': callready, 'downstream': downstream,
+                            'sequencing': sequencing, 'analysis': analysis,
+                            'alignments': alignments})
+        
     return D
 
 
@@ -1394,7 +1406,7 @@ def get_sequencing_input(database, case):
                         Workflow_Inputs.wfrun_id FROM Workflow_Inputs JOIN Workflows \
                         WHERE  Workflow_Inputs.wfrun_id = Workflows.wfrun_id \
                         AND LOWER(Workflows.wf) IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
-                        'fileimport', 'import_fastq') AND Workflow_Inputs.case_id = ?;", (case,)).fetchall()
+                        'fileimport', 'import_fastq', 'bwamem') AND Workflow_Inputs.case_id = ?;", (case,)).fetchall()
     conn.close()
 
     D = {}
