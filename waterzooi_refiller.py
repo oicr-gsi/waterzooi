@@ -534,38 +534,41 @@ def collect_case_file_info(case_data):
         project_id = case_data['project']
         wfrun_id = d['wfrunid']
         limskeys = d['limsIds'].split(',')
-        file_swids = list(map(lambda x: x.strip(), json.loads(d['files'])))   
-        
-        ## olive must be updated to collect these fields
-        md5sums = ['NA'] * len(file_swids)
-        creation_date = ['NA'] * len(file_swids)
-        attributes = ['NA'] * len(file_swids)
-        file_paths = ['NA'] * len(file_swids)
-         
-        # if attributes:
-        #     attributes = json.loads(d['attributes'])
-        #     for k in attributes:
-        #         attributes[k] = attributes[k][0]
-        #     if len(attributes) == 0:
-        #         attributes = ''
-        #     else:
-        #         attributes = json.dumps(attributes)
-        # else:
-        #     attributes = ''
-    
-    
-        for i in range(len(file_swids)):
-            assert file_swids[i] not in D
-            D[file_swids[i]] = {'file_swid': file_swids[i],
-                                'md5sum': md5sums[i],
-                                'creation_date': creation_date[i],
-                                'attributes': attributes[i],
-                                'file': file_paths[i],
-                                'project_id': project_id,
-                                'case_id': case,
-                                'donor_id': donor,
-                                'wfrun_id': wfrun_id,
-                                'limskey': limskeys}  
+        files = json.loads(d['files'])
+        for i in range(len(files)):
+            file_swid = files[i]['accession']
+            file_path = files[i]['path']
+            md5sum = files[i]['md5']
+            attributes = files[i]['file_attributes']
+            if attributes:
+                attributes = json.loads(attributes)
+                file_attributes = {}
+                for k in attributes:
+                    file_attributes[k] = attributes[k][0]
+                if len(file_attributes) == 0:
+                    file_attributes = ''
+                else:
+                    file_attributes = json.dumps(file_attributes)
+            else:
+                file_attributes = ''
+            creation_date = files[i]['timestamp'].replace('Z', '')
+            creation_date = creation_date.split('.')[0]
+            creation_date = ' '.join(creation_date.split('T'))
+            pattern = '%Y-%m-%d %H:%M:%S'
+            creation_date = int(time.mktime(time.strptime(creation_date, pattern)))
+            
+            
+            assert file_swid not in D
+            D[file_swid] = {'file_swid': file_swid,
+                            'md5sum': md5sum,
+                            'creation_date': creation_date,
+                            'attributes': file_attributes,
+                            'file': file_path,
+                            'project_id': project_id,
+                            'case_id': case,
+                            'donor_id': donor,
+                            'wfrun_id': wfrun_id,
+                            'limskey': limskeys}  
                                 
     return D
 
@@ -893,7 +896,7 @@ def collect_workflow_info(case_data):
         wf = d['wf']
         wfv = d['wfv']
         limskeys = d['limsIds'].split(',')
-        file_count = len(list(map(lambda x: x.strip(), json.loads(d['files']))))   
+        file_count = len(json.loads(d['files']))   
         sequencing_attributes = find_sequencing_attributes(limskeys, case_data)
         lane_count = len([sequencing_attributes[i]['lane'] for i in sequencing_attributes])
          
@@ -1322,10 +1325,10 @@ def collect_case_sample_info(case_data):
         incomplete = case_data['incomplete']
         sequencing_status = not incomplete
                
-        ext_id = 'NA'
-        sex = 'NA'
+        ext_id = d['ext_id']
+        sex = d['sex']
         miso = 'NA'
-        species = 'NA'
+        species = d['organism']
         
         d = {'case_id': case, 'assay': assay, 'donor_id': donor, 'ext_id': ext_id, 'sex': sex,
              'species': species, 'project_id': project_id, 'miso': miso, 'sequencing_status': str(int(sequencing_status))}
@@ -2719,8 +2722,9 @@ def generate_database(database, provenance_data_file):
  
    
  
-generate_database('waterzooi_db_case.db', 'CaseInfo_IRIS_NEOPOC.dump.json')    
+#generate_database('waterzooi_db_case.db', 'CaseInfo_IRIS_NEOPOC.dump.json')    
      
+generate_database('waterzooi_db_case.db', 'case_shesmu_data.dump.json')    
  
     
  
