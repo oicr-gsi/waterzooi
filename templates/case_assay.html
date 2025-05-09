@@ -34,6 +34,11 @@
               {% else %}
                 <td><div class="tooltip">Analysis status:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:16px;color:#ff3300;">&#10006;</span></td>
               {% endif %}
+              
+              {% if case_analysis[i]['error'] %}
+                <td><div class="tooltip">Error: <span class="tooltiptext">Analysis review</span></div> {{ case_analysis[i]['error'] }}</td>
+              {% endif %}
+                           
               <td>
                 <button class="select_button" id="select" type = "submit" value="submit">Select workflows</button>
               </td>
