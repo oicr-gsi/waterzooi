@@ -58,6 +58,7 @@
         <th>Reviewed</th>
         <th><div class="tooltip">Sequencing status<span class="tooltiptext">Complete sequencing?</span></div></th>
         <th><div class="tooltip">Analysis status<span class="tooltiptext">Complete data?</span></div></th>
+        <th>Error</th>
         {% for i in analysis_workflows %}
           <th>{{i}}</th>  
         {% endfor %}
@@ -110,11 +111,14 @@
                 {% endif %}
               </td>
               <td>
-                {% if cases[i]['valid'] %}
+                {% if analysis_status[i] %}
                   <span style="font-size:16px;color:#70db70">&#10004;</span>
                 {% else %}
                   <span style="font-size:16px;color:#ff3300;">&#10006;</span>
                 {% endif %} 
+              </td>
+              <td>
+                {{ errors[i] }}
               </td>
               {% for workflow in analysis_workflows %}
                 {% if workflow in workflow_counts[i]['analysis'] %}

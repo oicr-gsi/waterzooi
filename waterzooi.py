@@ -30,7 +30,7 @@ from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_
     get_case_workflow_samples, get_assays, get_missing_workflows, get_case_parent_to_children_workflows, \
     get_case_children_to_parents_workflows, get_case_workflow_info, get_workflow_output_files, \
     delete_cases_with_distinct_checksums, map_donors_to_cases, list_assay_analysis_workflows, \
-    get_input_sequences, get_sequencing_input
+    get_input_sequences, get_sequencing_input, get_case_error_message
 from whole_transcriptome import get_WT_call_ready_cases, get_WT_standard_deliverables, \
     create_WT_project_block_json, create_WT_block_json
 from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
@@ -348,10 +348,14 @@ def analysis(project_name, assay):
     analysis_workflows = list_assay_analysis_workflows(case_data)
     # get the analysis status of each case
     analysis_status = get_case_analysis_status(analysis_database, project_name)
+    analysis_status = analysis_status[project_name]
+    # get the combined error messages across template for each assay
+    errors = get_case_error_message(cases)
+    
+    
     # get the sequencing status of each case
     sequencing_status = get_case_sequencing_status(database, project_name)
         
-    
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
         # get the workflow names
@@ -385,11 +389,17 @@ def analysis(project_name, assay):
                            analysis_workflows=analysis_workflows,
                            workflow_counts=workflow_counts,
                            analysis_status=analysis_status,
-                           sequencing_status=sequencing_status
+                           sequencing_status=sequencing_status,
+                           errors=errors
                            )
 
 @app.route('/<project_name>/<assay>/<case>/', methods = ['POST', 'GET'])
 def case_analysis(project_name, assay, case):
+    
+    
+    #### delete cases with distinct md5sums
+    
+    
     
     #database = 'waterzooi_db_test.db'
     database = 'waterzooi_db_case.db'
