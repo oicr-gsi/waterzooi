@@ -35,7 +35,7 @@ from whole_transcriptome import get_WT_call_ready_cases, get_WT_standard_deliver
     create_WT_project_block_json, create_WT_block_json
 from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
     get_case_analysis_status, count_completed_cases, get_case_sequencing_status, count_complete_sequencing
-from sequencing import get_sequences, collect_sequence_info, platform_name
+from sequencing import collect_sequence_info, get_platform_shortname
 from swg_ts import get_swg_ts, review_data, \
     create_swg_ts_sample_json, create_swg_ts_project_json, get_swg_ts_standard_deliverables, \
     order_workflows    
@@ -252,32 +252,17 @@ def sequencing(project_name):
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
     # get sequence file information
-    files = collect_sequence_info(project_name, database)
-    
-        
-    
-    
-    
-    # re-organize sequence information
-    sequences = get_sequences(files)
-    
-    
-    print(sequences)
-    
-    
-    
+    sequences = collect_sequence_info(project_name, database)       
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
-    # sort data
-    sequences.sort(key=lambda x: (x['case'], x['donor'], x['sample_id'], x['library'], x['platform']))
     # map the instrument short name to sequencing platform
-    platform_names = platform_name(project_name, database)
+    platform_names = get_platform_shortname(project_name, database)
  
     if request.method == 'POST':
         
         platforms = request.form.getlist('platform')
-        sequences = get_sequences(files)
+                
         D = {}
         for i in sequences:
             d = {'Case': i['case'],
@@ -329,10 +314,6 @@ def analysis(project_name, assay):
     project = get_project_info(database, project_name)[0]
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_database, project_name, assay)
-    
-    
-    
-    
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
     # keep only cases with up to date data between resources
@@ -344,7 +325,7 @@ def analysis(project_name, assay):
     
    
     
-    # add links to workflows
+    
     
     # add links to miso and dimsum
     

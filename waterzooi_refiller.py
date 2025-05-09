@@ -1007,7 +1007,7 @@ def collect_case_workflow_inputs(case_data):
         donor = get_donor_name(case_data)
         limskeys = d['limsIds'].split(',')
         sequencing_attributes = find_sequencing_attributes(limskeys, case_data)
-        platform = 'NA'
+        platform = d['platform']
         wfrun_id = d['wfrunid']
                 
         for limskey in sequencing_attributes:
@@ -1020,7 +1020,8 @@ def collect_case_workflow_inputs(case_data):
                  'lane': sequencing_attributes[limskey]['lane'],
                  'wfrun_id': wfrun_id,
                  'run': sequencing_attributes[limskey]['run'],
-                 'limskey': limskey}
+                 'limskey': limskey,
+                 'platform': platform}
             
             if D not in L:
                 L.append(D)

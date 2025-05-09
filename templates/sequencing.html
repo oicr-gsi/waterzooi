@@ -46,7 +46,7 @@
         <th><div class="tooltip">Donor ID<span class="tooltiptext">User-supplied donor identifier</span></th>
         <th><div class="tooltip">Sample ID<span class="tooltiptext">User-supplied sample, this distinguishes distinct samples of the same type from the same donor</span></th>
         <th><div class="tooltip">Sample<span class="tooltiptext">OICR-generated sample identifier. Formed from: 1. case, 2. tissue origin, 3. tissue type, 4. sample ID</span></th>
-        <th><div class="tooltip">Description<span class="tooltiptext">A description of the Sample ID</span></th>
+        <th><div class="tooltip">Limskey<span class="tooltiptext">Unique lims identifier</span></th>
         <th><div class="tooltip">Library<span class="tooltiptext">OICR-generated library identifier</span></th>     
         <th>Library Type</th>     
         <th>Tissue Origin</th>     
@@ -65,7 +65,7 @@ Flow cell identifier, 6. Lane number, 7. Demultiplex barcodes</span></th>
           <td> {{i['sample']}} </td>
           <td> {{i['group_id']}} </td>
           <td> {{i['sample_id']}} </td>
-          <td> {{i['group_description']}} </td>
+          <td> {{i['limskey']}} </td>
           <td> {{i['library']}} </td>
           <td> {{i['library_type']}} </td>
           <td> {{i['tissue_origin']}} </td>
