@@ -100,8 +100,12 @@
               <td>{{ workflow_counts[i]['downstream'] }}</td>
               <td>
                 <a class="project_links" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=current_assay | format_identifier, case=i | format_identifier, )}}">
-                  <button class="review_button">Review</button>
-                </a>        
+                  {% if analysis_status[i] %}
+                    <button class="ready_button">Ready</button>
+                  {% else %}
+                  <button class="ready_button">Review</button>
+                  {% endif %}
+                  </a>        
               </td>
               <td>
                 {% if sequencing_status[project['project_id']][i] %}
