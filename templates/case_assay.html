@@ -78,7 +78,7 @@
                   <td>{{ workflow_names[i][workflow_id] }} </td> 
                   <td>{{ file_counts[workflow_id] }} </td> 
                   <td>{{ amount_data[workflow_id] }} </td> 
-                  <td>{{ creation_dates[workflow_id] }} </td> 
+                  <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
                   <td>
                     <dl>
                       {% for j in samples[workflow_id] %}
@@ -134,7 +134,7 @@
                     {% endfor %}
                   <td>{{ file_counts[workflow_id] }} </td> 
                   <td>{{ amount_data[workflow_id] }} </td> 
-                  <td>{{ creation_dates[workflow_id] }} </td> 
+                  <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
                   <td>
                     <dl>
                       {% for j in samples[workflow_id] %}
@@ -194,7 +194,7 @@
                     </td>
                     <td>{{ seq_inputs[workflow_id]['limskey'] }} </td> 
                     <td>{{ seq_inputs[workflow_id]['library'] }} </td> 
-                    <td>{{ creation_dates[workflow_id] }} </td> 
+                    <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
                     <td>
                       {{ samples[workflow_id].0 }}
                     </td>
@@ -235,7 +235,7 @@
                     </td>
                     <td>{{ seq_inputs[workflow_id]['limskey'] }} </td> 
                     <td>{{ seq_inputs[workflow_id]['library'] }} </td> 
-                    <td>{{ creation_dates[workflow_id] }} </td> 
+                    <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
                     <td>
                       {{ samples[workflow_id].0 }}
                     </td>
