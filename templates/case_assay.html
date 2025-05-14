@@ -46,9 +46,9 @@
                 <div class="download-dropdown-small">
                   <button class="download-dropbtn-small">Download json</button>
                     <div class="download-dropdown-content-small">
-                      <button class="download_button_small"><a href="#{{url_for('download_block_data', project_name='truc', pipeline='WG', case=case, pair='truc', anchor_wf='anchor_wf', table='WGS_blocks', selection='all')}}">all</a></button>
+                      <button class="download_button_small"><a href="{{url_for('download_analysis_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, selection='all')}}">all</a></button>
                       <br>
-                      <button class="download_button_small"><a href="#{{url_for('download_block_data', project_name='truc', pipeline='WG', case=case, pair='truc', anchor_wf='anchor_wf', table='WGS_blocks', selection='standard')}}">standard</a></button>
+                      <button class="download_button_small"><a href="{{url_for('download_analysis_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, selection='standard')}}">standard</a></button>
                     </div>
                 </div>
               </td>                  
@@ -90,10 +90,10 @@
                     </dl>        
                   </td>
                   <td>
-                    {% if selected[bmpp_run] %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow" checked/>
+                    {% if selected[workflow_id] %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow" checked/>
                     {% else %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow"/>  
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow"/>  
                     {% endif %}    
                   </td>
                 </tr>
@@ -146,10 +146,10 @@
                     </dl>        
                   </td>
                   <td>
-                    {% if selected[bmpp_run] %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow" checked/>
+                    {% if selected[workflow_id] %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow" checked/>
                     {% else %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow"/>  
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow"/>  
                     {% endif %}    
                   </td>
                 </tr>
@@ -199,10 +199,10 @@
                       {{ samples[workflow_id].0 }}
                     </td>
                     <td>
-                      {% if selected[bmpp_run] %}
-                        <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow" checked/>
+                      {% if selected[workflow_id] %}
+                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow" checked/>
                       {% else %}
-                        <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow"/>  
+                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow"/>  
                       {% endif %}    
                     </td>
                   </tr>
@@ -240,10 +240,10 @@
                       {{ samples[workflow_id].0 }}
                     </td>
                     <td>
-                      {% if selected[bmpp_run] %}
-                        <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow" checked/>
+                      {% if selected[workflow_id] %}
+                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow" checked/>
                       {% else %}
-                        <input class="checkbox" type="checkbox" name="workflow" value="{{bmpp_run}}" id="workflow"/>  
+                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow"/>  
                       {% endif %}    
                     </td>
                   </tr>

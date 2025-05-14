@@ -415,6 +415,29 @@ button.ready_button:focus {
 }
 
 
+.review_button {
+  background-color: #1e7b1e;
+  border: none;
+  color: white;
+  padding: 8px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-blocks;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 14px;
+  margin-left: 0px;
+  margin-right: 0px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  transition-duration: 0.0s; 
+}
+.review_button:hover {
+  background-color: #196719;
+  }
+button.review_button:focus {
+  background-color: #196719;
+}
 
 
 #block_header_table {

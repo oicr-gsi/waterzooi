@@ -30,7 +30,9 @@ from whole_genome import get_call_ready_cases, get_amount_data, create_WG_block_
     get_case_workflow_samples, get_assays, get_missing_workflows, get_case_parent_to_children_workflows, \
     get_case_children_to_parents_workflows, get_case_workflow_info, get_workflow_output_files, \
     delete_cases_with_distinct_checksums, map_donors_to_cases, list_assay_analysis_workflows, \
-    get_input_sequences, get_sequencing_input, get_case_error_message
+    get_input_sequences, get_sequencing_input, get_case_error_message, create_analysis_json, \
+    get_workflow_outputfiles, get_pipeline_standard_deliverables, create_case_analysis_json, \
+    get_review_status
 from whole_transcriptome import get_WT_call_ready_cases, get_WT_standard_deliverables, \
     create_WT_project_block_json, create_WT_block_json
 from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
@@ -305,7 +307,7 @@ def analysis(project_name, assay):
     #database = 'waterzooi_db_test.db'
     database = 'waterzooi_db_case.db'
     
-    workflow_db = 'workflows.db'
+    workflow_db = 'workflows_case.db'
     analysis_database = 'analysis_review_case.db'
     
     assay = assay.replace('+:+', '/')
@@ -320,30 +322,16 @@ def analysis(project_name, assay):
     delete_cases_with_distinct_checksums(cases, md5sums)
     # get the donor
     donors = map_donors_to_cases(cases)
-
-    
-    
-   
-    
-    
-    
-    # add links to miso and dimsum
-    
-   
-    
-    
-    ## add error message
-        
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
     # get the samples analyzed in the assay for each case
     samples = get_case_analysis_samples(cases)
     case_names = sorted(list(cases.keys()))
-    # count workflows
-    workflow_counts = count_case_analysis_workflows(cases)
     # re-organized the workflows
     case_data = get_case_analysis_workflows(cases)
+    # count workflows
+    workflow_counts = count_case_analysis_workflows(case_data)
     # get all the analysis workflows across each case of the same assay
     analysis_workflows = list_assay_analysis_workflows(case_data)
     # get the analysis status of each case
@@ -351,30 +339,30 @@ def analysis(project_name, assay):
     analysis_status = analysis_status[project_name]
     # get the combined error messages across template for each assay
     errors = get_case_error_message(cases)
-    
-    
     # get the sequencing status of each case
     sequencing_status = get_case_sequencing_status(database, project_name)
-        
+    # get the selected status of each workflows
+    selected_workflows = get_selected_workflows(project_name, workflow_db, 'Workflows')    
+    # get the review status of each case
+    review_status = get_review_status(case_data, selected_workflows)
+      
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
-        # get the workflow names
-        workflow_names = get_workflow_names(project_name, database)
-        
-        # if deliverable == 'selected':
-        #     block_data = create_WGS_project_block_json(project_name, database, blocks, block_status, selected, workflow_names)
-        # elif deliverable == 'standard':
-        #     # get the pipeline deliverables       
-        #     deliverables = get_WGS_standard_deliverables()
-        #     block_data = create_WGS_project_block_json(project_name, database, blocks, block_status, selected, workflow_names, deliverables)
-        # else:
-        #     block_data = {}
-                
-        # return Response(
-        #     response=json.dumps(block_data),
-        #     mimetype="application/json",
-        #     status=200,
-        #     headers={"Content-disposition": "attachment; filename={0}.WGS.json".format(project_name)})
+        # get the workflow output files
+        workflow_outputfiles = get_workflow_outputfiles(database, project_name)
+        if deliverable == 'selected':
+            analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles)
+        elif deliverable == 'standard':
+            standard_deliverables = get_pipeline_standard_deliverables()
+            analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles, standard_deliverables)
+        else:
+            analysis_data = {}
+            
+        return Response(
+            response=json.dumps(analysis_data),
+            mimetype="application/json",
+            status=200,
+            headers={"Content-disposition": "attachment; filename={0}.pipeline.json".format(project_name)})
 
     else:
         return render_template('assay.html',
@@ -390,7 +378,8 @@ def analysis(project_name, assay):
                            workflow_counts=workflow_counts,
                            analysis_status=analysis_status,
                            sequencing_status=sequencing_status,
-                           errors=errors
+                           errors=errors,
+                           review_status=review_status
                            )
 
 @app.route('/<project_name>/<assay>/<case>/', methods = ['POST', 'GET'])
@@ -404,7 +393,7 @@ def case_analysis(project_name, assay, case):
     #database = 'waterzooi_db_test.db'
     database = 'waterzooi_db_case.db'
     
-    workflow_db = 'workflows.db'
+    workflow_db = 'workflows_case.db'
     analysis_db = 'analysis_review_case.db'
     
     assay = assay.replace('+:+', '/')
@@ -414,6 +403,11 @@ def case_analysis(project_name, assay, case):
     project = get_project_info(database, project_name)[0]
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_db, project_name, assay)
+    # check that analysis is up to date with the waterzooi database
+    md5sums = get_case_md5sums(database, project_name)
+    # keep only cases with up to date data between resources
+    delete_cases_with_distinct_checksums(cases, md5sums)
+    # get analysis data
     case_analysis = cases[case]
     case_data = get_case_analysis_workflows(cases) 
     case_data = case_data[case]
@@ -435,95 +429,28 @@ def case_analysis(project_name, assay, case):
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
-    
     # map limskeys and libraries to sequencing workflows
     seq_inputs = get_sequencing_input(database, case)
-    
-    
-    selected = get_selected_workflows(project_name, workflow_db, 'Workflows')
-    
-   
     # list expected workflows without workflow ids
     missing_workflows = get_missing_workflows(case_data)
     # get workflow relationships
     parent_to_children = get_case_parent_to_children_workflows(database, case)
     child_to_parents = get_case_children_to_parents_workflows(parent_to_children)
+    # extract selected status of each workflow
+    selected = get_selected_workflows(project_name, workflow_db, 'Workflows')
     
-    
-    
-    
-    # sort sequencing workflows according to limskeys
-    
-    # remove input sequences in workflow view for bcl2fastq workflows
-    
-    #### add downloadable
-    
-    #### include case in selection database
-    
-    #### what to use for selection ? md5sum?
-    
-    #### add selection function
-    
-    #### add deliverables
-    
-    
-    
-   
-    
-    
-    
-    #### create graph
-    
- 
-    
-    
-    #### add lane level alignments
-    
-    
-    
-    
-    
-    
-    
-    # # get the number of lane sequence per sequence and platform and the corresponding release status
-    # lanes = get_sample_sequencing_amount(project_name, case, sample_pair, database,
-    #                                      'Workflows', 'Workflow_Inputs', 'Libraries')
-    # # get the project info for project_name from db
-    # project = get_project_info(project_name, database)
-    # # get the pipelines from the library definitions in db
-    # pipelines = get_pipelines(project_name, database)
-    # # get miso link
-    # miso_link = get_miso_sample_link(project_name, case, database)
-    # # get the WGS blocks
-    # blocks = get_WGTS_blocks_info(project_name, case, database, 'WGS_blocks')
-    # # sort sample pairs names
-    # sample_pairs_names = sorted(list(blocks.keys()))
-    # # get the workflow names
-    # workflow_names = get_workflow_names(project_name, database)
-    
-    
-    # # get the sequencing platform of each workflow
-    # platforms = get_sequencing_platform(project_name, database)
-    # # find the parents of each workflow
-    # parents = get_parent_workflows(project_name, database)
-    # # extract selected status of each workflow
-    
-    # # get the contamination for each anchor workflow 
-    # contamination = get_block_level_contamination(project_name, database, blocks, sample_pair)
-        
     if request.method == 'POST':
         # get the list of checked workflows        
         selected_workflows = request.form.getlist('workflow')
-        # # get the workflows of each block for sample pair and case
-        # case_workflows = get_case_workflows(case, database, 'WGS_blocks')
-        # # list all the workflows for a given sample pair
-        # # may include workflows from different blocks for a sample sample pair
-        # # this ensures blocks are mutually exclusive within a sample pair but not within a case
-        # workflows = []
-        # for i in case_workflows[sample_pair]:
-        #     workflows.extend(case_workflows[sample_pair][i])
-        # update_wf_selection(workflows, selected_workflows, selected, workflow_db, 'Workflows')
-        # return redirect(url_for('wgs_case', case=case, project_name=project_name, sample_pair=sample_pair))
+        # make a list of workflows across all templates
+        workflows = []
+        for template in case_data:
+            for i in ['sequencing', 'analysis', 'alignments']:
+                for workflow in template[i]:
+                    workflows.extend(template[i][workflow])
+        update_wf_selection(workflows, selected_workflows, selected, workflow_db, 'Workflows')
+        return redirect(url_for('case_analysis', project_name=project_name, assay=assay.replace('/', '+:+'), case=case))
+    
     else:
         return render_template('case_assay.html',
                            project=project,
@@ -543,8 +470,6 @@ def case_analysis(project_name, assay, case):
                            child_to_parents=child_to_parents,
                            sequencing_status=sequencing_status,
                            seq_inputs=seq_inputs
-                           
-                           
                            )
 
 
@@ -1381,6 +1306,35 @@ def download_cases_table(project_name):
    
     return send_file("{0}_cases.xlsx".format(project_name), as_attachment=True)
 
+
+
+@app.route('/download_analysis/<project_name>/<case>/<assay>/<selection>')
+def download_analysis_data(project_name, case, assay, selection):
+        
+    database = 'waterzooi_db_case.db'
+    workflow_db = 'workflows_case.db'
+    analysis_db = 'analysis_review_case.db'
+    
+    assay = assay.replace('+:+', '/')
+    case = case.replace('+:+', '/')
+    
+    # get the cases with analysis data for that project and assay
+    cases = get_cases_with_analysis(analysis_db, project_name, assay)
+    case_data = get_case_analysis_workflows(cases) 
+    case_data = case_data[case]
+    # extract selected status of each workflow
+    selected_workflows = get_selected_workflows(project_name, workflow_db, 'Workflows')
+    # get the workflow output files
+    workflow_outputfiles = get_workflow_outputfiles(database, project_name)
+    # create json with workflow information for DARE
+    analysis_data = create_case_analysis_json(case, case_data, selected_workflows, workflow_outputfiles, selection)
+        
+    # send the json to outoutfile                    
+    return Response(
+        response=json.dumps(analysis_data),
+        mimetype="application/json",
+        status=200,
+        headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.{3}.json".format(case, project_name, assay, selection)})
 
 
 # if __name__ == "__main__":

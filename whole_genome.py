@@ -573,29 +573,29 @@ def get_sequencing_platform(project_name, database, table = 'Workflow_Inputs'):
 
 
 
-def get_selected_workflows(project_name, database, table = 'Workflows'):
-    '''
-    (str, str, str) -> dict 
+# def get_selected_workflows(project_name, database, table = 'Workflows'):
+#     '''
+#     (str, str, str) -> dict 
     
-    Returns a dictionary with the selected status of each workflow for the given project
+#     Returns a dictionary with the selected status of each workflow for the given project
                   
-    Parameters
-    ----------
-    - project_name (str): Name of project of interest
-    - database (str): Path to the sqlite database
-    - table (str): Table with workflow information
-    '''
+#     Parameters
+#     ----------
+#     - project_name (str): Name of project of interest
+#     - database (str): Path to the sqlite database
+#     - table (str): Table with workflow information
+#     '''
                 
-    conn = connect_to_db(database)
-    query = "SELECT DISTINCT wfrun_id, selected FROM {0} WHERE project_id = ?;".format(table)
-    data = conn.execute(query, (project_name,)).fetchall() 
-    conn.close()
+#     conn = connect_to_db(database)
+#     query = "SELECT DISTINCT wfrun_id, selected FROM {0} WHERE project_id = ?;".format(table)
+#     data = conn.execute(query, (project_name,)).fetchall() 
+#     conn.close()
 
-    D = {}
-    for i in data:
-        D[i['wfrun_id']] = int(i['selected'])
+#     D = {}
+#     for i in data:
+#         D[i['wfrun_id']] = int(i['selected'])
     
-    return D
+#     return D
 
     
 def get_case_workflows(case, database, table = 'WGS_blocks'):
@@ -640,8 +640,7 @@ def update_wf_selection(workflows, selected_workflows, selection_status, databas
     
     Parameters
     ----------
-    - workflows (list): List of workflows from a single analysis block for which 
-                        status needs to be updated
+    - workflows (list): List of workflows across templates from a case
     - selected_workflows (list): List of selected workflows from the application form for a given case
     - selection_status (dict): Selection status of all workflows for a given project
     - database (str): Path to the sqlite database
@@ -657,7 +656,7 @@ def update_wf_selection(workflows, selected_workflows, selection_status, databas
             status = 0
         
         # update only if status has changed
-        if selection_status[os.path.basename(i)] != status:
+        if selection_status[i] != status:
             query = 'UPDATE Workflows SET selected = ? WHERE wfrun_id = ?;'
             conn.execute(query, (status, i))
             conn.commit()
@@ -1307,54 +1306,59 @@ def get_case_analysis_samples(cases):
     for case in cases:
         samples = []
         for d in cases[case]:
-            for i in d['template']['Samples']:
-                samples.append(d['template']['Samples'][i]['sample']) 
+            if d['template']:
+                for i in d['template']['Samples']:
+                    samples.append(d['template']['Samples'][i]['sample']) 
         D[case] = list(set(samples))
         
     return D
     
 
 
-def count_case_analysis_workflows(cases):
-    '''
-    (dict) -> dict
+# def count_case_analysis_workflows(cases):
+#     '''
+#     (dict) -> dict
     
-    Returns a dictionary with analysis workflow ids organized for each case
+#     Returns a dictionary with analysis workflow ids organized for each case
     
-    Parameters
-    ----------
-    - cases (dict): Dictionary with case analysis extracted from the analysis review database
-    '''
+#     Parameters
+#     ----------
+#     - cases (dict): Dictionary with case analysis extracted from the analysis review database
+#     '''
         
-    D = {}
+#     D = {}
     
-    for case in cases:
-        if case not in D:
-            D[case] = {}
-        callready = []
-        for d in cases[case]:
-            for i in d['template']['Anchors']:
-                callready.append(d['template']['Anchors'][i]['workflows'])
-        D[case]['callready'] = len(list(set(callready)))
-        downstream = []
-        for d in cases[case]:
-            for i in d['template']['Analysis']:
-                for j in d['template']['Analysis'][i]:
-                    downstream.append(j['workflow_id'])
-        D[case]['downstream'] = len(list(set(downstream)))
-        analysis = {}
-        for d in cases[case]:
-            for i in d['template']['Analysis']:
-                if i not in analysis:
-                    analysis[i] = []
-                for j in d['template']['Analysis'][i]:
-                    analysis[i].append(j['workflow_id'])
-                analysis[i] = list(set(analysis[i]))   
-        for i in analysis:
-            analysis[i] = len(analysis[i])
-        D[case]['analysis'] = analysis
+#     for case in cases:
+#         if case not in D:
+#             D[case] = {}
+#         callready = []
+#         for d in cases[case]:
+#             if 'Anchors' in d['template']:
+#                 for i in d['template']['Anchors']:
+#                     callready.append(d['template']['Anchors'][i]['workflows'])
+#         D[case]['callready'] = len(list(set(callready)))
+#         downstream = []
+#         for d in cases[case]:
+#             if 'Analysis' in d['template']:
+#                 for i in d['template']['Analysis']:
+#                     for j in d['template']['Analysis'][i]:
+#                         downstream.append(j['workflow_id'])
+#         D[case]['downstream'] = len(list(set(downstream)))
+#         analysis = {}
+#         for d in cases[case]:
+#             if 'Analysis' in d['template']:
+#                 for i in d['template']['Analysis']:
+#                     if i not in analysis:
+#                         analysis[i] = []
+#                     for j in d['template']['Analysis'][i]:
+#                         analysis[i].append(j['workflow_id'])
+#                     analysis[i] = list(set(analysis[i]))   
+#         for i in analysis:
+#             analysis[i] = len(analysis[i])
+#         D[case]['analysis'] = analysis
 
-    return D
+#     return D
+
 
 
 
@@ -1378,46 +1382,88 @@ def get_case_analysis_workflows(cases):
             D[case] = []
         for d in cases[case]:
             callready = []
-            for i in d['template']['Anchors']:
-                callready.append(d['template']['Anchors'][i]['workflows'])
+            if 'Anchors' in d['template']:
+                for i in d['template']['Anchors']:
+                    callready.append(d['template']['Anchors'][i]['workflows'])
             callready = list(set(callready))
             downstream = []
-            for i in d['template']['Analysis']:
-                for j in d['template']['Analysis'][i]:
-                    downstream.append(j['workflow_id'])
+            if 'Analysis' in d['template']:
+                for i in d['template']['Analysis']:
+                    for j in d['template']['Analysis'][i]:
+                        downstream.append(j['workflow_id'])
             downstream = list(set(downstream))
             sequencing = {}
-            for i in d['template']['Data']['Sequencing']['workflows']:
-                workflow_name = i['workflow_name']
-                workflow_id = i['workflow_id']
-                if workflow_name in sequencing:
-                    sequencing[workflow_name].append(workflow_id)
-                else:
-                    sequencing[workflow_name] = [workflow_id]
+            if 'Data' in d['template']:
+                for i in d['template']['Data']['Sequencing']['workflows']:
+                    workflow_name = i['workflow_name']
+                    workflow_id = i['workflow_id']
+                    if workflow_name in sequencing:
+                        sequencing[workflow_name].append(workflow_id)
+                    else:
+                        sequencing[workflow_name] = [workflow_id]
                 sequencing[workflow_name] = list(set(sequencing[workflow_name]))
             analysis = {}
-            for i in d['template']['Analysis']:
-                if i not in analysis:
-                    analysis[i] = []
-                for j in d['template']['Analysis'][i]:
-                    analysis[i].append(j['workflow_id'])
-            analysis[i] = list(set(analysis[i]))   
+            if 'Analysis' in d['template']:
+                for i in d['template']['Analysis']:
+                    if i not in analysis:
+                        analysis[i] = []
+                    for j in d['template']['Analysis'][i]:
+                        analysis[i].append(j['workflow_id'])
+                analysis[i] = list(set(analysis[i]))   
             alignments = {}
-            for i in d['template']['Data']:
-                if i != 'Sequencing':
-                    for k in d['template']['Data'][i]['workflows']:
-                        wfname = k['workflow_name']
-                        workflow_id = k['workflow_id']   
-                        if wfname not in alignments:
-                            alignments[wfname] = []
-                        alignments[wfname].append(workflow_id)
-                        alignments[wfname] = list(set(alignments[wfname]))
+            if 'Data' in d['template']:
+                for i in d['template']['Data']:
+                    if i != 'Sequencing':
+                        for k in d['template']['Data'][i]['workflows']:
+                            wfname = k['workflow_name']
+                            workflow_id = k['workflow_id']   
+                            if wfname not in alignments:
+                                alignments[wfname] = []
+                            alignments[wfname].append(workflow_id)
+                            alignments[wfname] = list(set(alignments[wfname]))
                         
             D[case].append({'callready': callready, 'downstream': downstream,
                             'sequencing': sequencing, 'analysis': analysis,
                             'alignments': alignments})
         
     return D
+
+
+
+
+def count_case_analysis_workflows(case_analysis_data):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with analysis workflow ids organized for each case
+    
+    Parameters
+    ----------
+    - cases (dict): Dictionary with case analysis extracted from the analysis review database
+    '''
+        
+    D = {}
+    
+    for case in case_analysis_data:
+        if case not in D:
+            D[case] = {'callready': [], 'downstream': [], 'analysis': {}}
+        for d in case_analysis_data[case]:
+            D[case]['callready'].extend(d['callready'])
+            D[case]['downstream'].extend(d['downstream'])
+            for i in d['analysis']:
+                if i not in D[case]['analysis']:
+                    D[case]['analysis'][i] = []
+                D[case]['analysis'][i].extend(d['analysis'][i])
+            
+        D[case]['callready'] = len(set(D[case]['callready']))
+        D[case]['downstream'] = len(set(D[case]['downstream']))
+        for i in D[case]['analysis']:
+            D[case]['analysis'][i] = len(set(D[case]['analysis'][i]))
+            
+    return D
+
+
+
 
 
 def get_sequencing_input(database, case):
@@ -2011,6 +2057,173 @@ def get_pipeline_standard_deliverables():
 ### rreview beloe for downloading the json
 
 
+def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, deliverables=None):
+    '''
+    (dict, dict, dict, dict, dict, dict, None | dict)
+    
+    Returns a dictionary with workflow information for a given block (ie, sample pair)
+    and anchor bmpp parent workflow
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with analysis templates for all cases in a project
+    - selected_workflows (dict): Dictionary with selected status of each workflow in project
+    - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
+    - deliverables (None | dict): None or dictionary with file extensions of standard deliverables
+    '''
+        
+    # create a lambda to evaluate the deliverable files
+    # x is a pair of (file, file_ending)
+    G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
+   
+    D = {}
+        
+    for case in case_data:
+        for template in case_data[case]:
+            # make a list of workflows:
+            callready = template['callready']
+            workflows = {}
+            for i in ['sequencing', 'analysis', 'alignments']:
+                for workflow in template[i]:
+                    if template[i][workflow]:
+                        workflows[workflow] = template[i][workflow]
+        
+            # check that analysis workflows are selected
+            # do not include call ready workflows because they can be shared across templates
+            wfs = []
+            for i in workflows.values():
+                wfs.extend(i)
+            
+            analysis = [i for i in wfs if i not in callready]   
+            if any(map(lambda x: x in selected_workflows, analysis)):
+                for workflow in workflows:
+                    for wfrunid in workflows[workflow]:
+                        # check if workflow is selected
+                        if selected_workflows[wfrunid]:
+                            # get workflow output files
+                            outputfiles = workflow_outputfiles[wfrunid]                        
+                                        
+                            # check that only workflows in standard eliverables are used
+                            if deliverables:
+                                key = workflow.split('_')[0].lower()
+                                if key in deliverables:
+                                    # map all file endings of deliverables with files
+                                    groups = list(itertools.product(outputfiles, deliverables[key]))
+                                    # determine which files are part of the deliverables
+                                    F = list(map(G, groups))
+                                    L = [groups[k][0] for k in range(len(F)) if F[k]]
+                                    if L:
+                                        if case not in D:
+                                            D[case] = {}
+                                        if workflow in D[case]:
+                                            D[case][workflow].extend(L)
+                                        else:
+                                            D[case][workflow] = L
+                            else:
+                                if case not in D:
+                                    D[case] = {}
+                                if workflow in D[case]:
+                                    D[case][workflow].extend(outputfiles)
+                                else:
+                                    D[case][workflow] = outputfiles
+                            
+                            D[case][workflow] = sorted(list(set(D[case][workflow])))  
+    
+    
+    return D
+                    
+
+
+
+def create_case_analysis_json(case, case_data, selected_workflows, workflow_outputfiles, selection):
+    '''
+    (str, list, dict, dict, str)
+    
+    Returns a dictionary with workflow information for a given block (ie, sample pair)
+    and anchor parent workflow (bmpp or star)
+    
+    Parameters
+    ----------
+    - case (str): Case unique identifier
+    - case_data (list): List of analysis templates for a single case in a project
+    - selected_workflows (dict): Dictionary with selected status of each workflow in project
+    - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
+    - selection (str): Include files from all selected workflows or files from the standard deliverables
+                       Values: standard or all
+    '''
+    
+    # create a lambda to evaluate the deliverable files
+    # x is a pair of (file, file_ending)
+    G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
+            
+    # get the deliverables
+    if selection == 'standard':
+        deliverables = get_pipeline_standard_deliverables()
+    elif selection == 'all':
+        deliverables = {}
+    
+    D = {}
+            
+    for template in case_data:
+        # make a list of workflows:
+        callready = template['callready']
+        workflows = {}
+        for i in ['sequencing', 'analysis', 'alignments']:
+            for workflow in template[i]:
+                if template[i][workflow]:
+                    workflows[workflow] = template[i][workflow]
+            
+        # check that analysis workflows are selected
+        # do not include call ready workflows because they can be shared across templates
+        wfs = []
+        for i in workflows.values():
+            wfs.extend(i)
+                
+        analysis = [i for i in wfs if i not in callready]   
+        if any(map(lambda x: x in selected_workflows, analysis)):
+            for workflow in workflows:
+                for wfrunid in workflows[workflow]:
+                    # check if workflow is selected
+                    if selected_workflows[wfrunid]:
+                        # get workflow output files
+                        outputfiles = workflow_outputfiles[wfrunid]                        
+                                            
+                        # check that only workflows in standard eliverables are used
+                        if deliverables:
+                            key = workflow.split('_')[0].lower()
+                            if key in deliverables:
+                                # map all file endings of deliverables with files
+                                groups = list(itertools.product(outputfiles, deliverables[key]))
+                                # determine which files are part of the deliverables
+                                F = list(map(G, groups))
+                                L = [groups[k][0] for k in range(len(F)) if F[k]]
+                                if L:
+                                    if case not in D:
+                                        D[case] = {}
+                                    if workflow in D[case]:
+                                        D[case][workflow].extend(L)
+                                    else:
+                                        D[case][workflow] = L
+                        else:
+                            if case not in D:
+                                D[case] = {}
+                            if workflow in D[case]:
+                                D[case][workflow].extend(outputfiles)
+                            else:
+                                D[case][workflow] = outputfiles
+                        
+                        D[case][workflow] = sorted(list(set(D[case][workflow])))  
+                       
+        
+        
+        return D
+    
+    
+    
+    
+    
+
+
 # def get_selected_workflows(project_name, database, table = 'Workflows'):
 #     '''
 #     (str, str, str) -> dict 
@@ -2213,3 +2426,100 @@ def get_pipeline_standard_deliverables():
                                         
     
 #     return D
+
+
+def get_selected_workflows(project_name, database, table = 'Workflows'):
+    '''
+    (str, str, str) -> dict 
+    
+    Returns a dictionary with the selected status of each workflow for the given project
+                  
+    Parameters
+    ----------
+    - project_name (str): Name of project of interest
+    - database (str): Path to the sqlite database
+    - table (str): Table with workflow information
+    '''
+                
+    conn = connect_to_db(database)
+    query = "SELECT DISTINCT wfrun_id, selected FROM {0} WHERE project_id = ?;".format(table)
+    data = conn.execute(query, (project_name,)).fetchall() 
+    conn.close()
+
+    D = {}
+    for i in data:
+        D[i['wfrun_id']] = int(i['selected'])
+    
+    return D
+
+
+def get_workflow_outputfiles(database, project_name):
+    '''
+    (str, str) ->
+    
+    Returns a dictionary with the workflow output files organuzed by cases of project
+        
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - project_name (str): Project nameWorkflow run identifier
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT Files.file, Files.wfrun_id, Files.case_id, \
+                        Workflows.wf FROM Files JOIN Workflows WHERE Workflows.wfrun_id = Files.wfrun_id \
+                        AND Workflows.case_id = Files.case_id AND Files.project_id = Workflows.project_id \
+                        AND Files.project_id = ?;", (project_name, )).fetchall()
+    conn.close()   
+    
+    D = {}
+    
+    for i in data:
+        wfrun_id = i['wfrun_id']
+        case_id = i['case_id']
+        file = i['file']
+        workflow = i['wf']
+        
+        if wfrun_id in D:
+            D[wfrun_id].append(file)
+        else:
+            D[wfrun_id] = [file]
+        
+    return D
+
+
+
+
+def get_review_status(case_data, selected_workflows):
+    '''
+    (dict, dict) -> dict
+    
+    Returns a dictionary with review status for each case in project
+    A case is considered to be reviewed if any worklow has been selected
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with analysis template for each case
+    - selected_workflows (dict): Dictionary with selection status of each workflow in a project
+    '''
+    
+    D = {}
+    
+    for case in case_data:
+        status = 0
+        for template in case_data[case]:
+            for i in ['callready', 'downstream']:
+                for wfrun_id in template[i]:
+                    if selected_workflows[wfrun_id]:
+                        status = 1
+                        break
+            for i in ['sequencing', 'alignments', 'analysis']:
+                for workflow in template[i]:
+                    for wfrun_id in template[i][workflow]:
+                        if selected_workflows[wfrun_id]:
+                            status = 1
+                            break
+        D[case] = status
+    
+    return D
+    
