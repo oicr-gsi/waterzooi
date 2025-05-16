@@ -1417,10 +1417,11 @@ def get_case_analysis_workflows(cases):
                         for k in d['template']['Data'][i]['workflows']:
                             wfname = k['workflow_name']
                             workflow_id = k['workflow_id']   
-                            if wfname not in alignments:
-                                alignments[wfname] = []
-                            alignments[wfname].append(workflow_id)
-                            alignments[wfname] = list(set(alignments[wfname]))
+                            if wfname not in sequencing:
+                                if wfname not in alignments:
+                                    alignments[wfname] = []
+                                alignments[wfname].append(workflow_id)
+                                alignments[wfname] = list(set(alignments[wfname]))
                         
             D[case].append({'callready': callready, 'downstream': downstream,
                             'sequencing': sequencing, 'analysis': analysis,
