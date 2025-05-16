@@ -30,61 +30,61 @@ def connect_to_db(database):
     return conn
 
 
-def get_children_workflows(project_name, database):
-    '''
-    (str) -> list
+# def get_children_workflows(project_name, database):
+#     '''
+#     (str) -> list
     
-    Returns a dictionary with workflow name, list of workflow_ids that are all children of 
-    workflow_id (i.e immediate downstream workflow) for a given project_name
+#     Returns a dictionary with workflow name, list of workflow_ids that are all children of 
+#     workflow_id (i.e immediate downstream workflow) for a given project_name
     
-    Parameters
-    ----------
-    - project_name (str): Name of project of interest
-    - bmpp_id (str): bamMergePreprocessing workflow id 
-    - database (str): Path to the sqlite database
-    '''
+#     Parameters
+#     ----------
+#     - project_name (str): Name of project of interest
+#     - bmpp_id (str): bamMergePreprocessing workflow id 
+#     - database (str): Path to the sqlite database
+#     '''
     
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT Workflows.wf, Parents.parents_id, \
-                        Parents.children_id FROM Parents JOIN Workflows \
-                        WHERE Parents.project_id = ? \
-                        AND Workflows.project_id = ? AND \
-                        Workflows.wfrun_id = Parents.children_id;", (project_name, project_name)).fetchall()
-    data= list(set(data))
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT Workflows.wf, Parents.parents_id, \
+#                         Parents.children_id FROM Parents JOIN Workflows \
+#                         WHERE Parents.project_id = ? \
+#                         AND Workflows.project_id = ? AND \
+#                         Workflows.wfrun_id = Parents.children_id;", (project_name, project_name)).fetchall()
+#     data= list(set(data))
+#     conn.close()
     
-    D = {}
-    for i in data:
-        if i['parents_id'] not in D:
-            D[i['parents_id']] = []
-        D[i['parents_id']].append({'wf': i['wf'], 'children_id': i['children_id']})
+#     D = {}
+#     for i in data:
+#         if i['parents_id'] not in D:
+#             D[i['parents_id']] = []
+#         D[i['parents_id']].append({'wf': i['wf'], 'children_id': i['children_id']})
     
-    return D
+#     return D
 
 
-def get_workflow_names(project_name, database):
-    '''
-    (str, str) -> dict
+# def get_workflow_names(project_name, database):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary with workflow_id and workflow name key, value pairs
+#     Returns a dictionary with workflow_id and workflow name key, value pairs
     
-    Parameters
-    ----------
-    - project_name (str): Name of project of interest
-    - database (str): Path to the sqlite database
-    '''
+#     Parameters
+#     ----------
+#     - project_name (str): Name of project of interest
+#     - database (str): Path to the sqlite database
+#     '''
 
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT Workflows.wfrun_id, Workflows.wf, Workflows.wfv FROM \
-                        Workflows WHERE Workflows.project_id = ?;", (project_name,)).fetchall()
-    data= list(set(data))
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT Workflows.wfrun_id, Workflows.wf, Workflows.wfv FROM \
+#                         Workflows WHERE Workflows.project_id = ?;", (project_name,)).fetchall()
+#     data= list(set(data))
+#     conn.close()
     
-    D = {}
-    for i in data:
-        D[i['wfrun_id']] = [i['wf'], i['wfv']]
+#     D = {}
+#     for i in data:
+#         D[i['wfrun_id']] = [i['wf'], i['wfv']]
        
-    return D
+#     return D
 
 
 def remove_non_analysis_workflows(L):
@@ -127,25 +127,25 @@ def convert_epoch_time(epoch):
     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(epoch)))
 
 
-def get_miso_sample_link(project_name, case, database):
-    '''
-    (str, str, str) -> str
+# def get_miso_sample_link(project_name, case, database):
+#     '''
+#     (str, str, str) -> str
     
-    Returns a link to the sample MISO page
+#     Returns a link to the sample MISO page
     
-    Parameters
-    ----------
-    - project_name (str): Project of interest
-    - case (str): Sample name
-    - database (str): Path to the sqlite database
-    '''
+#     Parameters
+#     ----------
+#     - project_name (str): Project of interest
+#     - case (str): Sample name
+#     - database (str): Path to the sqlite database
+#     '''
     
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT miso FROM Samples WHERE project_id = ? AND case_id = ?;", (project_name, case)).fetchall()
-    data = list(set(data))
-    miso_link = data[0]['miso']
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT miso FROM Samples WHERE project_id = ? AND case_id = ?;", (project_name, case)).fetchall()
+#     data = list(set(data))
+#     miso_link = data[0]['miso']
     
-    return miso_link
+#     return miso_link
 
 
 
@@ -174,28 +174,28 @@ def get_library_design(library_source):
 
 
 
-def get_pipelines(project_name, database):
-    '''
-    (str, str) -> list
+# def get_pipelines(project_name, database):
+#     '''
+#     (str, str) -> list
     
-    Returns a list of pipeline names based on the library codes extracted from database for project_name
+#     Returns a list of pipeline names based on the library codes extracted from database for project_name
     
-    Parameters
-    ----------
-    - project_name (str) Name of the project of interest
-    - database (str): Path to the sqlite database
-    '''    
+#     Parameters
+#     ----------
+#     - project_name (str) Name of the project of interest
+#     - database (str): Path to the sqlite database
+#     '''    
     
-    # connect to db
-    conn = connect_to_db(database)
-    # extract library source
-    library_source = conn.execute("SELECT DISTINCT library_type FROM Files WHERE project_id = ?;", (project_name,)).fetchall()
-    library_source = list(set([i['library_type'] for i in  list(set(library_source))]))
-    # get the library definitions
-    pipelines = [get_library_design(j) for j in library_source if get_library_design(j)]
-    conn.close()
+#     # connect to db
+#     conn = connect_to_db(database)
+#     # extract library source
+#     library_source = conn.execute("SELECT DISTINCT library_type FROM Files WHERE project_id = ?;", (project_name,)).fetchall()
+#     library_source = list(set([i['library_type'] for i in  list(set(library_source))]))
+#     # get the library definitions
+#     pipelines = [get_library_design(j) for j in library_source if get_library_design(j)]
+#     conn.close()
     
-    return pipelines
+#     return pipelines
 
 
 
