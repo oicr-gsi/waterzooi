@@ -61,13 +61,13 @@
                   <button class="download-dropbtn-small">Download json</button>
                     <div class="download-dropdown-content-small">
                       {% if deliverables['pipeline'] %}
-                        <p>pipeline</p> 
+                        <p style="font-size:12px; font-family: Arial, Helvetica, sans-serif; margin-bottom: 5px">pipeline</p> 
                         <button class="download_button_small"><a href="{{url_for('download_analysis_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, selection='all')}}">all</a></button>
                         <br>
                         <button class="download_button_small"><a href="{{url_for('download_analysis_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, selection='standard')}}">standard</a></button>
                       {% endif %}                   
                       {% if deliverables['cbioportal'] %}
-                        <p>cbioportal</p> 
+                        <p style="font-size:12px; font-family: Arial, Helvetica, sans-serif; margin-bottom: 5px">cbioportal</p> 
                         <button class="download_button_small"><a href="{{url_for('download_cbioportal_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, segmentation='sequenza')}}">sequenza</a></button>
                         <br> 
                         <button class="download_button_small"><a href="{{url_for('download_cbioportal_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, segmentation='purple')}}">purple</a></button>

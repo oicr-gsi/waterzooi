@@ -532,13 +532,17 @@ button.select_button:focus {
   text-align: center;
   text-decoration: none;
   display: inline-block;
-  font-size: 12px;
+  font-size: 9px;
   cursor: pointer;
   border-radius: 8px;
   transition-duration: 0.4s;
   padding: 0px;
-  display: inline-blocks;
+  display: inline-block;
+  box-sizing: border-box;
   margin-bottom: 4px;
+  margin-top: 0px;
+  position: relative;
+  left: 10px;
 }
 .download_button_small a {
   color: white;
