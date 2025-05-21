@@ -25,7 +25,7 @@ from whole_genome import get_amount_data, get_workflows_analysis_date, get_workf
     map_donors_to_cases, list_assay_analysis_workflows, \
     get_sequencing_input, get_case_error_message, create_analysis_json, \
     get_workflow_outputfiles, get_pipeline_standard_deliverables,\
-    create_case_analysis_json, get_review_status, identify_deliverables, create_case_cbioportal_json
+    create_case_analysis_json, get_review_status, identify_deliverables, create_cbioportal_json
 from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
     get_case_analysis_status, count_completed_cases, get_case_sequencing_status, count_complete_sequencing
 from sequencing import collect_sequence_info, get_platform_shortname
@@ -301,6 +301,9 @@ def analysis(project_name, assay):
         
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
+    # get the deliverables
+    deliverables = identify_deliverables(project)
+    print(deliverables)
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_database, project_name, assay)
     # check that analysis is up to date with the waterzooi database
@@ -332,24 +335,31 @@ def analysis(project_name, assay):
     selected_workflows = get_selected_workflows(project_name, workflow_db, 'Workflows')    
     # get the review status of each case
     review_status = get_review_status(case_data, selected_workflows)
-      
+        
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
         # get the workflow output files
         workflow_outputfiles = get_workflow_outputfiles(database, project_name)
         if deliverable == 'selected':
             analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles)
+            filename = '{0}.pipeline.json'.format(project_name)
         elif deliverable == 'standard':
             standard_deliverables = get_pipeline_standard_deliverables()
             analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles, standard_deliverables)
+            filename = '{0}.pipeline.standard.json'.format(project_name)
+        elif deliverable in ['purple', 'sequenza']:
+            selected_workflows = get_selected_workflows(project_name, workflow_db, 'Workflows')
+            # create json with workflow information for cbioportal importer
+            analysis_data = create_cbioportal_json(cases, selected_workflows, workflow_outputfiles, deliverable)
+            filename = '{0}.{1}.cbioportal.json'.format(project_name, assay)
         else:
             analysis_data = {}
-            
+            filename = '{0}.pipeline.json'.format(project_name)
         return Response(
             response=json.dumps(analysis_data),
             mimetype="application/json",
             status=200,
-            headers={"Content-disposition": "attachment; filename={0}.pipeline.json".format(project_name)})
+            headers={"Content-disposition": "attachment; filename={0}".format(filename)})
 
     else:
         return render_template('assay.html',
@@ -366,7 +376,8 @@ def analysis(project_name, assay):
                            analysis_status=analysis_status,
                            sequencing_status=sequencing_status,
                            errors=errors,
-                           review_status=review_status
+                           review_status=review_status,
+                           deliverables=deliverables
                            )
 
 @app.route('/<project_name>/<assay>/<case>/', methods = ['POST', 'GET'])
@@ -1329,8 +1340,8 @@ def download_analysis_data(project_name, case, assay, selection):
         headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.{3}.json".format(case, project_name, assay, selection)})
 
 
-@app.route('/download_cbioportal/<project_name>/<case>/<assay>')
-def download_cbioportal_data(project_name, case, assay):
+@app.route('/download_cbioportal/<project_name>/<case>/<assay>/<segmentation>')
+def download_cbioportal_data(project_name, case, assay, segmentation):
         
     database = 'waterzooi_db_case.db'
     workflow_db = 'workflows_case.db'
@@ -1341,13 +1352,14 @@ def download_cbioportal_data(project_name, case, assay):
     
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_db, project_name, assay)
+    cases = {case: cases[case]}
     
     # extract selected status of each workflow
     selected_workflows = get_selected_workflows(project_name, workflow_db, 'Workflows')
     # get the workflow output files
     workflow_outputfiles = get_workflow_outputfiles(database, project_name)
     # create json with workflow information for cbioportal importer
-    analysis_data = create_case_cbioportal_json(case, cases, selected_workflows, workflow_outputfiles)
+    analysis_data = create_cbioportal_json(cases, selected_workflows, workflow_outputfiles, segmentation)
         
     # send the json to outoutfile                    
     return Response(

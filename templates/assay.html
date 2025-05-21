@@ -28,15 +28,29 @@
       <button class="download-dropbtn">Download json</button>
       <div class="download-dropdown-content">
         <form method="POST" action ="">
-          {% if deliverable == 'selected' %}
-            <input class="checkbox_small" type="checkbox" name="deliverable" value="selected" id="deliverable" checked/><label>selected</label><br>      
-          {% else %}
-            <input class="checkbox_small" type="checkbox" name="deliverable" value="selected" id="deliverable"/><label>selected</label><br>      
+          {% if deliverables['pipeline'] %}
+            {% if deliverable == 'selected' %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="selected" id="deliverable" checked/><label>all</label><br>      
+            {% else %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="selected" id="deliverable"/><label>all</label><br>      
+            {% endif %}
+            {% if deliverable == 'standard' %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="standard" id="deliverable" checked/><label>standard</label><br>      
+            {% else %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="standard" id="deliverable"/><label>standard</label><br>      
+            {% endif %}
           {% endif %}
-          {% if deliverable == 'standard' %}
-            <input class="checkbox_small" type="checkbox" name="deliverable" value="standard" id="deliverable" checked/><label>standard</label><br>      
-          {% else %}
-            <input class="checkbox_small" type="checkbox" name="deliverable" value="standard" id="deliverable"/><label>standard</label><br>      
+          {% if deliverables['cbioportal'] %}
+            {% if deliverable == 'sequenza' %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="sequenza" id="deliverable" checked/><label>cbio - sequenza</label><br>      
+            {% else %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="sequenza" id="deliverable"/><label>cbio - sequenza</label><br>      
+            {% endif %}
+            {% if deliverable == 'purple' %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="purple" id="deliverable" checked/><label>cbio - purple</label><br>      
+            {% else %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="purple" id="deliverable"/><label>cbio - purple</label><br>      
+            {% endif %}
           {% endif %}
           <button class="select_button_small" type = "submit" value="submit">Download</button>
         </form>          

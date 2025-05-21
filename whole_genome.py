@@ -2238,138 +2238,79 @@ def create_case_analysis_json(case, case_data, selected_workflows, workflow_outp
     
     
     
-def create_case_cbioportal_json(case, case_data, selected_workflows, workflow_outputfiles):
+def create_cbioportal_json(case_data, selected_workflows, workflow_outputfiles, segmentation):
     '''
-    (str, dict, dict, dict, str)
+    (dict, dict, dict, str)
     
-    Returns a dictionary with workflow information for a given block (ie, sample pair)
-    and anchor parent workflow (bmpp or star)
+    Returns a dictionary with information required for cbioportal upload
+    for donors in a projct 
     
     Parameters
     ----------
-    - case (str): Case unique identifier
-    - case_data (dict): Dictionary with analysis templates for a single case in a project
+    - case_data (dict): Dictionary with analysis templates for cases in a project
     - selected_workflows (dict): Dictionary with selected status of each workflow in project
     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
+    - segmentation (str): Indicates if segmentation data comes from the sequenza or purple workflow.
+                          Valid values: sequenza, purple
     '''
     
     # create a lambda to evaluate the deliverable files
     # x is a pair of (file, file_ending)
     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
     
-    cbioportal_workflows = ['varianteffectpredictor', 'sequenza', 'purple', 'rsem', 'mavis']
+    cbioportal_workflows = ['varianteffectpredictor', 'rsem', 'mavis']
+    # add the segmentation workflow
+    cbioportal_workflows.insert(1, segmentation)
     deliverables = get_cbioportal_deliverables()    
     
     D = {}
     
-    for template in case_data[case]:
-        donor = template['donor']
-        samples = {}
-        for i in template['template']['Samples']:
-            print(template['template']['Samples'][i])
-            if template['template']['Samples'][i]['tissue_type'] != 'R':
-                library_type = template['template']['Samples'][i]['library_type']
-                sample = template['template']['Samples'][i]['sample']
-                samples[library_type] = sample
-        if len(samples) == 1:
-            samples = list(samples.values())[0]
-        else:
-            assert 'WG' in samples
-            sample = samples['WG']
+    for case in case_data:
+        for template in case_data[case]:
+            donor = template['donor']
+            samples = {}
+            for i in template['template']['Samples']:
+                if template['template']['Samples'][i]['tissue_type'] != 'R':
+                    library_type = template['template']['Samples'][i]['library_type']
+                    sample = template['template']['Samples'][i]['sample']
+                    samples[library_type] = sample
+            if len(samples) == 1:
+                samples = list(samples.values())[0]
+            else:
+                assert 'WG' in samples
+                sample = samples['WG']
         
-        for workflow in template['template']['Analysis']:
-            # get the generic workflow name                      
-            key = workflow.split('_')[0].lower()
-            if key in cbioportal_workflows:
-                if template['template']['Analysis'][workflow]:
-                    for d in template['template']['Analysis'][workflow]:
-                        workflow_id = d['workflow_id']
-                        if workflow_id in selected_workflows:
-                            # get workflow output files
-                            outputfiles = workflow_outputfiles[workflow_id]                        
-                            # map all file endings of deliverables with files
-                            groups = list(itertools.product(outputfiles, deliverables[key]))
-                            # determine which files are part of the deliverables
-                            F = list(map(G, groups))
-                            L = [groups[k][0] for k in range(len(F)) if F[k]]
-                            if L:
-                                if donor not in D:
-                                    D[donor] = {}
-                                if sample not in D[donor]:
-                                    D[donor][sample] = {}
-                                if key == 'purple':
-                                    for i in L:
-                                        if 'cnv' in i:
-                                            cnvfile = i
-                                        elif 'purity' in i:
-                                            purityfile = i
-                                    assert cnvfile and purityfile            
-                                    D[donor][sample][workflow] = {'cnv': cnvfile, 'purity': purityfile}
-                                else:
-                                    D[donor][sample][workflow] = L[0]
+            for workflow in template['template']['Analysis']:
+                # get the generic workflow name                      
+                key = workflow.split('_')[0].lower()
+                if key in cbioportal_workflows:
+                    if template['template']['Analysis'][workflow]:
+                        for d in template['template']['Analysis'][workflow]:
+                            workflow_id = d['workflow_id']
+                            if workflow_id in selected_workflows and selected_workflows[workflow_id]:
+                                # get workflow output files
+                                outputfiles = workflow_outputfiles[workflow_id]                        
+                                # map all file endings of deliverables with files
+                                groups = list(itertools.product(outputfiles, deliverables[key]))
+                                # determine which files are part of the deliverables
+                                F = list(map(G, groups))
+                                L = [groups[k][0] for k in range(len(F)) if F[k]]
+                                if L:
+                                    if donor not in D:
+                                        D[donor] = {}
+                                    if sample not in D[donor]:
+                                        D[donor][sample] = {}
+                                    if key == 'purple':
+                                        for i in L:
+                                            if 'cnv' in i:
+                                                cnvfile = i
+                                            elif 'purity' in i:
+                                                purityfile = i
+                                        assert cnvfile and purityfile            
+                                        D[donor][sample][workflow] = {'cnv': cnvfile, 'purity': purityfile}
+                                    else:
+                                        D[donor][sample][workflow] = L[0]
 
-
-
-
-
-
-#######################        
-    # for template in case_data:
-    #     # make a list of workflows:
-    #     workflows = {}
-    #     for workflow in template['analysis']:
-    #         if workflow.split('_')[0].lower() in cbioportal_workflows:
-    #             if template['analysis'][workflow]:
-    #                 workflows[workflow] = template['analysis'][workflow]
-            
-    #     # check that analysis workflows are selected
-    #     # do not include call ready workflows because they can be shared across templates
-    #     wfs = []
-    #     for workflow in workflows:
-    #         wfs.extend(workflows[workflow])       
-                             
-    #     if any(map(lambda x: x in selected_workflows, wfs)):
-    #         for workflow in workflows:
-    #             for wfrunid in workflows[workflow]:
-    #                 # check if workflow is selected
-    #                 if selected_workflows[wfrunid]:
-    #                     # get workflow output files
-    #                     outputfiles = workflow_outputfiles[wfrunid]                        
-                        
-                        
-    #                     # get the donor id
-                        
-                        
-                        
-    #                     # get the sample id
-                        
-                        
-    #                     # get the cbioportal deliverables
-                        
-    #                     # get the generic workflow name                      
-    #                     key = workflow.split('_')[0].lower()
-    #                     if key in deliverables:
-    #                         # map all file endings of deliverables with files
-    #                         groups = list(itertools.product(outputfiles, deliverables[key]))
-    #                         # determine which files are part of the deliverables
-    #                         F = list(map(G, groups))
-    #                         L = [groups[k][0] for k in range(len(F)) if F[k]]
-    #                         if L:
-    #                             if donor not in D:
-    #                                 D[donor] = {}
-    #                             if sample not in D[donor]:
-    #                                 D[donor][sample] = {}
-    #                             if key == 'purple':
-    #                                 for i in L:
-    #                                     if 'cnv' in i:
-    #                                         cnvfile = i
-    #                                     elif 'purity' in i:
-    #                                         purityfile = i
-    #                                 assert cnvfile and purityfile            
-    #                                 D[donor][sample][workflow] = {'cnv': cnvfile, 'purity': purityfile}
-    #                             else:
-    #                                 D[donor][sample][workflow] = L[0]
-                                                                            
     return D
     
     
