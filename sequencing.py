@@ -90,58 +90,6 @@ def collect_sequence_info(project_name, database):
     return F
 
 
-
-# def get_sequences(L):
-#     '''
-#     (list) -> list
-
-#     Returns a list sequence file information by grouping paired fastqs    
-#     Pre-condition: all fastqs are paired-fastqs. Non-paired-fastqs are discarded.
-    
-#     Parameters
-#     ----------
-#     - L (list): List of sqlite3.Row extracted from the database and containing sequence file information
-#     '''
-    
-#     # sort list according to files
-#     L.sort(key = lambda x: x['file'])
-    
-#     F = []
-    
-#     for i in range(len(L)):
-#         # keep only read1
-#         if json.loads(L[i]['attributes'])['read_number'] == '1':
-#             case = L[i]['case_id']
-#             donor = L[i]['donor_id']
-#             sample = L[i]['ext_id']
-#             library =  L[i]['library']
-#             library_type =  L[i]['library_type']
-#             tissue_origin =  L[i]['tissue_origin']
-#             tissue_type =  L[i]['tissue_type']
-#             group_id = L[i]['group_id']
-#             group_description = L[i]['group_id_description']
-#             workflow = L[i]['workflow'] + '_' + L[i]['version']
-#             wfrun = L[i]['wfrun_id']
-#             file = L[i]['file']
-#             run = L[i]['run'] + '_' + str(L[i]['lane'])
-#             platform = L[i]['platform']
-#             read_count = json.loads(L[i]['attributes'])['read_count'] if 'read_count' in json.loads(L[i]['attributes']) else 'NA' 
-#             sample_id = '_'.join([donor, tissue_origin, tissue_type, group_id]) 
-#             readcount = '{:,}'.format(int(read_count)) if read_count != 'NA' else 'NA'
-#             fileprefix = os.path.basename(file)
-#             fileprefix = '_'.join(fileprefix.split('_')[:-1])
-#             d = {'case': case, 'donor':donor, 'sample': sample, 'sample_id': sample_id, 'library': library, 'run': run,
-#                  'read_count': readcount, 'workflow': workflow, 'prefix':fileprefix,
-#                  'platform': platform, 'group_id': group_id,
-#                  'group_description': group_description, 'tissue_type': tissue_type,
-#                  'library_type': library_type, 'tissue_origin': tissue_origin}
-#             F.append(d)
-       
-#     F.sort(key = lambda x: x['case'])
-     
-#     return F
-
-
 def get_platform_shortname(project_name, database):
     '''
     (str, str) -> list
