@@ -9,7 +9,13 @@ import os
 import itertools
 import json
 import time
+import plotly.graph_objects as go
+import networkx as nx
+
 from utilities import connect_to_db, remove_non_analysis_workflows, get_donors
+
+
+from project import *
 
 
 
@@ -2641,4 +2647,176 @@ def identify_deliverables(project_info):
     return D
 
 
+
+
+################################################
+
+def get_workflow_names(database, case):
+    '''
+    (str, str) -> dict
     
+    Returns a dictionary of mapping each workflow id of a case to its name
+        
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - case (str): Case of interest
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT wfrun_id, wf FROM Workflows WHERE case_id = ?;", (case,)).fetchall()     
+    conn.close()
+    
+    D = {}
+    for i in data:
+        workflow_id = i['wfrun_id']
+        workflow_name = i['wf']
+        D[workflow_id] = workflow_name
+    
+    return  D
+
+
+def list_template_workflows(template):
+    '''
+    (dict) -> list
+    
+    Returns all the workflow identifiers of a single template of a case
+    
+    Parameters
+    ----------
+    - template (dict): Dictionary with analysis data for a single template of a case
+    '''
+
+    L = []
+
+    for i in template['template']['Data']:
+        for d in template['template']['Data'][i]['workflows']:
+            L.append(d['workflow_id'])
+    for workflow in template['template']['Analysis']:
+        for d in template['template']['Analysis'][workflow]:
+            L.append(d['workflow_id'])
+    L = list(set(L))
+    
+    return L
+    
+    
+def create_graph_edges(workflow_ids, parent_to_children):
+    '''
+    (list, dict) -> list
+    
+    Returns a list of tuples, each with 2 workflow identifiers when there is a connection
+    (ie parent to child) between these 2 workflows
+
+    Parameters
+    ----------
+    - workflow_ids (list): List of all the workflow ids of a template of a case
+    - parent_to_children (dict): Dictionary with parent to children workflow relationships 
+    '''
+
+    edges = []
+        
+    for i in workflow_ids:
+        for j in workflow_ids:
+            if i != j and (i in parent_to_children or j in parent_to_children):
+                if i in parent_to_children:
+                    if j in parent_to_children[i]:
+                        edges.append((i, j))
+                else:
+                    if i in parent_to_children[j]:
+                        edges.append((j, i))
+    return edges
+
+
+def plot_graph(edges, workflow_names):
+    '''
+    (list, dict) -> plotly.graph_objs._figure.Figure
+       
+    Returns  plotly figure of a graph showing the relationships among workflows
+    
+    Parameters
+    ----------
+    - edges (list): List of connected pairs of workflow ids
+    - workflow_names (dict): Dictionary mapping workflow identifiers to their name
+    '''
+    
+    # create the graph of workflow relationships
+    G = nx.Graph()
+    G.add_edges_from(edges)
+    
+    # add a graph layout and get positions
+    pos = nx.spring_layout(G)
+    
+    # get edge positions
+    edge_x = []
+    edge_y = []
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+
+    # get node positions
+    node_x = []
+    node_y = []
+    for node in G.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+
+    # plot the edges
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        hoverinfo='none',
+        mode='lines')
+    
+    # plot the nodes
+    node_trace = go.Scatter(
+    x=node_x, y=node_y,
+    mode='markers',
+    hoverinfo='text',
+    marker=dict(
+        showscale=True,
+        # colorscale options
+        #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+        #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+        #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+        colorscale='Viridis',
+        reversescale=True,
+        color=[],
+        size=10,
+        colorbar=dict(
+            thickness=15,
+            title=dict(
+              text='Node Connections',
+              side='right'
+            ),
+            xanchor='left',
+        ),
+        line_width=2))
+    
+    
+    # color the nodes based on the number of connection
+    node_adjacencies = [len(list(G.neighbors(node))) for node in G.nodes()]
+    node_trace.marker.color = node_adjacencies
+    
+    # to change the size of the marker based on the number of connection
+    #node_trace.marker.size = node_adjacencies
+    
+    # label the nodes with the workflow names
+    node_text = [str(node) for node in G.nodes()]
+    node_text = [workflow_names[i] for i in node_text]
+    node_trace.text = node_text
+    
+    # generate figure
+    fig = go.Figure(data=[edge_trace, node_trace],
+                 layout=go.Layout(
+                    title='Workflow connections',
+                    showlegend=False,
+                    hovermode='closest',
+                    margin=dict(b=20,l=5,r=5,t=40),
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+    return fig
+

@@ -25,11 +25,16 @@ from whole_genome import get_amount_data, get_workflows_analysis_date, get_workf
     map_donors_to_cases, list_assay_analysis_workflows, \
     get_sequencing_input, get_case_error_message, create_analysis_json, \
     get_workflow_outputfiles, get_pipeline_standard_deliverables,\
-    create_case_analysis_json, get_review_status, identify_deliverables, create_cbioportal_json
+    create_case_analysis_json, get_review_status, identify_deliverables, \
+    create_cbioportal_json, get_workflow_names, list_template_workflows, \
+    create_graph_edges, plot_graph
 from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
     get_case_analysis_status, count_completed_cases, get_case_sequencing_status, count_complete_sequencing
 from sequencing import collect_sequence_info, get_platform_shortname
-  
+
+#import plotly.express as px  
+import plotly.offline as pyo
+import plotly.graph_objs as go
 
 
 # map pipelines to views
@@ -218,7 +223,7 @@ def project_page(project_name):
     sequencing_status = get_case_sequencing_status(database, project_name)
     # count cases with complete and incomplete sequencing
     sequencing_counts = count_complete_sequencing(sequencing_status)
-        
+    
     return render_template('project.html', project=project, cases=cases,
                            assays=assays, assay_names = assay_names,
                            samples_libraries = samples_libraries,
@@ -405,6 +410,9 @@ def case_analysis(project_name, assay, case):
     
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_db, project_name, assay)
+    
+    cases = {case: cases[case]}
+    
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
     # keep only cases with up to date data between resources
@@ -441,6 +449,21 @@ def case_analysis(project_name, assay, case):
     # extract selected status of each workflow
     selected = get_selected_workflows(project_name, workflow_db, 'Workflows')
     
+    # map the workflow id to their names
+    workflow_full_names = get_workflow_names(database, case)
+    # plot the workflow relationships for each case template 
+    figures = []
+    for template in cases[case]:
+        # list all the workflow ids of that template
+        workflow_ids = list_template_workflows(template)
+        # create the graph edges
+        edges = create_graph_edges(workflow_ids, parent_to_children)
+        # create a figure
+        fig = plot_graph(edges, workflow_full_names)
+        # create the html plot
+        plot_html = pyo.plot(fig, output_type='div', include_plotlyjs='cdn')
+        figures.append(plot_html)
+   
     if request.method == 'POST':
         # get the list of checked workflows        
         selected_workflows = request.form.getlist('workflow')
@@ -472,7 +495,8 @@ def case_analysis(project_name, assay, case):
                            child_to_parents=child_to_parents,
                            sequencing_status=sequencing_status,
                            seq_inputs=seq_inputs,
-                           deliverables=deliverables
+                           deliverables=deliverables,
+                           figures=figures
                            )
 
 
