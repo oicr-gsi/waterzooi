@@ -53,13 +53,21 @@
   <tr>
     <th>Sequencing status:</th>
     <td>
-      complete: {{sequencing_counts[project['project_id']]['complete']}}, incomplete: {{sequencing_counts[project['project_id']]['incomplete']}}
+     {% if project['project_id'] in sequencing_counts %}
+       complete: {{sequencing_counts[project['project_id']]['complete']}}, incomplete: {{sequencing_counts[project['project_id']]['incomplete']}}
+     {% else %}
+       NA
+     {% endif %}
     </td>
   </tr>
   <tr>
     <th>Analysis status:</th>
     <td>
-      complete: {{analysis_counts[project['project_id']]['complete']}}, incomplete: {{analysis_counts[project['project_id']]['incomplete']}}
+      {% if project['project_id'] in analysis_counts %}
+        complete: {{analysis_counts[project['project_id']]['complete']}}, incomplete: {{analysis_counts[project['project_id']]['incomplete']}}
+      {% else %}
+        NA
+      {% endif %}
     </td>
   </tr>
   <tr>
@@ -152,18 +160,26 @@
         <td>{{ i['ext_id'] }}</td>        
         <td>{{ i['assay'] }}</td>
         <td>
-          {% if sequencing_status[project['project_id']][i['case_id']] %}
-            <span style="font-size:16px;color:#70db70">&#10004;</span>
+          {% if project['project_id'] in sequencing_status %}
+            {% if sequencing_status[project['project_id']][i['case_id']] %}
+              <span style="font-size:16px;color:#70db70">&#10004;</span>
+            {% else %}
+              <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+            {% endif %}
           {% else %}
-            <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-          {% endif %}
+            <span style="font-size:16px;color:#ff3300;">NA</span>
+          {% endif %}   
         </td>
         <td>
-          {% if analysis_status[project['project_id']][i['case_id']] %}
-            <span style="font-size:16px;color:#70db70">&#10004;</span>
+          {% if project['project_id'] in analysis_status %}
+            {% if analysis_status[project['project_id']][i['case_id']] %}
+              <span style="font-size:16px;color:#70db70">&#10004;</span>
+            {% else %}
+              <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+            {% endif %}
           {% else %}
-            <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-          {% endif %}
+            <span style="font-size:16px;color:#ff3300;">NA</span>
+          {% endif %}  
         </td>
         {% if 'normal' in samples_libraries[i['case_id']]['samples'] %}
           <td>{{ samples_libraries[i['case_id']]['samples']['normal'] | length }}</td>  

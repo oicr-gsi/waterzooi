@@ -49,7 +49,7 @@ def define_column_names():
                     'Libraries': ['library', 'lims_id', 'sample_id', 'case_id', 'donor_id', 'tissue_type', 'tissue_origin',
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
                     'Workflow_Inputs': ['library', 'run', 'lane', 'wfrun_id', 'limskey', 'barcode', 'platform', 'project_id', 'case_id', 'donor_id'],
-                    'Samples': ['case_id', 'assay', 'donor_id', 'ext_id', 'species', 'sex', 'miso', 'project_id', 'sequencing_status'],
+                    'Samples': ['case_id', 'assay', 'donor_id', 'ext_id', 'species', 'miso', 'project_id', 'sequencing_status'],
                     'Checksums': ['project_id', 'case_id', 'donor_id', 'md5']
                     }
         
@@ -76,7 +76,7 @@ def define_column_types():
                                   'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(128)'],
                     'Workflow_Inputs': ['VARCHAR(128)', 'VARCHAR(256)', 'INTEGER', 'VARCHAR(572)', 
                                         'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
-                    'Samples': ['VARCHAR(572)', 'VARCHAR(256)',  'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)'],
+                    'Samples': ['VARCHAR(572)', 'VARCHAR(256)',  'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)'],
                     'Checksums': ['VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)']
                     }
     
@@ -236,6 +236,7 @@ def compute_md5(d):
     return hashlib.md5(json.dumps(d, sort_keys=True).encode('utf-8')).hexdigest()
 
 
+
 def compute_case_md5sum(provenance_data):
     '''
     (list) -> dict
@@ -253,7 +254,8 @@ def compute_case_md5sum(provenance_data):
         md5 = compute_md5(d)
         case = d['case']
         donor = get_donor_name(d)
-        project = d['project']
+        #project = d['project']
+        project = d['project_info'][0]['project']
         assert case not in D
         D[case] = {'md5':md5, 'project_id':project, 'donor_id':donor}
     return D
@@ -389,6 +391,24 @@ def load_data(provenance_data_file):
     return provenance_data
 
 
+# def get_donor_name(case_data):
+#     '''
+#     (str) -> str
+    
+#     Returns the name of the donor in case_data
+    
+#     Parameters
+#     ----------
+#     - case_data (dict): Dictionary with a single case data 
+#     '''
+
+#     donor = list(set([i['donor'] for i in case_data['pineryData']]))
+#     assert len(donor) == 1
+#     donor = donor[0]
+
+#     return donor
+
+
 def get_donor_name(case_data):
     '''
     (str) -> str
@@ -400,11 +420,14 @@ def get_donor_name(case_data):
     - case_data (dict): Dictionary with a single case data 
     '''
 
-    donor = list(set([i['donor'] for i in case_data['pineryData']]))
+    donor = list(set([i['donor'] for i in case_data['sample_info']]))
     assert len(donor) == 1
     donor = donor[0]
 
     return donor
+
+
+
 
 
 def get_file_timestamp(d):
@@ -446,10 +469,10 @@ def collect_case_file_info(case_data):
         
     D = {}
     
-    for d in case_data['workflowRuns']:
+    for d in case_data['workflow_runs']:
         donor = get_donor_name(case_data)
         case = case_data['case']
-        project_id = case_data['project']
+        project_id = case_data['project_info'][0]['project']
         wfrun_id = d['wfrunid']
         limskeys = d['limsIds'].split(',')
         files = json.loads(d['files'])
@@ -545,7 +568,7 @@ def collect_case_library_info(case_data):
 
     D = {}
     
-    for d in case_data['pineryData']:
+    for d in case_data['sample_info']:
         donor = d['donor']
         library = d['library']
         case = case_data['case']
@@ -644,15 +667,16 @@ def collect_project_info(provenance_data):
     D = {}
     
     for case_data in provenance_data:
-        project = case_data['project']
+        #project = case_data['project']
+        project = case_data['project_info'][0]['project']
         case = case_data['case']
         assay = case_data['assay']
-        assert len(case_data['projectInfo']) == 1
-        active = case_data['projectInfo'][0]['isActive']
-        pipeline = case_data['projectInfo'][0]['pipeline']
-        deliverables = case_data['projectInfo'][0]['deliverables']
+        assert len(case_data['project_info']) == 1
+        active = case_data['project_info'][0]['isActive']
+        pipeline = case_data['project_info'][0]['pipeline']
+        deliverables = case_data['project_info'][0]['deliverables']
         samples, library_types = [], []
-        for d in case_data['pineryData']:
+        for d in case_data['sample_info']:
             samples.append(d['sampleId'])
             library_types.append(d['libraryDesign'])
         if project not in D:
@@ -741,8 +765,8 @@ def collect_workflow_info(case_data):
 
     D = {}
     
-    for d in case_data['workflowRuns']:
-        project_id = case_data['project']
+    for d in case_data['workflow_runs']:
+        project_id = case_data['project_info'][0]['project']
         case = case_data['case']
         donor = get_donor_name(case_data)
         wfrun_id = d['wfrunid']
@@ -824,7 +848,7 @@ def find_sequencing_attributes(limskeys, case_data):
     D = {}
         
     for i in limskeys:
-        for d in case_data['pineryData']:
+        for d in case_data['sample_info']:
             if i == d['limsId']:
                 assert i not in D
                 D[i] = {'library': d['library'],
@@ -855,12 +879,16 @@ def collect_case_workflow_inputs(case_data):
         
     L = []
     
-    for d in case_data['workflowRuns']:
+    for d in case_data['workflow_runs']:
         case = case_data['case']
         donor = get_donor_name(case_data)
         limskeys = d['limsIds'].split(',')
         sequencing_attributes = find_sequencing_attributes(limskeys, case_data)
-        platform = d['platform']
+        #platform = d['platform']
+        
+        platform = 'NA'
+        
+        
         wfrun_id = d['wfrunid']
                 
         for limskey in sequencing_attributes:
@@ -983,7 +1011,7 @@ def collect_workflow_relationships(case_data):
     
     D = {}
     
-    for d in case_data['workflowRuns']:
+    for d in case_data['workflow_runs']:
         workflow = d['wfrunid']
         parents = json.loads(d['parents'])
         children = json.loads(d['children'])
@@ -1041,7 +1069,7 @@ def add_workflows_relationships_to_db(database, provenance_data, cases_to_update
         for case_data in provenance_data:
             case = case_data['case']
             donor = get_donor_name(case_data)
-            project = case_data['project']             
+            project = case_data['project_info'][0]['project']             
                        
             # check if donor needs to be updated
             if case in cases_to_update and cases_to_update[case] != 'delete':
@@ -1129,6 +1157,28 @@ def get_donor_species(case_data):
     return species[0]
 
 
+
+def get_sequencing_status(case_data):
+    '''
+    (dict) -> bool
+    
+    Returns True if case sequencing is complete
+        
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with a single case data   
+    '''
+    
+    sequencing = json.loads(case_data['case_info']['sequencing'])
+    L = []
+    for d in sequencing:
+        if 'sequencing' in d['type'].lower():
+            L.append(d['complete'])
+        
+    complete = all(L)
+    return complete
+
+
 def collect_case_sample_info(case_data):
     '''
     (dict) -> dict
@@ -1142,20 +1192,18 @@ def collect_case_sample_info(case_data):
         
     D = {}
         
-    for d in case_data['pineryData']:
+    for d in case_data['sample_info']:
         case = case_data['case']
         donor = d['donor']
         project_id = d['project']
         assay = case_data['assay']
-        incomplete = case_data['incomplete']
-        sequencing_status = not incomplete
-               
-        ext_id = d['ext_id']
-        sex = d['sex']
+        sequencing_status = get_sequencing_status(case_data)
+        external_id = d['externalId']
+        #sex = d['sex']
         miso = 'NA'
         species = d['organism']
         
-        d = {'case_id': case, 'assay': assay, 'donor_id': donor, 'ext_id': ext_id, 'sex': sex,
+        d = {'case_id': case, 'assay': assay, 'donor_id': donor, 'ext_id': external_id, 
              'species': species, 'project_id': project_id, 'miso': miso, 'sequencing_status': str(int(sequencing_status))}
         
         if case not in D:
@@ -1203,6 +1251,53 @@ def add_samples_info_to_db(database, provenance_data, cases_to_update, table = '
         insert_data(database, table, newdata, column_names) 
 
 
+def list_case_workflows(case_data):
+    '''
+    (dict) -> list
+    
+    Returns a list of all workflows in a case
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with production data of a given case
+    '''
+    
+    L = [d['wfrunid'] for d in case_data['workflow_runs']]
+    
+    return L
+
+
+
+def clean_up_workflows(case_data):
+    '''
+    (dict) -> dict    
+    
+    Remove children and parent workflows of case workflows that are not in a case
+    
+    Parameters
+    ----------
+    case_data (dict): Dictionary with production data of a given case
+    '''
+
+    # make a list of case workflows
+    workflows = list_case_workflows(case_data)
+    
+    # evaluate all children and parents workflows
+    for k in ['children', 'parents']:
+        for i in range(len(case_data['workflow_runs'])):
+            L = json.loads(case_data['workflow_runs'][i][k])
+            to_remove = [j for j in L if j[1] not in workflows]
+            if len(to_remove) >= 1:
+                for j in to_remove:
+                    assert j in L
+                    L.remove(j)
+            case_data['workflow_runs'][i][k] = json.dumps(L)            
+
+    return case_data
+
+
+
+
 def generate_database(database, provenance_data_file):
     '''
     (str, str) -> None
@@ -1225,8 +1320,20 @@ def generate_database(database, provenance_data_file):
     provenance_data = load_data(provenance_data_file)
     print('loaded data')
     
+    
+    # clean up workflows - remove children and parent workflows that are not in a given case        
+    for i in range(len(provenance_data)):
+        provenance_data[i] = clean_up_workflows(provenance_data[i])    
+    print('clean up workflows')
+    
+    
+    
+    
     # collect the md5sum of each donor's data
     md5sums = compute_case_md5sum(provenance_data)
+    
+    print('provenance data', md5sums['R2122_a52_BIOCAN_0083_Pt_P'])
+    
     print('computed md5sums')
     # collect the recorded md5sums of the donor data from the database
     recorded_md5sums = get_cases_md5sum(database, table = 'Checksums')
@@ -1268,8 +1375,10 @@ def generate_database(database, provenance_data_file):
  
 #generate_database('waterzooi_db_case.db', 'CaseInfo_IRIS_NEOPOC.dump.json')    
      
-generate_database('waterzooi_db_case.db', 'case_shesmu_data.dump.json')    
+#generate_database('waterzooi_db_case_small.db', 'provenance_reporter_small.json')    
  
+generate_database('waterzooi_db_case.db', 'provenance_reporter.json')    
+
     
  
 # if __name__ == '__main__':

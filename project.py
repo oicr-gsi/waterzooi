@@ -47,7 +47,7 @@ def get_cases(project_name, database):
     '''
     
     conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT case_id, assay, donor_id, ext_id, species, sex, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
+    data = conn.execute("SELECT DISTINCT case_id, assay, donor_id, ext_id, species, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
     conn.close()
     
     data = [dict(i) for i in data]

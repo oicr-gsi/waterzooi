@@ -1371,12 +1371,14 @@ def list_template_workflows(template):
 
     L = []
 
-    for i in template['template']['Data']:
-        for d in template['template']['Data'][i]['workflows']:
-            L.append(d['workflow_id'])
-    for workflow in template['template']['Analysis']:
-        for d in template['template']['Analysis'][workflow]:
-            L.append(d['workflow_id'])
+    if 'Data' in template['template']:
+        for i in template['template']['Data']:
+            for d in template['template']['Data'][i]['workflows']:
+                L.append(d['workflow_id'])
+    if 'Analysis' in template['template']:
+        for workflow in template['template']['Analysis']:
+            for d in template['template']['Analysis'][workflow]:
+                L.append(d['workflow_id'])
     L = list(set(L))
     
     return L

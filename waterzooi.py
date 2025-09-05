@@ -288,6 +288,12 @@ def sequencing(project_name):
 @app.route('/<project_name>/<assay>', methods=['POST', 'GET'])
 def analysis(project_name, assay):
     
+    
+    print('project_name',project_name)
+    print('assay', assay)
+    
+    
+    
     #database = 'waterzooi_db_test.db'
     database = 'waterzooi_db_case.db'
     
@@ -296,13 +302,26 @@ def analysis(project_name, assay):
     
     assay = assay.replace('+:+', '/')
         
+    print('assay_modif', assay)
+    
+    
+    
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
+    
+    
+    print('project', project)
+    
+    
     # get the deliverables
     deliverables = identify_deliverables(project)
-    print(deliverables)
+    print('deliverables', deliverables)
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_database, project_name, assay)
+    
+    print('cases', len(cases))
+    print(cases.keys())
+    
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
     # keep only cases with up to date data between resources
@@ -323,7 +342,10 @@ def analysis(project_name, assay):
     analysis_workflows = list_assay_analysis_workflows(case_data)
     # get the analysis status of each case
     analysis_status = get_case_analysis_status(analysis_database, project_name)
-    analysis_status = analysis_status[project_name]
+    if project_name in analysis_status:
+        analysis_status = analysis_status[project_name]
+    else:
+        analysis_status = {}
     # get the combined error messages across template for each assay
     errors = get_case_error_message(cases)
     # get the sequencing status of each case
@@ -380,10 +402,12 @@ def analysis(project_name, assay):
 @app.route('/<project_name>/<assay>/<case>/', methods = ['POST', 'GET'])
 def case_analysis(project_name, assay, case):
     
+    print('assay_case_analysis', assay)
     
     #### delete cases with distinct md5sums
     
-    
+    print(case)
+    print(project_name)
     
     #database = 'waterzooi_db_test.db'
     database = 'waterzooi_db_case.db'
@@ -393,6 +417,9 @@ def case_analysis(project_name, assay, case):
     
     assay = assay.replace('+:+', '/')
     case = case.replace('+:+', '/')
+    
+    
+    
     
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
