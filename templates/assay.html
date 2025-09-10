@@ -69,6 +69,8 @@
         <th>Samples</th>
         <th>Call-ready</th>
         <th>Downstream</th>
+        <th>Release Approval</th>
+        <th>Release</th>
         <th>Reviewed</th>
         <th><div class="tooltip">Sequencing status<span class="tooltiptext">Complete sequencing?</span></div></th>
         <th><div class="tooltip">Analysis status<span class="tooltiptext">Complete data?</span></div></th>
@@ -128,6 +130,51 @@
               </td>
               <td>{{ workflow_counts[i]['callready'] }}</td>
               <td>{{ workflow_counts[i]['downstream'] }}</td>
+              
+              <td>
+                {% if i in signoffs %}
+                  {% if 'Release Approval' in signoffs[i] %}
+                    {% for d in signoffs[i]['Release Approval'] %}
+                      {% if d['qcPassed'] == True %}
+                        <span style="font-size:16px;color:#70db70">&#10004;</span>
+                      {% elif d['qcPassed'] == False %}
+                        <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                      {% else %}
+                        <span style="font-size:16px;color:#248f24;">?</span>
+                      {% endif %}
+                    {% endfor %}
+                  {% else %}
+                    NA
+                  {% endif %}
+                {% else %}
+                  NA             
+                {% endif %}
+              </td>
+              
+              <td>
+                {% if i in signoffs %}
+                  {% for deliverable in project['deliverables'].split(',') | sort %}
+                    {% if deliverable in deliv[i] %}
+                      {% for d in signoffs[i]['Release'] %}
+                        {% if deliverable == d['deliverable'] %}
+                          {% if d['qcPassed'] == True %}
+                            <span style="font-size:16px;color:#70db70">&#10004;</span>
+                          {% elif d['qcPassed'] == False %}
+                            <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                          {% else %}
+                            <span style="font-size:16px;color:#248f24;">?</span>
+                          {% endif %}
+                        {% endif %}
+                      {% endfor %}
+                    {% else %}
+                      <span style="font-size:16px;color:#248f24;">?</span>
+                    {% endif %}
+                  {% endfor %}
+                {% else %}
+                  NA
+                {% endif %}
+              </td>
+              
               <td>
                 <a class="project_links" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=current_assay | format_identifier, case=i | format_identifier, )}}">
                   {% if review_status[i] %}

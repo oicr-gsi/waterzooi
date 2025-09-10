@@ -9,7 +9,7 @@ import sqlite3
 import time
 import string
 import random
-
+import requests
 
 
 
@@ -160,3 +160,100 @@ def get_case_md5sums(database, project_name):
     return D
     
 
+def extract_case_signoff(case, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case'):
+    '''
+    (str, str, str) -> list
+    
+    Returns a list of signoffs for that case
+        
+    Parameters
+    ----------
+    - case (str): Case identifier
+    - nabu_key_file (str): File storing the nabu API key
+    - nabu (str): URL to access the case in Nabu
+    '''
+    
+    infile = open(nabu_key_file)
+    nabu_key = infile.read().rstrip()
+    infile.close()
+    
+    headers = {'accept': 'application/json',
+               'X-API-KEY': nabu_key,}
+       
+    response = requests.get(nabu + '/{0}/sign-off'.format(case), headers=headers)
+    if response.status_code == 200:
+        # get the signoffs , sorted by id. 
+        # this will sort the sign offs by completion date
+        L = response.json() 
+        L.sort(key = lambda d : d['id'])
+    else:
+        L = []
+    
+    return L
+
+
+
+def extract_nabu_signoff(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case/sign-off'):
+    '''
+    (list, str, str) -> dict
+    
+    Returns a dictionary of signoffs for each case in cases
+        
+    Parameters
+    ----------
+    - cases (list): List of case identifiers
+    - nabu_key_file (str): File storing the nabu API key
+    - nabu (str): URL to access the signoffs in Nabu
+    '''
+    
+    infile = open(nabu_key_file)
+    nabu_key = infile.read().rstrip()
+    infile.close()
+    
+    headers = {'accept': 'application/json',
+               'X-API-KEY': nabu_key,}
+    
+    D = {}
+    
+    response = requests.get(nabu, headers=headers)
+    if response.status_code == 200:
+        for d in response.json():
+            case = d['caseIdentifier']
+            if case in cases:
+                if case not in D:
+                    D[case] = {}
+                step = d['signoffStepName']
+                step = ' '.join(list(map(lambda x: x.lower().capitalize(), step.split('_'))))
+                if step in D[case]:
+                    D[case][step].append(d)
+                else:
+                    D[case][step] = [d]
+    return D
+
+
+def list_signoff_deliverables(signoffs):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with the deliverables available for release signoff for each case 
+    
+    Parameters
+    ----------
+    - signoffs (dict): Dictionary with case signoffs
+    '''
+    
+    D = {}
+    
+    for case in signoffs:
+        D[case] = []
+        if 'Release' in signoffs[case]:
+            for d in signoffs[case]['Release']:
+                D[case].append(d['deliverable'])
+            D[case] = list(set(D[case]))
+    
+    return D
+    
+    
+    
+    
+    

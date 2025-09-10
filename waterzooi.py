@@ -14,7 +14,8 @@ import time
 import pandas as pd
 import matplotlib
 matplotlib.use('agg')
-from utilities import connect_to_db, get_library_design, secret_key_generator, get_case_md5sums
+from utilities import connect_to_db, get_library_design, secret_key_generator, get_case_md5sums, \
+    extract_case_signoff, extract_nabu_signoff, list_signoff_deliverables
 from whole_genome import get_amount_data, get_workflows_analysis_date, get_workflow_file_count, \
     get_selected_workflows, update_wf_selection, get_input_sequences, get_cases_with_analysis,\
     get_case_analysis_samples, get_case_analysis_workflows, count_case_analysis_workflows,\
@@ -299,6 +300,8 @@ def analysis(project_name, assay):
     
     workflow_db = 'workflows_case.db'
     analysis_database = 'analysis_review_case.db'
+    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
+    
     
     assay = assay.replace('+:+', '/')
         
@@ -321,6 +324,18 @@ def analysis(project_name, assay):
     
     print('cases', len(cases))
     print(cases.keys())
+    
+    # get signoffs
+    signoffs = extract_nabu_signoff(cases, nabu_key_file)
+    # list the release deliverables for each case
+    deliv = list_signoff_deliverables(signoffs)
+
+
+    
+    print(deliv)
+    print(project['deliverables'])
+    
+    
     
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
@@ -396,7 +411,9 @@ def analysis(project_name, assay):
                            sequencing_status=sequencing_status,
                            errors=errors,
                            review_status=review_status,
-                           deliverables=deliverables
+                           deliverables=deliverables,
+                           signoffs=signoffs,
+                           deliv=deliv
                            )
 
 @app.route('/<project_name>/<assay>/<case>/', methods = ['POST', 'GET'])
@@ -414,6 +431,7 @@ def case_analysis(project_name, assay, case):
     
     workflow_db = 'workflows_case.db'
     analysis_db = 'analysis_review_case.db'
+    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
     
     assay = assay.replace('+:+', '/')
     case = case.replace('+:+', '/')
@@ -431,6 +449,12 @@ def case_analysis(project_name, assay, case):
     cases = get_cases_with_analysis(analysis_db, project_name, assay)
     
     cases = {case: cases[case]}
+    
+    # get the case sign off
+    case_signoff = extract_signoff(case, nabu_key_file)
+     
+    
+    
     
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
