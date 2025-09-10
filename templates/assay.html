@@ -158,16 +158,48 @@
                       {% for d in signoffs[i]['Release'] %}
                         {% if deliverable == d['deliverable'] %}
                           {% if d['qcPassed'] == True %}
-                            <span style="font-size:16px;color:#70db70">&#10004;</span>
+                            <div class="tooltip">
+                              <span style="font-size:16px;color:#70db70">&#10004;</span>
+                              <span class="tooltiptext">
+                                <ul style="list-style-type: none; padding: 0; margin: 0;">  
+                                  <li>{{d['deliverable']}}</li>
+                                  <li>{{d['username']}}</li>
+                                  {% if d['comment'] %}
+                                    <li><a href="https://jira.oicr.on.ca/browse/{{d['comment']}}" target="_blank">{{d['comment']}}</a></li>   
+                                  {% endif %}
+                                </ul>
+                              </span>
+                            </div>
                           {% elif d['qcPassed'] == False %}
-                            <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                            <div class="tooltip">
+                              <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                              <span class="tooltiptext">
+                                <ul style="list-style-type: none; padding: 0; margin: 0;">
+                                  <li>{{d['deliverable']}}</li>
+                                </ul>
+                              </span>
+                            </div>
                           {% else %}
-                            <span style="font-size:16px;color:#248f24;">?</span>
+                            <div class="tooltip">
+                              <span style="font-size:16px;color:#248f24;">?</span>
+                              <span class="tooltiptext">
+                                <ul style="list-style-type: none; padding: 0; margin: 0;">
+                                  <li>{{d['deliverable']}}</li>
+                                </ul>
+                              </span>
+                            </div>
                           {% endif %}
                         {% endif %}
                       {% endfor %}
                     {% else %}
-                      <span style="font-size:16px;color:#248f24;">?</span>
+                      <div class="tooltip">
+                        <span style="font-size:16px;color:#248f24;">?</span>
+                        <span class="tooltiptext">
+                          <ul style="list-style-type: none; padding: 0; margin: 0;">
+                            <li>{{deliverable}}</li>
+                          </ul>
+                        </span>
+                      </div>
                     {% endif %}
                   {% endfor %}
                 {% else %}
