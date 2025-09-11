@@ -447,14 +447,15 @@ def case_analysis(project_name, assay, case):
     
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_db, project_name, assay)
+    print('retrieved the cases')
     
     cases = {case: cases[case]}
     
     # get the case sign off
-    case_signoff = extract_signoff(case, nabu_key_file)
-     
-    
-    
+    case_signoffs = extract_case_signoff(case, nabu_key_file)
+    # list the release deliverables for case
+    deliv = list_signoff_deliverables(case_signoffs) 
+       
     
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
@@ -470,11 +471,19 @@ def case_analysis(project_name, assay, case):
     most_recent = most_recent_analysis_workflow(case_data, creation_dates)
     # get the workflow names    
     workflow_names = [get_analysis_workflow_name(case_data[i]['analysis']) for i in range(len(case_data))]
+    
+    
+    print('get workflow names')
+    
     # get the sequencing status of the case
     sequencing_status = get_case_sequencing_status(database, project_name)
     sequencing_status = sequencing_status[project_name][case]
     # get the file count of each workflow in project
     file_counts = get_workflow_file_count(project_name, database)
+    
+    
+    print('file counts')
+    
     # get the amount of data for each workflow
     amount_data = get_amount_data(project_name, database)
     # get the samples corresponding to each worklow id
@@ -484,6 +493,10 @@ def case_analysis(project_name, assay, case):
     assays = sorted(list(set(assay_names.split(','))))
     # map limskeys and libraries to sequencing workflows
     seq_inputs = get_sequencing_input(database, case)
+    
+    print('got se inputs')
+    
+    
     # list expected workflows without workflow ids
     missing_workflows = get_missing_workflows(case_data)
     # get workflow relationships
@@ -491,6 +504,10 @@ def case_analysis(project_name, assay, case):
     child_to_parents = get_case_children_to_parents_workflows(parent_to_children)
     # extract selected status of each workflow
     selected = get_selected_workflows(project_name, workflow_db, 'Workflows')
+    
+    
+    print('done all that')
+    
     
     # map the workflow id to their names
     workflow_full_names = get_workflow_names(database, case)
@@ -539,7 +556,9 @@ def case_analysis(project_name, assay, case):
                            sequencing_status=sequencing_status,
                            seq_inputs=seq_inputs,
                            deliverables=deliverables,
-                           figures=figures
+                           figures=figures,
+                           case_signoffs=case_signoffs,
+                           deliv=deliv
                            )
 
 

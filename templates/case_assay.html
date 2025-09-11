@@ -38,6 +38,82 @@
           <table id="block_header_table">
             <tr>
               <td>{{ most_recent[i] }}</td>
+              <td>
+                Release Approval:
+                {% if case in case_signoffs %}
+                  {% if 'Release Approval' in case_signoffs[case] %}
+                    {% for d in case_signoffs[case]['Release Approval'] %}
+                      {% if d['qcPassed'] == True %}
+                        <span style="font-size:16px;color:#70db70">&#10004;</span>
+                      {% elif d['qcPassed'] == False %}
+                        <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                      {% else %}
+                        <span style="font-size:16px;color:#248f24;">?</span>
+                      {% endif %}
+                    {% endfor %}
+                  {% else %}
+                    NA
+                  {% endif %}
+                {% else %}
+                  NA             
+                {% endif %}
+              </td>
+              <td>
+                Release:
+                {% if case in case_signoffs %}
+                  {% for deliverable in project['deliverables'].split(',') | sort %}
+                    {% if deliverable in deliv[case] %}
+                      {% for d in case_signoffs[case]['Release'] %}
+                        {% if deliverable == d['deliverable'] %}
+                          {% if d['qcPassed'] == True %}
+                            <div class="tooltip">
+                              <span style="font-size:16px;color:#70db70">&#10004;</span>
+                              <span class="tooltiptext">
+                                <ul style="list-style-type: none; padding: 0; margin: 0;">  
+                                  <li>{{d['deliverable']}}</li>
+                                  <li>{{d['username']}}</li>
+                                  {% if d['comment'] %}
+                                    <li><a href="https://jira.oicr.on.ca/browse/{{d['comment']}}" target="_blank">{{d['comment']}}</a></li>   
+                                  {% endif %}
+                                </ul>
+                              </span>
+                            </div>
+                          {% elif d['qcPassed'] == False %}
+                            <div class="tooltip">
+                              <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                              <span class="tooltiptext">
+                                <ul style="list-style-type: none; padding: 0; margin: 0;">
+                                  <li>{{d['deliverable']}}</li>
+                                </ul>
+                              </span>
+                            </div>
+                          {% else %}
+                            <div class="tooltip">
+                              <span style="font-size:16px;color:#248f24;">?</span>
+                              <span class="tooltiptext">
+                                <ul style="list-style-type: none; padding: 0; margin: 0;">
+                                  <li>{{d['deliverable']}}</li>
+                                </ul>
+                              </span>
+                            </div>
+                          {% endif %}
+                        {% endif %}
+                      {% endfor %}
+                    {% else %}
+                      <div class="tooltip">
+                        <span style="font-size:16px;color:#248f24;">?</span>
+                        <span class="tooltiptext">
+                          <ul style="list-style-type: none; padding: 0; margin: 0;">
+                            <li>{{deliverable}}</li>
+                          </ul>
+                        </span>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                {% else %}
+                  NA
+                {% endif %}
+              </td>
               {% if sequencing_status %}
                 <td><div class="tooltip">Sequencing status:<span class="tooltiptext">Sequencing complete?</span></div> <span style="font-size:16px;color:#70db70">&#10004;</span></td>
               {% else %}

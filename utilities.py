@@ -162,7 +162,7 @@ def get_case_md5sums(database, project_name):
 
 def extract_case_signoff(case, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case'):
     '''
-    (str, str, str) -> list
+    (str, str, str) -> dict
     
     Returns a list of signoffs for that case
         
@@ -179,19 +179,24 @@ def extract_case_signoff(case, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/
     
     headers = {'accept': 'application/json',
                'X-API-KEY': nabu_key,}
-       
+    
+    D = {}
+    
     response = requests.get(nabu + '/{0}/sign-off'.format(case), headers=headers)
     if response.status_code == 200:
-        # get the signoffs , sorted by id. 
-        # this will sort the sign offs by completion date
-        L = response.json() 
-        L.sort(key = lambda d : d['id'])
-    else:
-        L = []
+        for d in response.json():
+            case = d['caseIdentifier']
+            if case not in D:
+                D[case] = {}
+            step = d['signoffStepName']
+            step = ' '.join(list(map(lambda x: x.lower().capitalize(), step.split('_'))))
+            if step in D[case]:
+                D[case][step].append(d)
+            else:
+                D[case][step] = [d]
+    return D
+
     
-    return L
-
-
 
 def extract_nabu_signoff(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case/sign-off'):
     '''
