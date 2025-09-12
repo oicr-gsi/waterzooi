@@ -258,7 +258,114 @@ def list_signoff_deliverables(signoffs):
     
     return D
     
+
+
+
+
+
+def remove_cases_with_no_approval_signoff(analysis_data, signoffs):
+    '''
+    (dict, dict) -> dict
     
+    Returns a dictionary with analysis workflows for cases with release approval signoff
+       
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with selected analysis workflows for each case 
+    - signoffs (dict): Case signoffs extracted from Nabu
+    '''
     
+    to_remove = []
+    for case in analysis_data:
+        if case not in signoffs:
+            to_remove.append(case)
+        else:
+            if 'Release Approval' not in signoffs[case]:
+                to_remove.append(case)
+            elif all([d['qcPassed'] for d in signoffs[case]['Release Approval']]) == False:
+                to_remove.append(case)
     
+    to_remove = list(set(to_remove))
+    for case in to_remove:
+        del analysis_data[case]
+
+    return analysis_data
+
+
+
     
+def remove_cases_with_competed_cbioportal_release(analysis_data, signoffs, deliverable):
+    '''
+    (dict, dict, str) -> list
+    
+    Returns a dictionary with analysis workflows for cases for which cbioportal signoff is not complete
+        
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with selected analysis workflows for each case 
+    - signoffs (dict): Case signoffs extracted from Nabu
+    - deliverable (str): Selected option in waterzooi
+    '''
+    
+    to_remove = []
+    # remove cases for which release signoffs are complete    
+    for case in analysis_data:
+        if deliverable in ['sequenza', 'purple']:
+            if 'Release' in signoffs[case]:
+                for d in signoffs[case]['Release']:
+                    if 'cbioportal' in d['deliverable'].lower() and d['qcPassed']:
+                        # release complete 
+                        to_remove.append(case)
+
+    to_remove = list(set(to_remove))
+    for case in to_remove:
+         del analysis_data[case]        
+    
+    return analysis_data     
+
+
+
+def remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverable, deliverable_type):
+    '''
+    (dict, dict, str, str) -> dict
+    
+    Returns a dictionary with analysis workflows part of a deliverable that is not signed off for each case
+      
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with selected analysis workflows for each case 
+    - signoffs (dict): Case signoffs extracted from Nabu
+    - deliverable (str): Selected option in waterzooi 
+    - deliverable_type: type of delivrable :pipeline or fastq
+    '''
+    
+    fastq_workflows = ['bcl2fastq', 'casava', 'fileimport', 'fileimportforanalysis', 'import_fastq']
+    
+    for case in analysis_data:
+        # remove workflows
+        remove_workflows = False
+        if deliverable in ['all', 'selected', 'standard']:
+            if 'Release' in signoffs[case]:
+                for d in signoffs[case]['Release']:
+                    if deliverable_type in d['deliverable'].lower() and d['qcPassed']:
+                        remove_workflows = True
+                        break
+        if remove_workflows:
+            if deliverable_type == 'pipeline':
+                L = [i for i in analysis_data[case] if i.lower() not in fastq_workflows]
+            elif deliverable_type == 'fastq':
+                L = [i for i in analysis_data[case] if i.lower() in fastq_workflows]
+        else:
+            L = []
+        
+        if L:
+            for i in L:
+                del analysis_data[case][i]
+   
+    remove_case = [case for case in analysis_data if len(analysis_data[case]) == 0]
+    if remove_case:
+        for case in remove_case:
+            del analysis_data[case]
+   
+    return analysis_data                    
+                        

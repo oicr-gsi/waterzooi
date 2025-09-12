@@ -15,7 +15,8 @@ import pandas as pd
 import matplotlib
 matplotlib.use('agg')
 from utilities import connect_to_db, get_library_design, secret_key_generator, get_case_md5sums, \
-    extract_case_signoff, extract_nabu_signoff, list_signoff_deliverables
+    extract_case_signoff, extract_nabu_signoff, list_signoff_deliverables, remove_cases_with_no_approval_signoff, \
+    remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff    
 from whole_genome import get_amount_data, get_workflows_analysis_date, get_workflow_file_count, \
     get_selected_workflows, update_wf_selection, get_input_sequences, get_cases_with_analysis,\
     get_case_analysis_samples, get_case_analysis_workflows, count_case_analysis_workflows,\
@@ -332,7 +333,7 @@ def analysis(project_name, assay):
 
 
     
-    print(deliv)
+    
     print(project['deliverables'])
     
     
@@ -389,6 +390,18 @@ def analysis(project_name, assay):
         else:
             analysis_data = {}
             filename = '{0}.pipeline.json'.format(project_name)
+        
+        # keep only cases with proper signoff (completed release approval and deliverable not signed off)
+        if analysis_data:
+            analysis_data = remove_cases_with_no_approval_signoff(analysis_data, signoffs)
+            if deliverable in ['selected', 'standard']:
+                # remove workflows part of deliverables with complete signoff
+                analysis_data = remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverable, 'pipeline')
+                analysis_data = remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverable, 'fastq')
+            elif deliverable in ['sequenza', 'purple']:
+                # remove cases for which cbioportal release is signed off
+                analysis_data = remove_cases_with_competed_cbioportal_release(analysis_data, signoffs, deliverable)
+        
         return Response(
             response=json.dumps(analysis_data),
             mimetype="application/json",
@@ -488,9 +501,16 @@ def case_analysis(project_name, assay, case):
     amount_data = get_amount_data(project_name, database)
     # get the samples corresponding to each worklow id
     samples = get_case_workflow_samples(database, case)
+    
+    print('got samples')
+    
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
+    
+    print('got assays')
+    
+    
     # map limskeys and libraries to sequencing workflows
     seq_inputs = get_sequencing_input(database, case)
     
@@ -502,6 +522,10 @@ def case_analysis(project_name, assay, case):
     # get workflow relationships
     parent_to_children = get_case_parent_to_children_workflows(database, case)
     child_to_parents = get_case_children_to_parents_workflows(parent_to_children)
+    
+    print('got workflow relatinships')
+    
+    
     # extract selected status of each workflow
     selected = get_selected_workflows(project_name, workflow_db, 'Workflows')
     
@@ -675,10 +699,17 @@ def download_analysis_data(project_name, case, assay, selection):
     database = 'waterzooi_db_case.db'
     workflow_db = 'workflows_case.db'
     analysis_db = 'analysis_review_case.db'
+    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
     
+    
+    
+    # get the case sign off
+    case_signoffs = extract_case_signoff(case, nabu_key_file)
+        
     assay = assay.replace('+:+', '/')
     case = case.replace('+:+', '/')
     
+   
     # get the cases with analysis data for that project and assay
     cases = get_cases_with_analysis(analysis_db, project_name, assay)
     case_data = get_case_analysis_workflows(cases) 
@@ -689,6 +720,13 @@ def download_analysis_data(project_name, case, assay, selection):
     workflow_outputfiles = get_workflow_outputfiles(database, project_name)
     # create json with workflow information for DARE
     analysis_data = create_case_analysis_json(case, case_data, selected_workflows, workflow_outputfiles, selection)
+        
+    # keep only data with proper signoff (completed release approval and deliverable not signed off)
+    if analysis_data:
+        analysis_data = remove_cases_with_no_approval_signoff(analysis_data, case_signoffs)
+        # remove workflows part of deliverables with complete signoff
+        analysis_data = remove_workflows_with_deliverable_signoff(analysis_data, case_signoffs, selection, 'pipeline')
+        analysis_data = remove_workflows_with_deliverable_signoff(analysis_data, case_signoffs, selection, 'fastq')
         
     # send the json to outoutfile                    
     return Response(
@@ -704,7 +742,12 @@ def download_cbioportal_data(project_name, case, assay, segmentation):
     database = 'waterzooi_db_case.db'
     workflow_db = 'workflows_case.db'
     analysis_db = 'analysis_review_case.db'
+    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
     
+    
+    # get the case sign off
+    case_signoffs = extract_case_signoff(case, nabu_key_file)
+        
     assay = assay.replace('+:+', '/')
     case = case.replace('+:+', '/')
     
@@ -719,6 +762,12 @@ def download_cbioportal_data(project_name, case, assay, segmentation):
     # create json with workflow information for cbioportal importer
     analysis_data = create_cbioportal_json(cases, selected_workflows, workflow_outputfiles, segmentation)
         
+    # keep only data with proper signoff (completed release approval and deliverable not signed off)
+    if analysis_data:
+        analysis_data = remove_cases_with_no_approval_signoff(analysis_data, case_signoffs)
+        # remove cases for which cbioportal release is signed off
+        analysis_data = remove_cases_with_competed_cbioportal_release(analysis_data, case_signoffs, segmentation)
+    
     # send the json to outoutfile                    
     return Response(
         response=json.dumps(analysis_data),
