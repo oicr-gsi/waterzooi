@@ -189,6 +189,8 @@ def index():
 def project_page(project_name):
     
     analysis_database = 'analysis_review_case.db'
+    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
+    
     
     #database = 'waterzooi.db'
     database = 'waterzooi_db_case.db'
@@ -198,6 +200,18 @@ def project_page(project_name):
     cases = get_cases(project_name, database)
     # sort by case id
     cases = sorted(cases, key=lambda d: d['case_id']) 
+    
+    
+    print(cases)
+    
+    # get signoffs
+    case_names = [d['case_id'] for d in cases]
+    signoffs = extract_nabu_signoff(case_names, nabu_key_file)
+    # list the release deliverables for each case
+    deliv = list_signoff_deliverables(signoffs)
+    
+    print(signoffs)
+    
     # get the species
     species = ', '.join(sorted(list(set([i['species'] for i in cases]))))
     # get the assays
@@ -227,7 +241,9 @@ def project_page(project_name):
                            analysis_status=analysis_status,
                            analysis_counts=analysis_counts,
                            sequencing_status=sequencing_status,
-                           sequencing_counts=sequencing_counts
+                           sequencing_counts=sequencing_counts,
+                           signoffs=signoffs,
+                           deliv=deliv
                            )
     
 
