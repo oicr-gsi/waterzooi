@@ -16,7 +16,8 @@ import matplotlib
 matplotlib.use('agg')
 from utilities import connect_to_db, get_library_design, secret_key_generator, get_case_md5sums, \
     extract_case_signoff, extract_nabu_signoff, list_signoff_deliverables, remove_cases_with_no_approval_signoff, \
-    remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff    
+    remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff, \
+    get_workflow_release_status, get_file_release_status 
 from whole_genome import get_amount_data, get_workflows_analysis_date, get_workflow_file_count, \
     get_selected_workflows, update_wf_selection, get_input_sequences, get_cases_with_analysis,\
     get_case_analysis_samples, get_case_analysis_workflows, count_case_analysis_workflows,\
@@ -42,6 +43,21 @@ import plotly.graph_objs as go
 app = Flask(__name__)
 #app.config['SECRET_KEY'] = secret_key_generator(10)
 app.secret_key = secret_key_generator(10)
+
+
+
+# database = 'waterzooi_db_case.db'
+# workflow_db = 'workflows_case.db'
+# analysis_db = 'analysis_review_case.db'
+# nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
+
+
+database = 'waterzooi_db_case_small.db'
+workflow_db = 'workflows_case_small.db'
+analysis_db = 'analysis_review_case_small.db'
+nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
+
+
 
 
 
@@ -162,8 +178,8 @@ def format_created_time(created_time):
 @app.route('/')
 def index():
     
-    analysis_database = 'analysis_review_case.db'
-    database = 'waterzooi_db_case.db'
+    # analysis_database = 'analysis_review_case.db'
+    # database = 'waterzooi_db_case.db'
     
     # extract project info
     projects = get_project_info(database)
@@ -171,7 +187,7 @@ def index():
     projects = [i[1] for i in projects]
     
     # get analysis status of each case in each project
-    analysis_status = get_case_analysis_status(analysis_database)
+    analysis_status = get_case_analysis_status(analysis_db)
     # count complete and incomplete cases
     analysis_counts = count_completed_cases(analysis_status)  
     # get the sequencing status of each case
@@ -251,7 +267,7 @@ def project_page(project_name):
 def sequencing(project_name):
     
     #database = 'waterzooi.db'
-    database = 'waterzooi_db_case.db'
+    # database = 'waterzooi_db_case.db'
     
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
@@ -313,11 +329,11 @@ def analysis(project_name, assay):
     
     
     #database = 'waterzooi_db_test.db'
-    database = 'waterzooi_db_case.db'
+    # database = 'waterzooi_db_case.db'
     
-    workflow_db = 'workflows_case.db'
-    analysis_database = 'analysis_review_case.db'
-    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
+    # workflow_db = 'workflows_case.db'
+    # analysis_database = 'analysis_review_case.db'
+    # nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
     
     
     assay = assay.replace('+:+', '/')
@@ -337,7 +353,7 @@ def analysis(project_name, assay):
     deliverables = identify_deliverables(project)
     print('deliverables', deliverables)
     # get the cases with analysis data for that project and assay
-    cases = get_cases_with_analysis(analysis_database, project_name, assay)
+    cases = get_cases_with_analysis(analysis_db, project_name, assay)
     
     print('cases', len(cases))
     print(cases.keys())
@@ -373,7 +389,7 @@ def analysis(project_name, assay):
     # get all the analysis workflows across each case of the same assay
     analysis_workflows = list_assay_analysis_workflows(case_data)
     # get the analysis status of each case
-    analysis_status = get_case_analysis_status(analysis_database, project_name)
+    analysis_status = get_case_analysis_status(analysis_db, project_name)
     if project_name in analysis_status:
         analysis_status = analysis_status[project_name]
     else:
@@ -456,11 +472,11 @@ def case_analysis(project_name, assay, case):
     print(project_name)
     
     #database = 'waterzooi_db_test.db'
-    database = 'waterzooi_db_case.db'
+    # database = 'waterzooi_db_case.db'
     
-    workflow_db = 'workflows_case.db'
-    analysis_db = 'analysis_review_case.db'
-    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
+    # workflow_db = 'workflows_case.db'
+    # analysis_db = 'analysis_review_case.db'
+    # nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
     
     assay = assay.replace('+:+', '/')
     case = case.replace('+:+', '/')
@@ -485,6 +501,12 @@ def case_analysis(project_name, assay, case):
     # list the release deliverables for case
     deliv = list_signoff_deliverables(case_signoffs) 
        
+    # get the release status of each workflow
+    workflow_qc = get_workflow_release_status(database, case)
+    
+    
+    print('get the workflow release status')    
+
     
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
@@ -598,7 +620,8 @@ def case_analysis(project_name, assay, case):
                            deliverables=deliverables,
                            figures=figures,
                            case_signoffs=case_signoffs,
-                           deliv=deliv
+                           deliv=deliv,
+                           workflow_qc=workflow_qc
                            )
 
 
@@ -609,12 +632,20 @@ def case_analysis(project_name, assay, case):
 @app.route('/<project_name>/<assay>/<case>/<path:wfrunid>')
 def show_workflow(project_name, assay, case, wfrunid):
     
-    database = 'waterzooi_db_case.db'
+    # database = 'waterzooi_db_case.db'
       
     assay = assay.replace('+:+', '/')
     case = case.replace('+:+', '/')
     wfrunid = wfrunid.replace('+:+', '/')
     
+    
+    # get the release status of each workflow
+    workflow_qc = get_workflow_release_status(database, case)
+    # get the file release status
+    file_qc = get_file_release_status(database, case)
+        
+    
+      
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
     # get the parent and children workflows
@@ -636,7 +667,9 @@ def show_workflow(project_name, assay, case, wfrunid):
                        child_to_parents=child_to_parents,
                        parent_to_children=parent_to_children,
                        outputfiles=outputfiles,
-                       input_sequences=input_sequences
+                       input_sequences=input_sequences,
+                       workflow_qc=workflow_qc,
+                       file_qc=file_qc
                        )
 
 
@@ -654,8 +687,8 @@ def download_cases_table(project_name):
     - project_name (str): Name of project of interest
     '''
     
-    database = 'waterzooi_db_case.db'
-    analysis_database = 'analysis_review_case.db'
+    # database = 'waterzooi_db_case.db'
+    # analysis_database = 'analysis_review_case.db'
     
     # get case information
     cases = get_cases(project_name, database)
@@ -667,7 +700,7 @@ def download_cases_table(project_name):
     project = get_project_info(database, project_name)[0]
     library_types = sorted(list(map(lambda x: x.strip(), project['library_types'].split(','))))
     # get the analysis status of each case
-    analysis_status = get_case_analysis_status(analysis_database, project_name)
+    analysis_status = get_case_analysis_status(analysis_db, project_name)
     # get the sequencing status of each case
     sequencing_status = get_case_sequencing_status(database, project_name)
 
@@ -712,10 +745,10 @@ def download_cases_table(project_name):
 @app.route('/download_analysis/<project_name>/<case>/<assay>/<selection>')
 def download_analysis_data(project_name, case, assay, selection):
         
-    database = 'waterzooi_db_case.db'
-    workflow_db = 'workflows_case.db'
-    analysis_db = 'analysis_review_case.db'
-    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
+    # database = 'waterzooi_db_case.db'
+    # workflow_db = 'workflows_case.db'
+    # analysis_db = 'analysis_review_case.db'
+    # nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
     
     
     
@@ -755,10 +788,10 @@ def download_analysis_data(project_name, case, assay, selection):
 @app.route('/download_cbioportal/<project_name>/<case>/<assay>/<segmentation>')
 def download_cbioportal_data(project_name, case, assay, segmentation):
         
-    database = 'waterzooi_db_case.db'
-    workflow_db = 'workflows_case.db'
-    analysis_db = 'analysis_review_case.db'
-    nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
+    # database = 'waterzooi_db_case.db'
+    # workflow_db = 'workflows_case.db'
+    # analysis_db = 'analysis_review_case.db'
+    # nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
     
     
     # get the case sign off

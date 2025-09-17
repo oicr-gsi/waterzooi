@@ -191,7 +191,7 @@
                     {% if d['qcPassed'] == True %}
                       <div class="tooltip">
                         <span style="font-size:16px;color:#70db70">&#10004;</span>
-                        <span class="tooltiptext">
+                        <span class="tooltipsignoff">
                           <ul style="list-style-type: none; padding: 0; margin: 0;">  
                             <li>{{d['deliverable']}}</li>
                             <li>{{d['username']}}</li>
@@ -204,7 +204,7 @@
                     {% elif d['qcPassed'] == False %}
                       <div class="tooltip">
                         <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-                        <span class="tooltiptext">
+                        <span class="tooltipsignoff">
                           <ul style="list-style-type: none; padding: 0; margin: 0;">
                             <li>{{d['deliverable']}}</li>
                           </ul>
@@ -213,7 +213,7 @@
                     {% else %}
                       <div class="tooltip">
                         <span style="font-size:16px;color:#248f24;">?</span>
-                        <span class="tooltiptext">
+                        <span class="tooltipsignoff">
                           <ul style="list-style-type: none; padding: 0; margin: 0;">
                             <li>{{d['deliverable']}}</li>
                           </ul>
@@ -225,7 +225,7 @@
               {% else %}
                 <div class="tooltip">
                   <span style="font-size:16px;color:#248f24;">?</span>
-                  <span class="tooltiptext">
+                  <span class="tooltipsignoff">
                     <ul style="list-style-type: none; padding: 0; margin: 0;">
                       <li>{{deliverable}}</li>
                     </ul>
@@ -237,12 +237,7 @@
             NA
           {% endif %}
         </td>
-              
-        
-        
-        
-        
-        
+             
         <td>
           {% if project['project_id'] in sequencing_status %}
             {% if sequencing_status[project['project_id']][i['case_id']] %}

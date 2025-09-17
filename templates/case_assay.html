@@ -68,7 +68,7 @@
                           {% if d['qcPassed'] == True %}
                             <div class="tooltip">
                               <span style="font-size:16px;color:#70db70">&#10004;</span>
-                              <span class="tooltiptext">
+                              <span class="tooltipsignoff">
                                 <ul style="list-style-type: none; padding: 0; margin: 0;">  
                                   <li>{{d['deliverable']}}</li>
                                   <li>{{d['username']}}</li>
@@ -81,7 +81,7 @@
                           {% elif d['qcPassed'] == False %}
                             <div class="tooltip">
                               <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-                              <span class="tooltiptext">
+                              <span class="tooltipsignoff">
                                 <ul style="list-style-type: none; padding: 0; margin: 0;">
                                   <li>{{d['deliverable']}}</li>
                                 </ul>
@@ -90,7 +90,7 @@
                           {% else %}
                             <div class="tooltip">
                               <span style="font-size:16px;color:#248f24;">?</span>
-                              <span class="tooltiptext">
+                              <span class="tooltipsignoff">
                                 <ul style="list-style-type: none; padding: 0; margin: 0;">
                                   <li>{{d['deliverable']}}</li>
                                 </ul>
@@ -102,7 +102,7 @@
                     {% else %}
                       <div class="tooltip">
                         <span style="font-size:16px;color:#248f24;">?</span>
-                        <span class="tooltiptext">
+                        <span class="tooltipsignoff">
                           <ul style="list-style-type: none; padding: 0; margin: 0;">
                             <li>{{deliverable}}</li>
                           </ul>
@@ -160,6 +160,7 @@
               <thead>
                 <th>workflow_run_id</th>
                 <th>workflow</th>
+                <th>file release</th>
                 <th>file count</th>
                 <th>lane count</th>
                 <th>date</th>      
@@ -175,6 +176,17 @@
                     </a>
                   </td> 
                   <td>{{ workflow_names[i][workflow_id] }} </td> 
+                  <td>
+                    {% if workflow_id not in workflow_qc %}
+                      NA
+                    {% elif workflow_qc[workflow_id] == True %}
+                      <span style="font-size:16px;color:#70db70">&#10004;</span>
+                    {% elif workflow_qc[workflow_id] == False %}
+                      <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                    {% else %}
+                      <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow_id]}}</span>
+                    {% endif %}
+                  </td>
                   <td>{{ file_counts[workflow_id] }} </td> 
                   <td>{{ amount_data[workflow_id] }} </td> 
                   <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
@@ -205,6 +217,7 @@
               <thead>
                 <th>workflow_run_id</th>
                 <th>workflow</th>
+                <th>file release</th>
                 <th>parent</th>
                 <th>file count</th>
                 <th>lane count</th>
@@ -221,6 +234,17 @@
                     </a>
                   </td>
                   <td>{{ workflow_names[i][workflow_id] }} </td> 
+                  <td>
+                    {% if workflow_id not in workflow_qc %}
+                      NA
+                    {% elif workflow_qc[workflow_id] == True %}
+                      <span style="font-size:16px;color:#70db70">&#10004;</span>
+                    {% elif workflow_qc[workflow_id] == False %}
+                      <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                    {% else %}
+                      <span style="font-size:16px;color:#248f24;">{{ workflow_qc[workflow_id]}}</span>
+                    {% endif %}
+                  </td>
                   <td>
                     {% for parent in child_to_parents[workflow_id] %}
                       <dl>
@@ -273,8 +297,11 @@
 
             <table id="block_table">
               <thead>
+
+
                 <th>workflow</th>
                 <th>workflow_run_id</th>
+                <th>file release</th>
                 <th>limskey</th>
                 <th>library</th>
                 <th>date</th>     
@@ -285,11 +312,22 @@
               {% for workflow in case_data[i]['sequencing'] %}
                 {% for workflow_id in case_data[i]['sequencing'][workflow] %}
                   <tr>  
-                    <td>{{ workflow }} </td> 
                     <td>
                       <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
                         {{ workflow_id | basename | shorten_workflow_id }}
                       </a>
+                    </td>
+                    <td>{{ workflow }} </td> 
+                    <td>
+                      {% if workflow_id not in workflow_qc %}
+                        NA
+                      {% elif workflow_qc[workflow_id] == True %}
+                        <span style="font-size:16px;color:#70db70">&#10004;</span>
+                      {% elif workflow_qc[workflow_id] == False %}
+                        <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                      {% else %}
+                        <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow_id]}}</span>
+                      {% endif %}
                     </td>
                     <td>{{ seq_inputs[workflow_id]['limskey'] }} </td> 
                     <td>{{ seq_inputs[workflow_id]['library'] }} </td> 
@@ -314,8 +352,9 @@
 
             <table id="block_table">
               <thead>
-                <th>workflow</th>
                 <th>workflow_run_id</th>
+                <th>workflow</th>
+                <th>file release</th>
                 <th>limskey</th>
                 <th>library</th>
                 <th>date</th>     
@@ -326,11 +365,22 @@
               {% for workflow in case_data[i]['alignments'] %}
                 {% for workflow_id in case_data[i]['alignments'][workflow] %}
                   <tr>  
-                    <td>{{ workflow }} </td> 
                     <td>
                       <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
                         {{ workflow_id | basename | shorten_workflow_id }}
                       </a>
+                    </td>
+                    <td>{{ workflow }} </td> 
+                    <td>
+                      {% if workflow_id not in workflow_qc %}
+                        NA
+                      {% elif workflow_qc[workflow_id] == True %}
+                        <span style="font-size:16px;color:#70db70">&#10004;</span>
+                      {% elif workflow_qc[workflow_id] == False %}
+                        <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                      {% else %}
+                        <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow_id]}}</span>
+                      {% endif %}
                     </td>
                     <td>{{ seq_inputs[workflow_id]['limskey'] }} </td> 
                     <td>{{ seq_inputs[workflow_id]['library'] }} </td> 

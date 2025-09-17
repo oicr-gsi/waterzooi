@@ -13,6 +13,8 @@ import argparse
 import time
 import os
 import hashlib
+import requests
+
 
 
 def connect_to_db(database):
@@ -50,7 +52,8 @@ def define_column_names():
                                   'library_type', 'group_id', 'group_id_description', 'project_id'],
                     'Workflow_Inputs': ['library', 'run', 'lane', 'wfrun_id', 'limskey', 'barcode', 'platform', 'project_id', 'case_id', 'donor_id'],
                     'Samples': ['case_id', 'assay', 'donor_id', 'ext_id', 'species', 'miso', 'project_id', 'sequencing_status'],
-                    'Checksums': ['project_id', 'case_id', 'donor_id', 'md5']
+                    'Checksums': ['project_id', 'case_id', 'donor_id', 'md5'],
+                    'File_qc': ['project_id', 'case_id', 'wfrun_id', 'file_swid', 'filepath', 'username', 'ticket', 'qcstatus']
                     }
         
     return column_names
@@ -77,7 +80,8 @@ def define_column_types():
                     'Workflow_Inputs': ['VARCHAR(128)', 'VARCHAR(256)', 'INTEGER', 'VARCHAR(572)', 
                                         'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(128)'],
                     'Samples': ['VARCHAR(572)', 'VARCHAR(256)',  'VARCHAR(128)', 'VARCHAR(256)', 'VARCHAR(256)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)'],
-                    'Checksums': ['VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)']
+                    'Checksums': ['VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)'],
+                    'File_qc': ['VARCHAR(256)', 'VARCHAR(572)', 'VARCHAR(572)', 'VARCHAR(572)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)']
                     }
     
     return column_types
@@ -104,7 +108,7 @@ def create_table(database, table):
     # define table format including constraints    
     table_format = ', '.join(list(map(lambda x: ' '.join(x), list(zip(column_names, column_types)))))
 
-    if table  in ['Workflows', 'Parents', 'Files', 'Libraries', 'Workflow_Inputs', 'Samples', 'Checksums']:
+    if table  in ['Workflows', 'Parents', 'Files', 'Libraries', 'Workflow_Inputs', 'Samples', 'Checksums', 'File_qc']:
         constraints = '''FOREIGN KEY (project_id)
             REFERENCES Projects (project_id)'''
         table_format = table_format + ', ' + constraints 
@@ -136,7 +140,7 @@ def create_table(database, table):
             REFERENCES Libraries (ext_id)'''
         table_format = table_format + ', ' + constraints
 
-    if table == 'Libraries':
+    if table in ['Libraries', 'File_qc']:
         constraints = '''FOREIGN KEY (case_id)
             REFERENCES Samples (case_id)'''
         table_format = table_format + ', ' + constraints
@@ -170,7 +174,7 @@ def initiate_db(database):
     tables = [i[0] for i in tables]    
     conn.close()
     for i in ['Projects', 'Workflows', 'Parents', 'Files', 'Libraries',
-              'Workflow_Inputs', 'Samples', 'Checksums']:
+              'Workflow_Inputs', 'Samples', 'Checksums', 'File_qc']:
         if i not in tables:
             create_table(database, i)
 
@@ -1297,6 +1301,177 @@ def clean_up_workflows(case_data):
 
 
 
+def get_file_signoff(project, nabu = 'https://nabu.gsi.oicr.on.ca/get-fileqcs'):
+    '''
+    (str, str) -> dict
+
+    Returns a dictionary 
+
+    Parameters
+    ----------
+    - project (str): Project of interest
+    - nabu (str): URL to access the file qc in Nabu
+    '''
+
+    headers = {'accept': 'application/json', 'Content-Type': 'application/json'}
+    json_data = {'project': project}
+    response = requests.post(nabu, headers=headers, json=json_data)
+    
+    D = {}
+    
+    if response.status_code == 200:
+        for d in response.json()['fileqcs']:
+            fileid = d['fileid']
+            filepath = d['filepath']
+            if 'username' in d:
+                username = d['username']
+            else:
+                username = 'NA'
+            qcstatus = d['qcstatus']
+            if 'comment' in d:
+                ticket = d['comment']
+            else:
+                ticket = 'NA'
+            
+            assert fileid not in D
+            D[fileid] = {
+                'fileid' : fileid,
+                'filepath' : filepath,
+                'username' : username,
+                'qcstatus' : qcstatus,
+                'ticket' : ticket
+           }
+            
+    return D   
+
+
+
+def get_case_file_qc(database, project, fileqc):
+    '''
+    (str, str, dict) -> dict
+    
+    Returns a dictionary with file qc status from Nabu organized by workflow run id
+    for all cases in project
+        
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi sqlite database
+    - project (str): Project of interest
+    - fileqc (dict): Dictionary with file qc status extracted from nabu for a given project
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT case_id, file_swid, wfrun_id FROM Files WHERE \
+                        project_id = ?;", (project,)).fetchall()
+    conn.close()
+ 
+    D = {}
+    
+    for i in data:
+        case_id = i['case_id']
+        file_id = i['file_swid']
+        wfrun_id = i['wfrun_id']
+        
+        # get the qc info
+        if file_id in fileqc:
+            username = fileqc[file_id]['username']
+            qcstatus = fileqc[file_id]['qcstatus']
+            filepath = fileqc[file_id]['filepath']
+            ticket = fileqc[file_id]['ticket']
+        else:
+            username = 'NA'
+            qcstatus = 'NA'
+            filepath = 'NA'
+            ticket = 'NA'
+
+        if case_id not in D:
+            D[case_id] = {}
+        if wfrun_id not in D[case_id]:
+            D[case_id][wfrun_id] = {}
+        D[case_id][wfrun_id][file_id] = {
+            'username': username,
+            'qcstatus': qcstatus,
+            'filepath': filepath,
+            'ticket': ticket}
+            
+    return D                
+            
+
+def list_projects_for_file_qc(provenance_data, cases_to_update):
+    '''
+    (str) -> list
+    
+    Returns a list of project from the Projects table in database corresponding
+    to cases that need to be updated in the databse
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi sqlite database
+    - cases_to_update (dict): Dictionary with cases for which records needs to be updated
+    '''
+    
+    L = []
+    for case_data in provenance_data:
+        case = case_data['case']
+        if case in cases_to_update:
+            for d in case_data['project_info']:
+                L.append(d['project'])
+    
+    L = list(set(L))
+    
+    return L
+
+
+
+def add_file_qc(database, provenance_data, cases_to_update, table = 'File_qc'):
+    '''
+    (str, dict, str) -> None
+    
+    
+    Inserts file qc from Nabu information in database's File_qc table
+    
+    Parameters
+    ----------
+    - database (str): Path to the database file
+    - cases_to_update (dict): Dictionary with cases for which records needs to be updated
+    - table (str): Table in database storing file qc information. Default is File_qc
+    '''
+    
+    if cases_to_update:
+        # get the column names
+        column_names = define_column_names()[table]
+        # remove rows for donors to update
+        delete_records(cases_to_update, database, table)
+        print('deleted records in {0}'.format(table))
+               
+        # make a list of projects
+        projects = list_projects_for_file_qc(provenance_data, cases_to_update)
+        for project in projects:
+            # get the file qc for each project:
+            fileqc = get_file_signoff(project)
+            # organize file qc by case and workflow
+            case_file_qc = get_case_file_qc(database, project, fileqc)
+
+            # make a list of data to insert in the database
+            newdata = []
+            for case_id in case_file_qc:
+                if case_id in cases_to_update:
+                    for wfrun_id in case_file_qc[case_id]:
+                        for file_id in case_file_qc[case_id][wfrun_id]:
+                            L = [project, case_id, wfrun_id, file_id, case_file_qc[case_id][wfrun_id][file_id]['filepath'],
+                                 case_file_qc[case_id][wfrun_id][file_id]['username'],
+                                 case_file_qc[case_id][wfrun_id][file_id]['ticket']]
+                            if case_file_qc[case_id][wfrun_id][file_id]['qcstatus'] == 'PASS':
+                                L.append('1')
+                            elif case_file_qc[case_id][wfrun_id][file_id]['qcstatus'] == 'FAILED':
+                                L.append('0')
+                            else:
+                                L.append(case_file_qc[case_id][wfrun_id][file_id]['qcstatus'])
+                            newdata.append(L)    
+                               
+            # insert data
+            insert_data(database, table, newdata, column_names)
+
 
 def generate_database(database, provenance_data_file):
     '''
@@ -1326,14 +1501,10 @@ def generate_database(database, provenance_data_file):
         provenance_data[i] = clean_up_workflows(provenance_data[i])    
     print('clean up workflows')
     
-    
-    
-    
     # collect the md5sum of each donor's data
     md5sums = compute_case_md5sum(provenance_data)
     
-    print('provenance data', md5sums['R2122_a52_BIOCAN_0083_Pt_P'])
-    
+       
     print('computed md5sums')
     # collect the recorded md5sums of the donor data from the database
     recorded_md5sums = get_cases_md5sum(database, table = 'Checksums')
@@ -1364,8 +1535,10 @@ def generate_database(database, provenance_data_file):
     add_file_info_to_db(database, provenance_data, cases_to_update, 'Files')
     print('added file info to database')
     
-    
-    
+    # add file qc information from Nabu
+    add_file_qc(database, provenance_data, cases_to_update, 'File_qc')
+    print('added File qc info to database')
+       
     # update the checksums for donors
     add_checksums_info_to_db(database, cases_to_update, 'Checksums')
     print('added md5sums to database')
@@ -1375,9 +1548,9 @@ def generate_database(database, provenance_data_file):
  
 #generate_database('waterzooi_db_case.db', 'CaseInfo_IRIS_NEOPOC.dump.json')    
      
-#generate_database('waterzooi_db_case_small.db', 'provenance_reporter_small.json')    
+generate_database('waterzooi_db_case_small.db', 'provenance_reporter_small.json')    
  
-generate_database('waterzooi_db_case.db', 'provenance_reporter.json')    
+#generate_database('waterzooi_db_case.db', 'provenance_reporter.json')    
 
     
  

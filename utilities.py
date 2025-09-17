@@ -259,10 +259,6 @@ def list_signoff_deliverables(signoffs):
     return D
     
 
-
-
-
-
 def remove_cases_with_no_approval_signoff(analysis_data, signoffs):
     '''
     (dict, dict) -> dict
@@ -369,3 +365,104 @@ def remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverab
    
     return analysis_data                    
                         
+
+
+
+def get_workflow_file_qc(database, case_id):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary with file qc status for each output file
+    of every workflows of a given case
+        
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi sqlite database
+    - case_id (str): Case identifier
+    '''
+    
+    # connect to db
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT wfrun_id, username, ticket, qcstatus FROM File_qc WHERE case_id = ?;", (case_id,)).fetchall()
+    conn.close()
+    
+    D = {}
+
+    for i in data:
+        if i['wfrun_id'] not in D:
+            D[i['wfrun_id']] = [i['qcstatus']]
+        else:
+            D[i['wfrun_id']].append(i['qcstatus'])
+    
+    return D    
+    
+    
+def get_workflow_release_status(database, case_id):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary with the release status of each workflow id of a given case
+    The release status is derived from the file qc status in Nabu of the workflow output files
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi sqlite database
+    - case_id (str): Case identifier
+    '''
+
+    # get the file qc status for each output file of every workflows
+    workflow_qc = get_workflow_file_qc(database, case_id)
+    
+    D = {}    
+
+    for workflow_id in workflow_qc:
+        if all(map(lambda x: x.isdigit(), workflow_qc[workflow_id])):
+            if all(map(lambda x: int(x), workflow_qc[workflow_id])):
+                D[workflow_id] = True
+            elif any(map(lambda x: int(x), workflow_qc[workflow_id])):
+                D[workflow_id] = True
+            elif all(map(lambda x: int(x), workflow_qc[workflow_id])) == False:
+                D[workflow_id] = False
+        elif '1' in workflow_qc[workflow_id]:
+            D[workflow_id] = True
+        elif len(list(set(workflow_qc[workflow_id]))) == 1:
+            D[workflow_id] = '?'
+        
+        
+       
+        
+    return D    
+         
+
+    
+def get_file_release_status(database, case_id):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary with the release status of each file of a given case
+    The release status is derived from the file qc status in Nabu 
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi sqlite database
+    - case_id (str): Case identifier
+    '''
+    
+    # connect to db
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT wfrun_id, filepath, username, ticket, qcstatus FROM File_qc WHERE case_id = ?;", (case_id,)).fetchall()
+    conn.close()
+    
+    D = {}
+
+    for i in data:
+        assert i['filepath'] not in D
+        if i['qcstatus'] == '1':
+            D[i['filepath']] = True
+        elif i['qcstatus'] == '0':
+            D[i['filepath']] = False
+        else:
+            D[i['filepath']] = '?'
+
+    return D    
+    
