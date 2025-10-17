@@ -13,21 +13,7 @@ import requests
 
 
 
-def connect_to_db(database):
-    '''
-    (str) -> sqlite3.Connection
-    
-    Returns a connection to SqLite database prov_report.db.
-    This database contains information extracted from FPR
-    
-    Parameters
-    ----------
-    - database (str): Path to the sqlite database
-    '''
-    
-    conn = sqlite3.connect(database)
-    conn.row_factory = sqlite3.Row
-    return conn
+
 
 
 def remove_non_analysis_workflows(L):
