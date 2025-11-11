@@ -77,7 +77,7 @@ def define_columns(database):
                                               'VARCHAR(572)', 'VARCHAR(572)', 'VARCHAR(128)',
                                               'VARCHAR(128)', 'VARCHAR(128)']}}
     elif database == 'analysis_review':
-        columns = {'templates': {'names':  ['case_id', 'donor', 'project', 'assay',
+        columns = {'templates': {'names':  ['case_id', 'donor_id', 'project_id', 'assay',
                                             'template', 'valid', 'error', 'md5'],
                                 'types': ['VARCHAR(572)', 'VARCHAR(572)', 'VARCHAR(572)',
                                           'VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(572)',
@@ -184,52 +184,117 @@ def initiate_db(database_name, database, tables):
 
 
 
-def insert_data(database, table, data, column_names):
+# def insert_data(database, table, data, column_names):
+#     '''
+#     (str, str, list, list) -> None
+    
+#     Inserts data into the database table with column names 
+    
+#     Parameters
+#     ----------
+#     - database (str): Path to the database file
+#     - table (str): Table in database
+#     - data (list): List of data to be inserted
+#     - column_names (list): List of table column names
+#     '''
+       
+#     # connect to db
+#     conn = sqlite3.connect(database)
+#     # add data
+#     vals = '(' + ','.join(['?'] * len(data[0])) + ')'
+#     conn.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
+#     conn.commit()
+#     conn.close()
+
+
+
+
+def insert_multiple_records(data, conn, database, table, column_names):
     '''
-    (str, str, list, list) -> None
+    (list, sqlite3.Connection, str, str, list) -> None
     
     Inserts data into the database table with column names 
     
     Parameters
     ----------
-    - database (str): Path to the database file
-    - table (str): Table in database
     - data (list): List of data to be inserted
+    - database (str): Path to the database file
+    - conn (sqlite3.Connection): Open connection to the database
+    - table (str): Table in database
     - column_names (list): List of table column names
     '''
        
-    # connect to db
-    conn = sqlite3.connect(database)
-    # add data
     vals = '(' + ','.join(['?'] * len(data[0])) + ')'
     conn.executemany('INSERT INTO {0} {1} VALUES {2}'.format(table, tuple(column_names), vals), data)
     conn.commit()
-    conn.close()
+    
 
 
 
-def delete_records(cases, database, table):
-    '''
-    (dict, str, str) -> None
+
+# def delete_records(cases, database, table):
+#     '''
+#     (dict, str, str) -> None
      
-    Remove all the rows from table with case_id in cases
+#     Remove all the rows from table with case_id in cases
+        
+#     Parameters
+#     ----------
+#     - donors (dict): Dictionary with cases to remove from table
+#     - database (str): Path to the sqlite database
+#     - table (str): Table in database
+#     '''
+        
+#     conn = sqlite3.connect(database)
+#     cur = conn.cursor()
+#     id_list = list(cases.keys())
+#     query = "DELETE FROM {0} WHERE case_id IN ({1})".format(table, ", ".join("?" * len(id_list)))
+#     cur.execute(query, id_list)
+#     conn.commit()
+#     conn.close()
+
+ 
+
+
+def delete_multiple_records(L, conn, database, table, field):
+    '''
+    (list, str, str) -> None
+     
+    Remove all the rows from table with items in L
         
     Parameters
     ----------
-    - donors (dict): Dictionary with cases to remove from table
+    - L (list): List of items to remove
+    - conn (sqlite3.Connection): Open connection to the database
     - database (str): Path to the sqlite database
     - table (str): Table in database
+    - field (str): Column in table
     '''
         
-    conn = sqlite3.connect(database)
-    cur = conn.cursor()
-    id_list = list(cases.keys())
-    query = "DELETE FROM {0} WHERE case_id IN ({1})".format(table, ", ".join("?" * len(id_list)))
-    cur.execute(query, id_list)
+    query = "DELETE FROM {0} WHERE {1} IN ({2})".format(table, field, ", ".join("?" * len(L)))
+    conn.execute(query, L)
     conn.commit()
-    conn.close()
-
- 
     
+
+
+def delete_unique_record(identifier, conn, database, table, field):
+    '''
+    (str, sqlite3.Connection, str, str, str) -> None
+     
+    Remove all the rows from table with identifier in field
+        
+    Parameters
+    ----------
+    - conn (sqlite3.Connection): Open connection to the database
+    - identifer (str): Item in table 
+    - database (str): Path to the sqlite database
+    - table (str): Table in the database
+    - field (str): Column in table
+    '''
+        
+    query = "DELETE FROM {0} WHERE {1} = \"{2}\"".format(table, field, identifier)
+    conn.execute(query)
+    conn.commit()
+        
     
 

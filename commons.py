@@ -26,41 +26,64 @@ def compute_md5(d):
 
 
 
-def compute_case_md5sum(provenance_data):
+
+def case_to_update(recorded_md5sums, case, md5sum):
     '''
-    (list) -> dict
+    (dict, str, str) -> bool
     
-    Returns a dictionary with the md5sum of the each case's data listed in
-    provenance_data
-    
+    Returns True if the case information needs to be updated in the database
+       
     Parameters
     ----------
-    - provenance_data (list): List of dictionaries, each representing the data of a single case
+    - recorded_md5sums (dict): Dictionary of recorded cases, checksum in the database
+    - case (str): Case identifier
+    - md5sum (str): md5sum of the dictionary containing case information from production
     '''
-
-    D = {}
-    for d in provenance_data:
-        md5 = compute_md5(d)
-        case = d['case']
-        donor = get_donor_name(d)
-        #project = d['project']
-        project = d['project_info'][0]['project']
-        assert case not in D
-        D[case] = {'md5':md5, 'project_id':project, 'donor_id':donor}
-    return D
+    
+    if case not in recorded_md5sums or recorded_md5sums[case]['md5'] != md5sum:
+        # need to update the case info
+        return True
+    else:
+        return False
+    
+    
 
 
+# def compute_case_md5sum(provenance_data):
+#     '''
+#     (list) -> dict
+    
+#     Returns a dictionary with the md5sum of the each case's data listed in
+#     provenance_data
+    
+#     Parameters
+#     ----------
+#     - provenance_data (list): List of dictionaries, each representing the data of a single case
+#     '''
 
-def get_cases_md5sum(database, table = 'Checksums'):
+#     D = {}
+#     for d in provenance_data:
+#         md5 = compute_md5(d)
+#         case = d['case']
+#         donor = get_donor_name(d)
+#         #project = d['project']
+#         project = d['project_info'][0]['project']
+#         assert case not in D
+#         D[case] = {'md5':md5, 'project_id':project, 'donor_id':donor}
+#     return D
+
+
+
+def get_cases_md5sum(database, table):
     '''
     (str, str) -> dict
 
-    Returns a dictionary of cases and checksum extracted from the table Checksums in the database
+    Returns a dictionary of cases and checksum extracted from the table in the database
            
     Parameters
     ----------
     - database (str): Path to the sqlite database
-    - table (str): Table storing the donor checksum information. Default is Checksums 
+    - table (str): Table storing the case checksum information 
     '''
         
     # connect to database, get recorded md5sums
@@ -77,33 +100,33 @@ def get_cases_md5sum(database, table = 'Checksums'):
     return records
 
 
-def cases_info_to_update(md5sums, recorded_md5sums):
-    '''
-    (dict, dict) -> dict
+# def cases_info_to_update(md5sums, recorded_md5sums):
+#     '''
+#     (dict, dict) -> dict
 
-    Returns a dictionary of cases, checksum for which the information in the database needs to be updated
-    (ie, the checksum in the database is different from the checksum of the production data,
-     or the case recorded in the database is no longer in production)
+#     Returns a dictionary of cases, checksum for which the information in the database needs to be updated
+#     (ie, the checksum in the database is different from the checksum of the production data,
+#      or the case recorded in the database is no longer in production)
             
-    Parameters
-    ----------
-    - md5sums (dict): Dictionary of cases, checksum for production data
-    - recorded_md5sums (dict): Dictionary of recorded cases, checksum in the database
-    '''
+#     Parameters
+#     ----------
+#     - md5sums (dict): Dictionary of cases, checksum for production data
+#     - recorded_md5sums (dict): Dictionary of recorded cases, checksum in the database
+#     '''
         
-    cases = {}
-    for case in md5sums:
-        # update if not already recorded
-        if case not in recorded_md5sums or recorded_md5sums[case]['md5'] != md5sums[case]['md5']:
-            #cases[case] = {'md5': md5sums[case]['md5'], 'project_id': md5sums[case]['project_id'], 'donor_id': md5sums[case]['donor_id']}
-            cases[case] = md5sums[case]
+#     cases = {}
+#     for case in md5sums:
+#         # update if not already recorded
+#         if case not in recorded_md5sums or recorded_md5sums[case]['md5'] != md5sums[case]['md5']:
+#             #cases[case] = {'md5': md5sums[case]['md5'], 'project_id': md5sums[case]['project_id'], 'donor_id': md5sums[case]['donor_id']}
+#             cases[case] = md5sums[case]
             
-    # delete cases that are no longer recorded
-    for case in recorded_md5sums:
-        if case not in md5sums:
-            cases[case] = 'delete'
+#     # delete cases that are no longer recorded
+#     for case in recorded_md5sums:
+#         if case not in md5sums:
+#             cases[case] = 'delete'
         
-    return cases
+#     return cases
 
 
 

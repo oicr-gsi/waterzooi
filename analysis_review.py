@@ -13,10 +13,11 @@ import hashlib
 import itertools
 import copy
 from generate_assays import generate_templates
-from db_helper import connect_to_db, define_columns, initiate_db, insert_data, delete_records
-from data_helper import load_data, clean_up_data, clean_up_workflows
-from commons import compute_case_md5sum, get_cases_md5sum, cases_info_to_update, \
-    find_sequencing_attributes, convert_to_bool, list_case_workflows, get_donor_name
+from db_helper import connect_to_db, define_columns, initiate_db, insert_multiple_records, \
+    delete_unique_record, delete_multiple_records
+from data_helper import load_data, clean_up_data, clean_up_workflows, is_case_info_complete
+from commons import get_cases_md5sum, find_sequencing_attributes, convert_to_bool, \
+    list_case_workflows, get_donor_name, compute_md5, case_to_update    
     
 
 
@@ -1501,54 +1502,53 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
     - table (str): Table in database storing the analysis data
     '''
     
-    # load data from file
-    provenance_data = load_data(provenance_data_file)
-    print('loaded data')
-    # clean up data 
-    provenance_data =  clean_up_data(provenance_data)
-    print('cleaned up data')
-    # clean up workflows - remove children and parent workflows that are not in a given case        
-    for i in range(len(provenance_data)):
-        provenance_data[i] = clean_up_workflows(provenance_data[i])    
-    print('clean up workflows')
+    
     # create database if file doesn't exist
     if os.path.isfile(database) == False:
         initiate_db(database, 'analysis_review', ['templates'])
-    print('initiated database')
-
-    # collect the md5sum of each donor's data
-    md5sums = compute_case_md5sum(provenance_data)
-    print('computed md5sums')
+    print('initiated database')    
+    
     # collect the recorded md5sums of the donor data from the database
     recorded_md5sums = get_cases_md5sum(database, table = 'templates')
     print('pulled md5sums from database')
-    # determine the donors that need an update
-    cases_to_update = case_info_to_update(md5sums, recorded_md5sums)
-    print('determined donors to update')
     
-    # delete donors that need to be updated
-    if cases_to_update:
-        delete_records(cases_to_update, database, table = 'templates')
-        
-    # record data to insert and to remove
-    L, R = [], []
-
+    # load data from file
+    provenance_data = load_data(provenance_data_file)
+    print('loaded data')
+    
     # generate assays
     assays = generate_templates(waterzooi_database, assay_config_file, pinery)
-    
-    for case_data in provenance_data:
-        project_id = case_data['project_info'][0]['project']
-        case = case_data['case']
-        donor = get_donor_name(case_data)
-        assay_name = case_data['assay']
         
-        if case in cases_to_update: 
-            if cases_to_update[case] != 'delete':
-                # get all the workflow information
-                workflow_info = extract_workflow_information(case_data)
+    # track all cases in production
+    P = []
+          
+    for case_data in provenance_data:
+        case_id = case_data['case']
+        P.append(case_id)
+        # check that no information is missing
+        if is_case_info_complete(case_data):
+            # record all case templates
+            L = []
+            # remove workflows that do not belong to the case
+            case_data = clean_up_workflows(case_data)
+            # compute the md5sum of the case info
+            md5sum = compute_md5(case_data)
+            # determine if case needs to be updated
+            donor = get_donor_name(case_data)
+            assay_name = case_data['assay']        
+            
+            if case_to_update(recorded_md5sums, case_id, md5sum):
+                # open connection to database
+                conn = connect_to_db(database)
+                # delete case info from table
+                delete_unique_record(case_id, conn, database, 'templates', 'case_id')
+                conn.close()
+                                
                 if assay_name in assays:
                     # get assay
                     assay = assays[assay_name]
+                    # get all the workflow information
+                    workflow_info = extract_workflow_information(case_data)
                     # get the anchor workflows and their expected samples
                     anchor_workflows = extract_anchor_samples(assay)
                     # get workflows of all samples for the case
@@ -1561,35 +1561,43 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
                     # make groups of samples (can be 1, 2 or more samples depending on the assay)       
                     groups = group_samples(anchor_samples, assay)
                     sample_groups = get_sample_groups(groups, samples_workflows, child_to_parents_workflows, parent_to_children_workflows, anchor_samples)
-                    blocks = group_blocks(sample_groups, samples_workflows)
+                    blocks = group_blocks(sample_groups, samples_workflows)    
                     merged_blocks = merge_group(blocks)
                     clean_up_blocks(merged_blocks, workflow_info)
                     templates = get_sample_templates(merged_blocks, assay, samples_workflows, workflow_info, child_to_parents_workflows, anchor_samples)
-                    
-                    # evaluate template
-                    for template in templates:
-                        valid, error = evaluate_assay(template, assay)
-                        L.append([case, donor, project_id, assay_name, json.dumps(template), str(int(valid)), error, cases_to_update[case]])
+                
+                    for i in case_data['project_info']:
+                        project_id = i['project']
+                        # evaluate template
+                        for template in templates:
+                            valid, error = evaluate_assay(template, assay)
+                            L.append([case_id, donor, project_id, assay_name, json.dumps(template), str(int(valid)), error, md5sum])
                                      
                 else:
-                    L.append([case, donor, project_id, assay_name, json.dumps({}), str(0), 'no_assay', cases_to_update[case]])
-         
-            else:
-                R.append(case)
+                    for i in case_data['project_info']:
+                        project_id = i['project']
+                        L.append([case_id, donor, project_id, assay_name, json.dumps({}), str(0), 'no_assay', md5sum])
     
-    # insert data               
-    if L:
-        column_names = get_column_names(database, table)
-        insert_data(database, 'templates', L, column_names)
-
+            if L:
+                # connect to database
+                conn = connect_to_db(database)
+                # insert records
+                insert_multiple_records(L, conn, database, 'templates', define_columns('analysis_review')['templates']['names'])
+                # close database
+                conn.close()
+                
+                
+    
+    
     # delete data for donors not in the provenance report
-    if R:
-        print('removing data for {0} cases'.format(len(R)))
-        conn = sqlite3.connect(database)
-        cur = conn.cursor()
-        for i in R:
-            cur.execute('DELETE FROM {0} WHERE case = \"{1}\"'.format(table, i))
-            conn.commit()
+    if P:
+        # make a list of cases in database that are not in production
+        conn = connect_to_db(database)
+        data = conn.execute('SELECT case_id FROM templates').fetchall()
+        all_cases = [i['case_id'] for i in data]
+        to_remove = [i for i in all_cases if i not in P]
+        if to_remove:
+            delete_multiple_records(to_remove, conn, database, 'templates', 'case_id')
         conn.close()
 
 
@@ -1673,7 +1681,7 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
 
 
    
-generate_cache('provenance_reporter.json', 'enabled_workflows.json', 'waterzooi_db_case.db', 'http://pinery.gsi.oicr.on.ca/assays', 'analysis_review_case.db', table='templates')
+generate_cache('provenance_reporter.json', 'enabled_workflows.json', 'waterzooi_db_case_new.db', 'http://pinery.gsi.oicr.on.ca/assays', 'analysis_review_case_new.db', table='templates')
 
 
 

@@ -47,6 +47,45 @@ def clean_up_data(provenance_data):
     return provenance_data
 
 
+def is_case_info_complete(case_data):
+    '''
+    (dict) -> bool
+    
+    Returns True if the case information is complete
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with case information from production
+    '''
+    
+    complete = True
+    for i in case_data:
+        if len(case_data[i]) == 0:
+            complete = False
+            break
+    
+    return complete
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def clean_up_workflows(case_data):
     '''
     (dict) -> dict    
