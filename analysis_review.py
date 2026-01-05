@@ -336,8 +336,7 @@ def extract_workflow_information(case_data):
     for d in case_data['workflow_runs']:
         name = d['wf']
         wfrun = d['wfrunid']
-        version = d['wfv']
-        D[wfrun] = {'name': name, 'version': version}
+        D[wfrun] = name
     
     return D
         
@@ -363,13 +362,17 @@ def add_samples_to_template(assay, block, samples_workflows, template):
     # add samples information
     for i in samples:
         for j in assay['Samples']:
-            if samples_workflows[i]['library_type'] == assay['Samples'][j]['library_type'] and \
-            (samples_workflows[i]['tissue_type'] in assay['Samples'][j]['tissue_type'] or \
-             samples_workflows[i]['tissue_type'] == assay['Samples'][j]['tissue_type']):
-                template['Samples'][j]['sample'] = i
-                template['Samples'][j]['tissue_type'] = samples_workflows[i]['tissue_type']
-                template['Samples'][j]['library_type'] = samples_workflows[i]['library_type']
-
+            if samples_workflows[i]['library_type'] == assay['Samples'][j]['library_type']:
+                if (assay['Samples'][j]['negate_tissue_type'] == False and \
+                    samples_workflows[i]['tissue_type'] == assay['Samples'][j]['tissue_type']) or \
+                   (assay['Samples'][j]['negate_tissue_type'] and \
+                    samples_workflows[i]['tissue_type'] != assay['Samples'][j]['tissue_type']):
+                        template['Samples'][j]['sample'] = i
+                        template['Samples'][j]['tissue_type'] = samples_workflows[i]['tissue_type']
+                        template['Samples'][j]['library_type'] = samples_workflows[i]['library_type']
+                        template['Samples'][j]['negate_tissue_type'] = assay['Samples'][j]['negate_tissue_type']
+                        
+                        
 
 def add_analysis_to_template(block, workflows_information, parent_workflows, samples_workflows, template):
     '''
@@ -389,15 +392,13 @@ def add_analysis_to_template(block, workflows_information, parent_workflows, sam
     for sample_pair in block:
         for anchor_workflow in block[sample_pair]:
             for workflow_id in block[sample_pair][anchor_workflow]:
-                name = workflows_information[workflow_id]['name']
-                version = workflows_information[workflow_id]['version']
+                name = workflows_information[workflow_id]
                 # get the parent workflows
                 inputs = parent_workflows[workflow_id]
                 samples = [i for i in samples_workflows for j in samples_workflows[i]['workflows'] if workflow_id == j['wfrun_id']]
         
                 d = {'workflow_id': workflow_id,
                      'workflow_name': name,
-                     'workflow_version': version,
                      'samples': samples,
                      'inputs': inputs}
             
@@ -454,7 +455,7 @@ def add_alignment_to_template(workflows_information, parent_workflows, samples_w
             # get the parent workflows
             inputs = parent_workflows[workflow_id]
             for wfrun_id in inputs:
-                workflow_name = workflows_information[wfrun_id]['name']
+                workflow_name = workflows_information[wfrun_id]
                 if workflow_name.lower() in workflows:
                     sample = [i for i in samples_workflows for j in samples_workflows[i]['workflows'] if wfrun_id == j['wfrun_id']]
                     assert len(sample) == 1
@@ -463,7 +464,6 @@ def add_alignment_to_template(workflows_information, parent_workflows, samples_w
                         alignment = alignments[sample]
                         b = {'workflow_id': wfrun_id,
                              'workflow_name': workflow_name,
-                             'workflow_version': workflows_information[wfrun_id]['version'],
                              'sample': sample}
                     
                         # add bwamem workflow information to the correct sample placeholder
@@ -532,21 +532,19 @@ def add_sequencing_to_template(workflows_information, parent_workflows, samples_
     for wfrun_id in L:
         fastq_inputs = parent_workflows[wfrun_id]
         for i in fastq_inputs:
-            if i != 'NA' and workflows_information[i]['name'].lower() in fastq_workflows:
+            if i != 'NA' and workflows_information[i].lower() in fastq_workflows:
                 sample = [k for k in samples_workflows for m in samples_workflows[k]['workflows'] if i == m['wfrun_id']]
                 assert len(sample) == 1
                 sample = sample[0]
                 f = {'workflow_id': i,
-                     'workflow_name': workflows_information[i]['name'],
-                     'workflow_version': workflows_information[i]['version'],
+                     'workflow_name': workflows_information[i],
                      'sample': sample}
-            elif i == 'NA' and workflows_information[wfrun_id]['name'].lower() in fastq_workflows:
+            elif i == 'NA' and workflows_information[wfrun_id].lower() in fastq_workflows:
                 sample = [k for k in samples_workflows for m in samples_workflows[k]['workflows'] if wfrun_id == m['wfrun_id']]
                 assert len(sample) == 1
                 sample = sample[0]
                 f = {'workflow_id': wfrun_id,
-                     'workflow_name': workflows_information[wfrun_id]['name'],
-                     'workflow_version': workflows_information[wfrun_id]['version'],
+                     'workflow_name': workflows_information[wfrun_id],
                      'sample': sample}
                 
             if f not in template['Data']['Sequencing']['workflows']:
@@ -631,14 +629,14 @@ def clean_up_blocks(merged_blocks, workflow_information):
             names = []
             for j in counts:
                 if counts[j] > 1:
-                    names.append(workflow_information[j]['name'])
+                    names.append(workflow_information[j])
             # identify the workflows that should be found multiple times
             # but that are actually unique to a subblock. these are child and/or parent workflows
             # that are processed with other shared workflows but that do not belong to this block
             # these workflows should be removed
             to_remove = []
             for j in counts:
-                if workflow_information[j]['name'] in names and counts[j] == 1:
+                if workflow_information[j] in names and counts[j] == 1:
                     to_remove.append(j)
             for j in to_remove:
                 for sample in merged_blocks[i]:
@@ -827,7 +825,7 @@ def evaluate_template_raw_data(template, assay):
 
 def evaluate_missing_analyses(template, assay):
     '''
-    (dict, dict) -> (bool, str)
+    (dict, dict) -> (bool, list)
     
     Returns a boolean indicating if expected analyses workflows are missing
     from the template, and the corresponding error message
@@ -842,13 +840,14 @@ def evaluate_missing_analyses(template, assay):
     error = ''
     # evaluate analyses
     # check if each expected workflow has data
-    missing = 0
+    missing = []
     for workflow in template['Analysis']:
         if len(template['Analysis'][workflow]) == 0:
             complete = False
-            missing += 1
+            missing.append(workflow)
     if complete == False:
-        error = 'missing {0} workflows'.format(missing)        
+        missing = sorted(list(set(missing)))
+        error = 'missing {0} workflows ({1})'.format(len(missing), ':'.join(missing))        
 
     return complete, error
 
@@ -1473,17 +1472,150 @@ def collect_workflow_relationships(case_data):
     return D
 
 
-
-
-
+def is_moh_case(case_data):
+    '''
+    (dict) -> bool    
     
+    Returns True if any of the projects associated with the case are MOH
+    
+    Parameters
+    ----------
+    - case_data (str): Dictionary with case information
+    '''
+    
+    L = []
+    
+    for d in case_data['project_info']:
+        L.append('MOH Full Pipeline' in d['deliverables'])
+    
+    return any(L)             
+
+
+def get_moh_assay(assay_name):
+    '''
+    
+    
+    
+    '''
+    
+    
+    if 'WGTS' in assay_name:
+        assays = {'Samples': {'TumourWT': {'library_type': 'WT',
+                                            'tissue_type': 'R',
+                                            'negate_tissue_type': True},
+                               'TumourWG': {'library_type': 'WG',
+                                            'tissue_type': 'R',
+                                            'negate_tissue_type': True},
+                               'NormalWG': {'library_type': 'WG',
+                                            'tissue_type': 'R',
+                                            'negate_tissue_type': False}},
+                   'Data': {'Sequencing': {'workflows': ['bcl2fastq'], 'inputs': []},
+                            'TumourWTalign': {'samples': ['TumourWT'],
+                                              'inputs': [],
+                                              'data': ['Sequencing'],
+                                              'workflows': ['star_lane_level']},
+                            'TumourWGalign': {'samples': ['TumourWG'],
+                                              'inputs': [],
+                                              'data': ['Sequencing'],
+                                              'workflows': ['bwaMem']},
+                            'NormalWGalign': {'samples': ['NormalWG'],
+                                              'inputs': [],
+                                              'data': ['Sequencing'],
+                                              'workflows': ['bwaMem']}},
+                   'Analysis':
+                       {'mutect2_matched': {'samples': ['NormalWG', 'TumourWG'],
+                                            'inputs': ['bamMergePreprocessing_by_sample']},
+                       'variantEffectPredictor_matched': {'samples': ['NormalWG', 'TumourWG'],
+                                                          'inputs': ['mutect2_matched']},
+                       'delly_matched': {'samples': ['NormalWG', 'TumourWG'],
+                                         'inputs': ['bamMergePreprocessing_by_sample']}, 
+                       'gridss': {'samples': ['NormalWG', 'TumourWG'],
+                                  'inputs': ['bamMergePreprocessing_by_sample']},
+                       'purple': {'samples': ['NormalWG', 'TumourWG'],
+                                  'inputs': ['mutect2_matched', 'bamMergePreprocessing_by_sample', 'gridss']},
+                       'bamMergePreprocessing_by_sample': {'samples': ['NormalWG', 'TumourWG'],
+                                                           'inputs': ['bwaMem']},
+                       'bwaMem': {'samples': ['NormalWG', 'TumourWG'],
+                                  'inputs': ['bcl2fastq']},
+                       'rsem': {'samples': ['TumourWT'],
+                                'inputs': ['star_call_ready']},
+                       'star_call_ready': {'samples': ['TumourWT'],
+                                           'inputs': ['bcl2fastq']},
+                       'starfusion': {'samples': ['TumourWT'],
+                                      'inputs': ['star_call_ready']},
+                       'arriba': {'samples': ['TumourWT'],
+                                  'inputs': ['star_call_ready']},
+                       'msisensor': {'samples': ['NormalWG', 'TumourWG'],
+                                     'inputs': ['bamMergePreprocessing_by_sample']},
+                       'star_lane_level': {'samples': ['TumourWT'],
+                                           'inputs': ['bcl2fastq']},
+                       'mavis': {'samples': ['TumourWT', 'NormalWG', 'TumourWG'],
+                                 'inputs': ['bamMergePreprocessing_by_sample',
+                                            'star_call_ready', 'starfusion',
+                                            'arriba', 'delly_matched']},
+                       'hrDetect': {'samples': ['NormalWG', 'TumourWG'],
+                                    'inputs': ['purple', 'mutect2_matched']},
+                       'haplotypeCaller': {'samples': ['NormalWG'],
+                                           'inputs': ['bwaMem']}},
+                   'Anchors': {'TumourWT': {'workflows': 'star_call_ready'},
+                               'TumourWG': {'workflows': 'bamMergePreprocessing_by_sample'},
+                               'NormalWG': {'workflows': 'bamMergePreprocessing_by_sample'}}}
 
 
 
+# hrdetect	Normal WG,Tumour WG	sample	calls.hrd	ALL
+# haplotypeCaller	Normal WG	sample	calls.germline.mutations	ALL        
+        
+        
+        
+        
 
+    elif 'WGS' in assay_name:
+        assays = {'Samples': {'TumourWG': {'library_type': 'WG',
+                                           'tissue_type': 'R',
+                                           'negate_tissue_type': True},
+                              'NormalWG': {'library_type': 'WG',
+                                           'tissue_type': 'R',
+                                           'negate_tissue_type': False}},
+                  
+                  'Data': {'Sequencing': {'workflows': ['bcl2fastq'], 'inputs': []},
+                           'TumourWGalign': {'samples': ['TumourWG'],
+                                             'inputs': [],
+                                             'data': ['Sequencing'],
+                                             'workflows': ['bwaMem']},
+                           'NormalWGalign': {'samples': ['NormalWG'],
+                                             'inputs': [],
+                                             'data': ['Sequencing'],
+                                             'workflows': ['bwaMem']}},
+                  'Analysis':
+                      {'bwaMem': {'samples': ['NormalWG', 'TumourWG'],
+                                 'inputs': ['bcl2fastq']},
+                       'bamMergePreprocessing_by_sample': {'samples': ['NormalWG', 'TumourWG'],
+                                                           'inputs': ['bwaMem']},
+                       'mutect2_matched': {'samples': ['NormalWG', 'TumourWG'],
+                                            'inputs': ['bamMergePreprocessing_by_sample']},
+                       'variantEffectPredictor_matched': {'samples': ['NormalWG', 'TumourWG'],
+                                                          'inputs': ['mutect2_matched']},
+                       'delly_matched': {'samples': ['NormalWG', 'TumourWG'],
+                                         'inputs': ['bamMergePreprocessing_by_sample']}, 
+                       'gridss': {'samples': ['NormalWG', 'TumourWG'],
+                                  'inputs': ['bamMergePreprocessing_by_sample']},
+                       'purple': {'samples': ['NormalWG', 'TumourWG'],
+                                  'inputs': ['mutect2_matched', 'bamMergePreprocessing_by_sample', 'gridss']},
+                       'msisensor': {'samples': ['NormalWG', 'TumourWG'],
+                                     'inputs': ['bamMergePreprocessing_by_sample']},
+                       'mavis': {'samples': ['TumourWT', 'NormalWG', 'TumourWG'],
+                                 'inputs': ['bwaMem', 'delly_matched']}},
+                       'hrDetect': {'samples': ['NormalWG', 'TumourWG'],
+                                    'inputs': ['purple', 'mutect2_matched']},
+                       'haplotypeCaller': {'samples': ['NormalWG'],
+                                           'inputs': ['bwaMem']},
+                  'Anchors': {'TumourWG': {'workflows': 'bamMergePreprocessing_by_sample'},
+                              'NormalWG': {'workflows': 'bamMergePreprocessing_by_sample'}}}
 
-
-
+    return assays
+    
+    
 
 def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, pinery, database, table='templates'):
     '''
@@ -1525,6 +1657,7 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
     for case_data in provenance_data:
         case_id = case_data['case']
         P.append(case_id)
+        assay = {}
         # check that no information is missing
         if is_case_info_complete(case_data):
             # record all case templates
@@ -1544,9 +1677,15 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
                 delete_unique_record(case_id, conn, database, 'templates', 'case_id')
                 conn.close()
                                 
-                if assay_name in assays:
-                    # get assay
-                    assay = assays[assay_name]
+                            
+                ## temporary hack to use manually defined MOH assays
+                if is_moh_case(case_data):
+                    assay = get_moh_assay(assay_name)
+                else:
+                    if assay_name in assays:
+                        assay = assays[assay_name]
+                        
+                if assay:
                     # get all the workflow information
                     workflow_info = extract_workflow_information(case_data)
                     # get the anchor workflows and their expected samples
@@ -1680,10 +1819,11 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
 
 
 
-   
-generate_cache('provenance_reporter.json', 'enabled_workflows.json', 'waterzooi_db_case_new.db', 'http://pinery.gsi.oicr.on.ca/assays', 'analysis_review_case_new.db', table='templates')
+#generate_cache('provenance_reporter.json', 'enabled_workflows.json', 'waterzooi_db_case_new.db', 'http://pinery.gsi.oicr.on.ca/assays', 'analysis_review_case_new.db', table='templates')
 
+#generate_cache('provenance_reporter.json', 'enabled_workflows.json', 'waterzooi_db_case_new.db', 'http://pinery.gsi.oicr.on.ca/assays', 'analysis_review_case_MOH.db', table='templates')
 
+generate_cache('provenance_reporter.json', 'enabled_workflows.json', 'waterzooi_db_case_MOH.db', 'http://pinery.gsi.oicr.on.ca/assays', 'analysis_review_case_MOH.db', table='templates')
 
 
 
