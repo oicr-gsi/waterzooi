@@ -3227,5 +3227,6 @@ def generate_database(database, provenance_data_file, nabu = 'https://nabu.gsi.o
 
 
 
-generate_database('waterzooi_db_case_new.db', 'provenance_reporter.json')
+#generate_database('waterzooi_db_case_new.db', 'provenance_reporter.json')
 
+generate_database('waterzooi_db_case.db', 'provenance_reporter.json')

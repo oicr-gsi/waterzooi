@@ -1000,7 +1000,7 @@ def get_moh_assay(assay_name):
                                   'inputs': ['mutect2_matched', 'bamMergePreprocessing_by_sample', 'gridss']},
                        'msisensor': {'samples': ['NormalWG', 'TumourWG'],
                                      'inputs': ['bamMergePreprocessing_by_sample']},
-                       'mavis': {'samples': ['TumourWT', 'NormalWG', 'TumourWG'],
+                       'mavis': {'samples': ['NormalWG', 'TumourWG'],
                                  'inputs': ['bwaMem', 'delly_matched']}},
                        'hrDetect': {'samples': ['NormalWG', 'TumourWG'],
                                     'inputs': ['purple', 'mutect2_matched']},

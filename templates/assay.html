@@ -80,7 +80,7 @@
         {% endfor %}
     </thead>     
 
-      {% for i in case_names %}
+      {% for i in cases %}
          <tbody>
             <tr>
               <td>
@@ -208,7 +208,7 @@
               </td>
               
               <td>
-                <a class="project_links" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=current_assay | format_identifier, case=i | format_identifier, )}}">
+                <a class="project_links" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=current_assay | format_identifier, case_id=i | format_identifier, )}}">
                   {% if review_status[i] %}
                   <span style="font-size:16px;color:#70db70">&#10004;</span>
                   {% else %}  

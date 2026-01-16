@@ -4,7 +4,7 @@
 {% block link %}
   <a href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
   <a href="{{ url_for('analysis', project_name=project['project_id'], assay=assay | format_identifier) }}">{{assay}}</a>   
-  <a class="selected" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier)}}">{{case}}</a>
+  <a class="selected" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier)}}">{{case}}</a>
 {% endblock %}
 
 
@@ -121,7 +121,7 @@
         <tr>
           <td>{{ workflow_info[parent].0 }}</td>
           <td>
-            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=parent | format_identifier) }}">
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=parent | format_identifier) }}">
               {{parent}}
             </a>
           </td>
@@ -159,7 +159,7 @@
       <tr>
         <td>{{ workflow_info[child].0 }}</td>
           <td>
-            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=child | format_identifier) }}">
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=child | format_identifier) }}">
               {{child}}
             </a>
           </td>

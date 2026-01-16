@@ -10,7 +10,7 @@ import time
 import string
 import random
 import requests
-
+from db_helper import connect_to_db
 
 
 
@@ -258,18 +258,18 @@ def remove_cases_with_no_approval_signoff(analysis_data, signoffs):
     '''
     
     to_remove = []
-    for case in analysis_data:
-        if case not in signoffs:
-            to_remove.append(case)
+    for case_id in analysis_data:
+        if case_id not in signoffs:
+            to_remove.append(case_id)
         else:
-            if 'Release Approval' not in signoffs[case]:
-                to_remove.append(case)
-            elif all([d['qcPassed'] for d in signoffs[case]['Release Approval']]) == False:
-                to_remove.append(case)
+            if 'Release Approval' not in signoffs[case_id]:
+                to_remove.append(case_id)
+            elif all([d['qcPassed'] for d in signoffs[case_id]['Release Approval']]) == False:
+                to_remove.append(case_id)
     
     to_remove = list(set(to_remove))
-    for case in to_remove:
-        del analysis_data[case]
+    for case_id in to_remove:
+        del analysis_data[case_id]
 
     return analysis_data
 
@@ -291,17 +291,17 @@ def remove_cases_with_competed_cbioportal_release(analysis_data, signoffs, deliv
     
     to_remove = []
     # remove cases for which release signoffs are complete    
-    for case in analysis_data:
+    for case_id in analysis_data:
         if deliverable in ['sequenza', 'purple']:
-            if 'Release' in signoffs[case]:
-                for d in signoffs[case]['Release']:
+            if 'Release' in signoffs[case_id]:
+                for d in signoffs[case_id]['Release']:
                     if 'cbioportal' in d['deliverable'].lower() and d['qcPassed']:
                         # release complete 
-                        to_remove.append(case)
+                        to_remove.append(case_id)
 
     to_remove = list(set(to_remove))
-    for case in to_remove:
-         del analysis_data[case]        
+    for case_id in to_remove:
+         del analysis_data[case_id]        
     
     return analysis_data     
 
@@ -323,31 +323,31 @@ def remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverab
     
     fastq_workflows = ['bcl2fastq', 'casava', 'fileimport', 'fileimportforanalysis', 'import_fastq']
     
-    for case in analysis_data:
+    for case_id in analysis_data:
         # remove workflows
         remove_workflows = False
         if deliverable in ['all', 'selected', 'standard']:
-            if 'Release' in signoffs[case]:
-                for d in signoffs[case]['Release']:
+            if 'Release' in signoffs[case_id]:
+                for d in signoffs[case_id]['Release']:
                     if deliverable_type in d['deliverable'].lower() and d['qcPassed']:
                         remove_workflows = True
                         break
         if remove_workflows:
             if deliverable_type == 'pipeline':
-                L = [i for i in analysis_data[case] if i.lower() not in fastq_workflows]
+                L = [i for i in analysis_data[case_id] if i.lower() not in fastq_workflows]
             elif deliverable_type == 'fastq':
-                L = [i for i in analysis_data[case] if i.lower() in fastq_workflows]
+                L = [i for i in analysis_data[case_id] if i.lower() in fastq_workflows]
         else:
             L = []
         
         if L:
             for i in L:
-                del analysis_data[case][i]
+                del analysis_data[case_id][i]
    
-    remove_case = [case for case in analysis_data if len(analysis_data[case]) == 0]
+    remove_case = [case_id for case_id in analysis_data if len(analysis_data[case_id]) == 0]
     if remove_case:
-        for case in remove_case:
-            del analysis_data[case]
+        for case_id in remove_case:
+            del analysis_data[case_id]
    
     return analysis_data                    
                         

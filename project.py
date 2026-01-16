@@ -157,14 +157,14 @@ def get_case_analysis_status(analysis_database, project_name=None):
     
     conn = connect_to_db(analysis_database)
     if project_name:
-        data = conn.execute("SELECT project, case_id, valid FROM templates WHERE project = ?", (project_name,)).fetchall()
+        data = conn.execute("SELECT project_id, case_id, valid FROM templates WHERE project_id = ?", (project_name,)).fetchall()
     else:
-        data = conn.execute("SELECT project, case_id, valid FROM templates").fetchall()
+        data = conn.execute("SELECT project_id, case_id, valid FROM templates").fetchall()
     conn.close()
     
     D = {}
     for i in data:
-        project = i['project']
+        project = i['project_id']
         case = i['case_id']
         valid = i['valid']
         if project not in D:

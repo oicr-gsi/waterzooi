@@ -7,14 +7,14 @@
   {% for i in assays %}
     <a href="{{ url_for('analysis', project_name=project['project_id'], assay= i | format_identifier) }}">{{i}}</a>
   {% endfor %}   
-  <a class="split" href="{{ miso_link }}" target="_blank">{{ case }}</a> 
+  <a class="split" href="{{ miso_link }}" target="_blank">{{ case_id }}</a> 
 {% endblock %}
 
 
 {% block content %}
   <div class="project_title">
     <p style="font-size:18px; font-family: Arial, Helvetica, sans-serif; margin-top: 50px">
-      Analysis templates for case {{case}}
+      Analysis templates for case {{case_id}}
       <a style="color: white; text-decoration: none;"  href="https://dimsum.oicr.on.ca/cases/{{case}}" target="_blank">
         <svg width="51.4" height="18.2" viewBox="0 0 257 91" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M36.4316 71.6273C32.3751 71.6273 29.1758 70.1218 26.8339 67.1107C24.492 64.0997 23.321 59.9804 23.321 54.7529C23.321 49.9018 24.5129 46.0752 26.8966 43.2733C29.2804 40.4295 32.5005 39.0076 36.5571 39.0076C38.5644 39.0076 40.3836 39.4467 42.0146 40.325C43.6456 41.2032 45.0257 42.4996 46.1548 44.2142H46.2803V24.4542H50.5459V63.2215C50.5459 66.9434 50.6086 69.5363 50.7341 71H46.8448C46.7194 69.2436 46.6566 67.4871 46.6566 65.7307H46.5312C45.5693 67.5289 44.1683 68.9717 42.3283 70.059C40.53 71.1046 38.5644 71.6273 36.4316 71.6273ZM36.8707 68.0517C39.6727 68.0517 41.931 67.1735 43.6456 65.417C45.3602 63.6606 46.2175 61.3396 46.2175 58.454V52.9964C46.2175 49.7763 45.3602 47.2253 43.6456 45.3434C41.9728 43.4196 39.7354 42.4578 36.9335 42.4578C34.0479 42.4578 31.7896 43.566 30.1586 45.7825C28.5276 47.9571 27.7121 50.9891 27.7121 54.8783C27.7121 58.9767 28.5276 62.1969 30.1586 64.5388C31.7896 66.8807 34.027 68.0517 36.8707 68.0517ZM74.3932 47.4135C74.3932 44.5697 74.3095 41.9768 74.1422 39.6349H78.0315C78.157 40.8059 78.2197 42.6669 78.2197 45.2179H78.4079C79.3279 43.2942 80.6662 41.7887 82.4226 40.7013C84.2209 39.5722 86.2073 39.0076 88.382 39.0076C90.6403 39.0076 92.564 39.614 94.1532 40.8268C95.7842 41.9978 96.8715 43.6287 97.4151 45.7197C98.2515 43.6706 99.5898 42.0396 101.43 40.8268C103.312 39.614 105.403 39.0076 107.703 39.0076C111.132 39.0076 113.809 40.1368 115.732 42.395C117.656 44.6115 118.618 47.6853 118.618 51.6164V71H114.29V51.8673C114.29 48.8563 113.641 46.5561 112.345 44.967C111.048 43.3778 109.187 42.5832 106.762 42.5832C104.42 42.5832 102.475 43.4824 100.928 45.2806C99.3807 47.0371 98.607 49.2535 98.607 51.93V71H94.3414V52.2437C94.3414 45.8034 91.9785 42.5832 87.2529 42.5832C85.7473 42.5832 84.3254 43.0223 82.9872 43.9006C81.6908 44.7788 80.6453 45.9707 79.8507 47.4762C79.0979 48.9399 78.7215 50.4872 78.7215 52.1182V71H74.3932V47.4135ZM135.109 71.6273C132.893 71.6273 130.864 71.1673 129.024 70.2472C127.226 69.3272 125.93 68.1144 125.135 66.6089L128.021 64.6015C128.773 65.7725 129.777 66.6716 131.032 67.2989C132.286 67.8844 133.708 68.1771 135.297 68.1771C137.179 68.1771 138.727 67.6335 139.939 66.5462C141.152 65.417 141.758 63.9951 141.758 62.2805C141.758 60.9004 141.257 59.7504 140.253 58.8303C139.291 57.8685 137.597 56.9275 135.172 56.0075C131.701 54.7111 129.254 53.3728 127.832 51.9928C126.452 50.6127 125.762 48.8981 125.762 46.8489C125.762 44.507 126.682 42.6251 128.522 41.2032C130.363 39.7395 132.809 39.0076 135.862 39.0076C137.827 39.0076 139.626 39.4467 141.257 40.325C142.929 41.2032 144.163 42.395 144.958 43.9006L142.198 45.9079C140.776 43.6078 138.643 42.4578 135.799 42.4578C134.126 42.4578 132.746 42.8551 131.659 43.6496C130.613 44.4442 130.091 45.4688 130.091 46.7234C130.091 47.9362 130.613 48.9817 131.659 49.8599C132.704 50.6963 134.649 51.6373 137.493 52.6828C140.588 53.8956 142.804 55.2338 144.142 56.6975C145.48 58.1612 146.15 59.9804 146.15 62.155C146.15 64.9988 145.146 67.2989 143.139 69.0554C141.131 70.77 138.455 71.6273 135.109 71.6273ZM163.6 71.6273C160.003 71.6273 157.264 70.4772 155.382 68.1771C153.542 65.8352 152.622 62.406 152.622 57.8894V39.6349H156.95V58.0776C156.95 64.727 159.418 68.0517 164.353 68.0517C166.235 68.0517 167.907 67.5708 169.371 66.6089C170.877 65.647 172.048 64.3088 172.884 62.5942C173.762 60.8795 174.201 58.9558 174.201 56.823V39.6349H178.53V64.727C178.53 66.6507 178.718 68.7417 179.094 71H175.205C174.829 69.2854 174.619 67.3198 174.578 65.1034H174.327C173.407 67.1526 171.985 68.7626 170.061 69.9336C168.137 71.0627 165.984 71.6273 163.6 71.6273ZM187.111 47.4135C187.111 44.5697 187.028 41.9768 186.86 39.6349H190.75C190.875 40.8059 190.938 42.6669 190.938 45.2179H191.126C192.046 43.2942 193.384 41.7887 195.141 40.7013C196.939 39.5722 198.926 39.0076 201.1 39.0076C203.359 39.0076 205.282 39.614 206.871 40.8268C208.502 41.9978 209.59 43.6287 210.133 45.7197C210.97 43.6706 212.308 42.0396 214.148 40.8268C216.03 39.614 218.121 39.0076 220.421 39.0076C223.85 39.0076 226.527 40.1368 228.451 42.395C230.374 44.6115 231.336 47.6853 231.336 51.6164V71H227.008V51.8673C227.008 48.8563 226.36 46.5561 225.063 44.967C223.767 43.3778 221.906 42.5832 219.48 42.5832C217.138 42.5832 215.194 43.4824 213.646 45.2806C212.099 47.0371 211.325 49.2535 211.325 51.93V71H207.06V52.2437C207.06 45.8034 204.697 42.5832 199.971 42.5832C198.466 42.5832 197.044 43.0223 195.705 43.9006C194.409 44.7788 193.364 45.9707 192.569 47.4762C191.816 48.9399 191.44 50.4872 191.44 52.1182V71H187.111V47.4135Z" fill="#5B9E5A"/>
@@ -32,7 +32,7 @@
     </p>
   </div> 
 
-  {% for i in range(case_data | length) %} 
+  {% for i in range(case_analysis[case_id] | length) %} 
     <form method="POST" action = "">
         <div class="somatic_block">
           <table id="block_header_table">
@@ -40,9 +40,9 @@
               <td>{{ most_recent[i] }}</td>
               <td>
                 Release Approval:
-                {% if case in case_signoffs %}
-                  {% if 'Release Approval' in case_signoffs[case] %}
-                    {% for d in case_signoffs[case]['Release Approval'] %}
+                {% if case_id in case_signoffs %}
+                  {% if 'Release Approval' in case_signoffs[case_id] %}
+                    {% for d in case_signoffs[case_id]['Release Approval'] %}
                       {% if d['qcPassed'] == True %}
                         <span style="font-size:16px;color:#70db70">&#10004;</span>
                       {% elif d['qcPassed'] == False %}
@@ -60,10 +60,10 @@
               </td>
               <td>
                 Release:
-                {% if case in case_signoffs %}
+                {% if case_id in case_signoffs %}
                   {% for deliverable in project['deliverables'].split(',') | sort %}
-                    {% if deliverable in deliv[case] %}
-                      {% for d in case_signoffs[case]['Release'] %}
+                    {% if deliverable in deliv[case_id] %}
+                      {% for d in case_signoffs[case_id]['Release'] %}
                         {% if deliverable == d['deliverable'] %}
                           {% if d['qcPassed'] == True %}
                             <div class="tooltip">
@@ -119,14 +119,16 @@
               {% else %}
                 <td><div class="tooltip">Sequencing status:<span class="tooltiptext">Sequencing complete?</span></div> <span style="font-size:16px;color:#ff3300;">&#10006;</span></td>
               {% endif %}
-              {% if case_analysis[i]['valid'] %}
+              
+              
+              {% if valid[i] %}
                 <td><div class="tooltip">Analysis status:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:16px;color:#70db70">&#10004;</span></td>
               {% else %}
                 <td><div class="tooltip">Analysis status:<span class="tooltiptext">All expected workflows?</span></div> <span style="font-size:16px;color:#ff3300;">&#10006;</span></td>
               {% endif %}
               
-              {% if case_analysis[i]['error'] %}
-                <td><div class="tooltip">Error: <span class="tooltiptext">Analysis review</span></div> {{ case_analysis[i]['error'] }}</td>
+              {% if errors[i] %}
+                <td><div class="tooltip">Error: <span class="tooltiptext">Analysis review</span></div> {{ errors[i] }}</td>
               {% endif %}
                            
               <td>
@@ -138,15 +140,15 @@
                     <div class="download-dropdown-content-small">
                       {% if deliverables['pipeline'] %}
                         <p style="font-size:12px; font-family: Arial, Helvetica, sans-serif; margin-bottom: 5px">pipeline</p> 
-                        <button class="download_button_small"><a href="{{url_for('download_analysis_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, selection='all')}}">all</a></button>
+                        <button class="download_button_small"><a href="{{url_for('download_analysis_data', project_name=project['project_id'], case_id=case_id, assay=assay | format_identifier, selection='all')}}">all</a></button>
                         <br>
-                        <button class="download_button_small"><a href="{{url_for('download_analysis_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, selection='standard')}}">standard</a></button>
+                        <button class="download_button_small"><a href="{{url_for('download_analysis_data', project_name=project['project_id'], case_id=case_id, assay=assay | format_identifier, selection='standard')}}">standard</a></button>
                       {% endif %}                   
                       {% if deliverables['cbioportal'] %}
                         <p style="font-size:12px; font-family: Arial, Helvetica, sans-serif; margin-bottom: 5px">cbioportal</p> 
-                        <button class="download_button_small"><a href="{{url_for('download_cbioportal_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, segmentation='sequenza')}}">sequenza</a></button>
+                        <button class="download_button_small"><a href="{{url_for('download_cbioportal_data', project_name=project['project_id'], case_id=case_id, assay=assay | format_identifier, segmentation='sequenza')}}">sequenza</a></button>
                         <br> 
-                        <button class="download_button_small"><a href="{{url_for('download_cbioportal_data', project_name=project['project_id'], case=case, assay=assay | format_identifier, segmentation='purple')}}">purple</a></button>
+                        <button class="download_button_small"><a href="{{url_for('download_cbioportal_data', project_name=project['project_id'], case_id=case_id, assay=assay | format_identifier, segmentation='purple')}}">purple</a></button>
                       {% endif %}                   
                     </div>
                 </div>
@@ -168,31 +170,31 @@
                 <th>select</th> 
               </thead>     
             
-              {% for workflow_id in case_data[i]['callready'] %}
+              {% for workflow in case_analysis[case_id][i]['callready'] %}
                 <tr>  
                   <td>
-                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
-                      {{ workflow_id | basename | shorten_workflow_id }}
+                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=workflow.0 | format_identifier) }}">
+                      {{ workflow.0 | basename | shorten_workflow_id }}
                     </a>
                   </td> 
-                  <td>{{ workflow_names[i][workflow_id] }} </td> 
+                  <td>{{ workflow.1 }} </td> 
                   <td>
-                    {% if workflow_id not in workflow_qc %}
+                    {% if workflow.0 not in workflow_qc %}
                       NA
-                    {% elif workflow_qc[workflow_id] == True %}
+                    {% elif workflow_qc[workflow.0] == True %}
                       <span style="font-size:16px;color:#70db70">&#10004;</span>
-                    {% elif workflow_qc[workflow_id] == False %}
+                    {% elif workflow_qc[workflow.0] == False %}
                       <span style="font-size:16px;color:#ff3300;">&#10006;</span>
                     {% else %}
-                      <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow_id]}}</span>
+                      <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow.0]}}</span>
                     {% endif %}
                   </td>
-                  <td>{{ file_counts[workflow_id] }} </td> 
-                  <td>{{ amount_data[workflow_id] }} </td> 
-                  <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
+                  <td>{{ workflow_counts[workflow.0]['file_count'] }} </td> 
+                  <td>{{ workflow_counts[workflow.0]['lane_count'] }} </td> 
+                  <td>{{ creation_dates[workflow.0] | readable_time }} </td> 
                   <td>
                     <dl>
-                      {% for j in samples[workflow_id] %}
+                      {% for j in samples[workflow.0] %}
                         <dt>
                           {{j}}
                         </dt>
@@ -201,10 +203,10 @@
                     </dl>        
                   </td>
                   <td>
-                    {% if selected[workflow_id] %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow" checked/>
+                    {% if selected[workflow.0] %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0" checked/>
                     {% else %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow"/>  
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0"/>  
                     {% endif %}    
                   </td>
                 </tr>
@@ -226,41 +228,41 @@
                 <th>select</th>
               </thead>     
                  
-              {% for workflow_id in case_data[i]['downstream'] %}
+              {% for workflow in case_analysis[case_id][i]['analyses'] %}
                 <tr>  
                   <td>
-                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
-                      {{ workflow_id | basename | shorten_workflow_id }}
+                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=workflow.0 | format_identifier) }}">
+                      {{ workflow.0 | basename | shorten_workflow_id }}
                     </a>
                   </td>
-                  <td>{{ workflow_names[i][workflow_id] }} </td> 
+                  <td>{{ workflow.1 }} </td> 
                   <td>
-                    {% if workflow_id not in workflow_qc %}
+                    {% if workflow.0 not in workflow_qc %}
                       NA
-                    {% elif workflow_qc[workflow_id] == True %}
+                    {% elif workflow_qc[workflow.0] == True %}
                       <span style="font-size:16px;color:#70db70">&#10004;</span>
-                    {% elif workflow_qc[workflow_id] == False %}
+                    {% elif workflow_qc[workflow.0] == False %}
                       <span style="font-size:16px;color:#ff3300;">&#10006;</span>
                     {% else %}
-                      <span style="font-size:16px;color:#248f24;">{{ workflow_qc[workflow_id]}}</span>
+                      <span style="font-size:16px;color:#248f24;">{{ workflow_qc[workflow.0]}}</span>
                     {% endif %}
                   </td>
                   <td>
-                    {% for parent in child_to_parents[workflow_id] %}
+                    {% for parent in child_to_parents[workflow.0] %}
                       <dl>
                         <dt>
-                          <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=parent | format_identifier) }}">
+                          <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=parent | format_identifier) }}">
                             {{parent | basename | shorten_workflow_id}}
                           </a> 
                         </dt>
                       </dl>        
                     {% endfor %}
-                  <td>{{ file_counts[workflow_id] }} </td> 
-                  <td>{{ amount_data[workflow_id] }} </td> 
-                  <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
+                  <td>{{ workflow_counts[workflow.0]['file_count'] }} </td> 
+                  <td>{{ workflow_counts[workflow.0]['lane_count'] }} </td> 
+                  <td>{{ creation_dates[workflow.0] | readable_time }} </td> 
                   <td>
                     <dl>
-                      {% for j in samples[workflow_id] %}
+                      {% for j in samples[workflow.0] %}
                         <dt>
                           {{j}}
                         </dt>
@@ -269,10 +271,10 @@
                     </dl>        
                   </td>
                   <td>
-                    {% if selected[workflow_id] %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow" checked/>
+                    {% if selected[workflow.0] %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0" checked/>
                     {% else %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow"/>  
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0"/>  
                     {% endif %}    
                   </td>
                 </tr>
@@ -297,8 +299,6 @@
 
             <table id="block_table">
               <thead>
-
-
                 <th>workflow</th>
                 <th>workflow_run_id</th>
                 <th>file release</th>
@@ -309,42 +309,48 @@
                 <th>select</th>
               </thead>     
             
-              {% for workflow in case_data[i]['sequencing'] %}
-                {% for workflow_id in case_data[i]['sequencing'][workflow] %}
-                  <tr>  
-                    <td>
-                      <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
-                        {{ workflow_id | basename | shorten_workflow_id }}
-                      </a>
-                    </td>
-                    <td>{{ workflow }} </td> 
-                    <td>
-                      {% if workflow_id not in workflow_qc %}
-                        NA
-                      {% elif workflow_qc[workflow_id] == True %}
-                        <span style="font-size:16px;color:#70db70">&#10004;</span>
-                      {% elif workflow_qc[workflow_id] == False %}
-                        <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-                      {% else %}
-                        <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow_id]}}</span>
-                      {% endif %}
-                    </td>
-                    <td>{{ seq_inputs[workflow_id]['limskey'] }} </td> 
-                    <td>{{ seq_inputs[workflow_id]['library'] }} </td> 
-                    <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
-                    <td>
-                      {{ samples[workflow_id].0 }}
-                    </td>
-                    <td>
-                      {% if selected[workflow_id] %}
-                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow" checked/>
-                      {% else %}
-                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow"/>  
-                      {% endif %}    
-                    </td>
-                  </tr>
-                {% endfor %}              
-              {% endfor %}
+              {% for workflow in case_analysis[case_id][i]['sequencing'] %}
+                <tr>  
+                  <td>
+                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=workflow.0 | format_identifier) }}">
+                      {{ workflow.0 | basename | shorten_workflow_id }}
+                    </a>
+                  </td>
+                  <td>
+                    {{ workflow.1 }}
+                  </td> 
+                  <td>
+                    {% if workflow.0 not in workflow_qc %}
+                      NA
+                    {% elif workflow_qc[workflow.0] == True %}
+                      <span style="font-size:16px;color:#70db70">&#10004;</span>
+                    {% elif workflow_qc[workflow.0] == False %}
+                      <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                    {% else %}
+                      <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow.0]}}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ seq_inputs[workflow.0]['limskey'] }}
+                  </td> 
+                  <td>
+                    {{ seq_inputs[workflow.0]['library'] }}
+                  </td> 
+                  <td>
+                    {{ creation_dates[workflow.0] | readable_time }}
+                  </td> 
+                  <td>
+                    {{ samples[workflow.0].0 }}
+                  </td>
+                  <td>
+                    {% if selected[workflow.0] %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0" checked/>
+                    {% else %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0"/>  
+                    {% endif %}    
+                  </td>
+                </tr>
+              {% endfor %}              
             </table>  
              
 
@@ -362,42 +368,48 @@
                 <th>select</th>
               </thead>     
             
-              {% for workflow in case_data[i]['alignments'] %}
-                {% for workflow_id in case_data[i]['alignments'][workflow] %}
-                  <tr>  
-                    <td>
-                      <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case=case | format_identifier, wfrunid=workflow_id | format_identifier) }}">
-                        {{ workflow_id | basename | shorten_workflow_id }}
-                      </a>
-                    </td>
-                    <td>{{ workflow }} </td> 
-                    <td>
-                      {% if workflow_id not in workflow_qc %}
-                        NA
-                      {% elif workflow_qc[workflow_id] == True %}
-                        <span style="font-size:16px;color:#70db70">&#10004;</span>
-                      {% elif workflow_qc[workflow_id] == False %}
-                        <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-                      {% else %}
-                        <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow_id]}}</span>
-                      {% endif %}
-                    </td>
-                    <td>{{ seq_inputs[workflow_id]['limskey'] }} </td> 
-                    <td>{{ seq_inputs[workflow_id]['library'] }} </td> 
-                    <td>{{ creation_dates[workflow_id] | readable_time }} </td> 
-                    <td>
-                      {{ samples[workflow_id].0 }}
-                    </td>
-                    <td>
-                      {% if selected[workflow_id] %}
-                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow" checked/>
-                      {% else %}
-                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow_id}}" id="workflow"/>  
-                      {% endif %}    
-                    </td>
-                  </tr>
-                {% endfor %}              
-              {% endfor %}
+              {% for workflow in case_analysis[case_id][i]['alignments'] %}
+                <tr>  
+                  <td>
+                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=workflow.0 | format_identifier) }}">
+                        {{ workflow.0 | basename | shorten_workflow_id }}
+                    </a>
+                  </td>
+                  <td>
+                    {{ workflow.1 }}
+                  </td> 
+                  <td>
+                    {% if workflow_id not in workflow_qc %}
+                      NA
+                    {% elif workflow_qc[workflow.0] == True %}
+                      <span style="font-size:16px;color:#70db70">&#10004;</span>
+                    {% elif workflow_qc[workflow.0] == False %}
+                      <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                    {% else %}
+                      <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow.0]}}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ seq_inputs[workflow.0]['limskey'] }}
+                  </td> 
+                  <td>
+                    {{ seq_inputs[workflow.0]['library'] }}
+                  </td> 
+                  <td>
+                    {{ creation_dates[workflow.0] | readable_time }}
+                  </td> 
+                  <td>
+                    {{ samples[workflow.0].0 }}
+                  </td>
+                  <td>
+                    {% if selected[workflow.0] %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0" checked/>
+                    {% else %}
+                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0"/>  
+                    {% endif %}    
+                  </td>
+                </tr>
+              {% endfor %}              
             </table>  
              
             <p style="font-size:16px;"> Workflow relationships </p>

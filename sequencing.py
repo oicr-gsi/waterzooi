@@ -57,7 +57,7 @@ def collect_sequence_info(project_name, database):
     for i in range(len(data)):
         # keep only read1
         if json.loads(data[i]['attributes'])['read_number'] == '1':
-            case = data[i]['case_id']
+            case_id = data[i]['case_id']
             donor = data[i]['donor_id']
             sample = data[i]['ext_id']
             library =  data[i]['library']
@@ -77,7 +77,7 @@ def collect_sequence_info(project_name, database):
             sample_id = data[i]['sample_id']
             fileprefix = os.path.basename(file)
             fileprefix = '_'.join(fileprefix.split('_')[:-1])
-            d = {'case': case, 'donor':donor, 'sample': sample, 'sample_id': sample_id, 'library': library, 'run': run,
+            d = {'case_id': case_id, 'donor':donor, 'sample': sample, 'sample_id': sample_id, 'library': library, 'run': run,
                  'read_count': readcount, 'workflow': workflow, 'prefix':fileprefix,
                  'platform': platform, 'group_id': group_id,
                  'group_description': group_description, 'tissue_type': tissue_type,
@@ -85,7 +85,7 @@ def collect_sequence_info(project_name, database):
                  'limskey': limskey}
             F.append(d)
        
-    F.sort(key=lambda x: (x['case'], x['donor'], x['limskey'], x['sample_id'], x['library'], x['platform']))
+    F.sort(key=lambda x: (x['case_id'], x['donor'], x['limskey'], x['sample_id'], x['library'], x['platform']))
         
     return F
 

@@ -43,54 +43,58 @@ def get_workflows_analysis_date(project_name, database):
 
 
 
-def get_workflow_file_count(project_name, database, workflow_table='Workflows'):
+def get_workflow_counts(case_id, database, workflow_table='Workflows'):
     '''
     (str, str, str) -> dict
     
-    Returns a dictionary with the number of files for each workflow in project
-    
+    Returns a dictionary with the number of files and the amount of data 
+    (ie, lane count) for each workflow in a case
+        
     Parameters
     ----------
-    - project_name (str): Name of project of interest
+    - case_id (str): Case identifier
     - database (str): Path to the sqlite database
     - workflow_table (str): Name of the table containing the workflow information in database
     '''
     
     conn = connect_to_db(database)
-    query = "SELECT DISTINCT {0}.file_count, {0}.wfrun_id FROM {0} WHERE {0}.project_id = ?;".format(workflow_table)
-    data = conn.execute(query, (project_name,)).fetchall()
+    query = "SELECT DISTINCT {0}.file_count, {0}.lane_count, {0}.wfrun_id FROM {0} WHERE {0}.case_id = ?;".format(workflow_table)
+    data = conn.execute(query, (case_id,)).fetchall()
     conn.close()
 
     counts = {}
     for i in data:
-        counts[i['wfrun_id']] = i['file_count']
-    
+        workflow_id = i['wfrun_id']
+        lane_count = i['lane_count']
+        file_count = i['file_count']
+        counts[workflow_id] = {'file_count': file_count, 'lane_count': lane_count}
+            
     return counts
 
    
-def get_amount_data(project_name, database, workflow_table='Workflows'):
-    '''
-    (str, str, str) -> dict
+# def get_amount_data(case_id, database, workflow_table='Workflows'):
+#     '''
+#     (str, str, str) -> dict
     
-    Returns a dictionary with the amount of data (ie, lane count) for each workflow in project
+#     Returns a dictionary with the amount of data (ie, lane count) for each workflow in a case
+        
+#     Parameters
+#     ----------
+#     - case_id (str): Case identifier
+#     - database (str): Path to the sqlite database
+#     - workflow_table (str): Name of the table containing the workflow information in database
+#     '''
     
-    Parameters
-    ----------
-    - project_name (str): Name of project of interest
-    - database (str): Path to the sqlite database
-    - workflow_table (str): Name of the table containing the workflow information in database
-    '''
-    
-    conn = connect_to_db(database)
-    query = "SELECT DISTINCT {0}.lane_count, {0}.wfrun_id FROM {0} WHERE {0}.project_id = ?;".format(workflow_table)
-    data = conn.execute(query, (project_name,)).fetchall()
-    conn.close()
+#     conn = connect_to_db(database)
+#     query = "SELECT DISTINCT {0}.lane_count, {0}.wfrun_id FROM {0} WHERE {0}.case_id = ?;".format(workflow_table)
+#     data = conn.execute(query, (case_id,)).fetchall()
+#     conn.close()
 
-    counts = {}
-    for i in data:
-        counts[i['wfrun_id']] = i['lane_count']
+#     counts = {}
+#     for i in data:
+#         counts[i['wfrun_id']] = i['lane_count']
     
-    return counts
+#     return counts
 
 
 def get_call_ready_samples(project_name, bmpp_run_id, database):
@@ -294,17 +298,17 @@ def get_cases_with_analysis(analysis_db, project_name, assay):
     '''
     
     conn = connect_to_db(analysis_db)
-    data = conn.execute("SELECT case_id, donor, template, valid, error, md5sum FROM templates WHERE \
-                        project = ? AND assay = ?;", (project_name,assay)).fetchall()
+    data = conn.execute("SELECT case_id, donor_id, template, valid, error, md5 FROM templates WHERE \
+                        project_id = ? AND assay = ?;", (project_name,assay)).fetchall()
     conn.close()
     
     D = {}
     for i in data:
         case = i['case_id']
-        md5sum = i['md5sum']
+        md5sum = i['md5']
         template = json.loads(i['template'])
         valid = int(i['valid'])
-        donor = i['donor']
+        donor = i['donor_id']
         error = i['error']
         
         d = {'md5sum': md5sum, 'template': template, 'valid': valid, 'error': error, 'donor': donor}        
@@ -318,7 +322,7 @@ def get_cases_with_analysis(analysis_db, project_name, assay):
 
 
 
-def get_case_error_message(cases):
+def get_case_error_message(case_data):
     '''
     (dict) -> dict
     
@@ -326,21 +330,21 @@ def get_case_error_message(cases):
     
     Parameters
     ----------
-    - cases (dict): Dictionary of cases with analysis data corresponding to project and assay
+    - case_data (dict): Dictionary of cases with analysis data corresponding to project and assay
     '''
 
     D = {}
     
-    for case in cases:
-        for d in cases[case]:
+    for case_id in case_data:
+        for d in case_data[case_id]:
             error = d['error']
             error = error.split(';')
-            if case in D:
-                D[case].extend(error)
+            if case_id in D:
+                D[case_id].extend(error)
             else:
-                D[case] = error
-    for case in D:
-        D[case] = ';'.join(sorted(list(set(D[case]))))
+                D[case_id] = error
+    for case_id in D:
+        D[case_id] = ';'.join(sorted(list(set(D[case_id]))))
 
     return D
 
@@ -422,75 +426,137 @@ def get_case_analysis_samples(cases):
     return D
     
 
-def get_case_analysis_workflows(cases):
-    '''
-    (dict) -> dict
+# def get_case_analysis_workflows(cases):
+#     '''
+#     (dict) -> dict
     
-    Returns a dictionary with analysis workflow ids organized for each case
+#     Returns a dictionary with analysis workflow ids organized for each case
     
-    Parameters
-    ----------
-    - cases (dict): Dictionary with case analysis extracted from the analysis review database
-    '''
+#     Parameters
+#     ----------
+#     - cases (dict): Dictionary with case analysis extracted from the analysis review database
+#     '''
         
-    D = {}
+#     D = {}
     
-    for case in cases:
-        if case not in D:
-            D[case] = []
-        for d in cases[case]:
-            callready = []
-            if 'Anchors' in d['template']:
-                for i in d['template']['Anchors']:
-                    callready.append(d['template']['Anchors'][i]['workflows'])
-            callready = list(set(callready))
-            downstream = []
-            if 'Analysis' in d['template']:
-                for i in d['template']['Analysis']:
-                    for j in d['template']['Analysis'][i]:
-                        downstream.append(j['workflow_id'])
-            downstream = list(set(downstream))
-            sequencing = {}
-            if 'Data' in d['template']:
-                for i in d['template']['Data']['Sequencing']['workflows']:
-                    workflow_name = i['workflow_name']
-                    workflow_id = i['workflow_id']
-                    if workflow_name in sequencing:
-                        sequencing[workflow_name].append(workflow_id)
-                    else:
-                        sequencing[workflow_name] = [workflow_id]
-                sequencing[workflow_name] = list(set(sequencing[workflow_name]))
-            analysis = {}
-            if 'Analysis' in d['template']:
-                for i in d['template']['Analysis']:
-                    if i not in analysis:
-                        analysis[i] = []
-                    for j in d['template']['Analysis'][i]:
-                        analysis[i].append(j['workflow_id'])
-                analysis[i] = list(set(analysis[i]))   
-            alignments = {}
-            if 'Data' in d['template']:
-                for i in d['template']['Data']:
-                    if i != 'Sequencing':
-                        for k in d['template']['Data'][i]['workflows']:
-                            wfname = k['workflow_name']
-                            workflow_id = k['workflow_id']   
-                            if wfname not in sequencing:
-                                if wfname not in alignments:
-                                    alignments[wfname] = []
-                                alignments[wfname].append(workflow_id)
-                                alignments[wfname] = list(set(alignments[wfname]))
+#     for case in cases:
+#         if case not in D:
+#             D[case] = []
+#         for d in cases[case]:
+#             callready = []
+#             if 'Anchors' in d['template']:
+#                 for i in d['template']['Anchors']:
+#                     callready.append(d['template']['Anchors'][i]['workflows'])
+#             callready = list(set(callready))
+#             downstream = []
+#             if 'Analysis' in d['template']:
+#                 for i in d['template']['Analysis']:
+#                     for j in d['template']['Analysis'][i]:
+#                         downstream.append(j['workflow_id'])
+#             downstream = list(set(downstream))
+#             sequencing = {}
+#             if 'Data' in d['template']:
+#                 for i in d['template']['Data']['Sequencing']['workflows']:
+#                     workflow_name = i['workflow_name']
+#                     workflow_id = i['workflow_id']
+#                     if workflow_name in sequencing:
+#                         sequencing[workflow_name].append(workflow_id)
+#                     else:
+#                         sequencing[workflow_name] = [workflow_id]
+#                 sequencing[workflow_name] = list(set(sequencing[workflow_name]))
+#             analysis = {}
+#             if 'Analysis' in d['template']:
+#                 for i in d['template']['Analysis']:
+#                     if i not in analysis:
+#                         analysis[i] = []
+#                     for j in d['template']['Analysis'][i]:
+#                         analysis[i].append(j['workflow_id'])
+#                 analysis[i] = list(set(analysis[i]))   
+#             alignments = {}
+#             if 'Data' in d['template']:
+#                 for i in d['template']['Data']:
+#                     if i != 'Sequencing':
+#                         for k in d['template']['Data'][i]['workflows']:
+#                             wfname = k['workflow_name']
+#                             workflow_id = k['workflow_id']   
+#                             if wfname not in sequencing:
+#                                 if wfname not in alignments:
+#                                     alignments[wfname] = []
+#                                 alignments[wfname].append(workflow_id)
+#                                 alignments[wfname] = list(set(alignments[wfname]))
                         
-            D[case].append({'callready': callready, 'downstream': downstream,
-                            'sequencing': sequencing, 'analysis': analysis,
-                            'alignments': alignments})
+#             D[case].append({'callready': callready, 'downstream': downstream,
+#                             'sequencing': sequencing, 'analysis': analysis,
+#                             'alignments': alignments})
         
+#     return D
+
+
+
+def organize_analysis_workflows(case_data):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with workflow ids organized in sections for each template and each case
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with analyses for each case
+    '''
+        
+    D = {}
+    
+    for case_id in case_data:
+        for template in case_data[case_id]:
+            # track sequencing workflows
+            seq = []            
+            # get sequencing workflows
+            sequencing = []
+            for d in template['template']['Data']['Sequencing']:
+                sequencing.append([d['workflow_id'], d['workflow_name']])
+                seq.append(d['workflow_id'])
+            # get alignment workflows
+            alignments = []
+            for i in template['template']['Data']:
+                if i != 'Sequencing':
+                    for d in template['template']['Data'][i]:
+                        if d['workflow_id'] not in seq:
+                            alignments.append([d['workflow_id'], d['workflow_name']])    
+            # track the anchor workflows
+            anchors = []
+            for i in template['template']['Anchors']:
+                anchors.extend(template['template']['Anchors'][i])
+            # get the analysis and callready workflows
+            callready, analyses = [], []
+            for i in template['template']['Analysis']:
+                for d in template['template']['Analysis'][i]:
+                    workflow_id = d['workflow_id']
+                    workflow_name = d['workflow_name']
+                    if workflow_id in anchors:
+                        callready.append([workflow_id, workflow_name])
+                    else:
+                        analyses.append([workflow_id, workflow_name])
+            
+            
+            # sort lists according to workflow names
+            callready.sort(key=lambda x: x[1])
+            alignments.sort(key=lambda x: x[1])
+            sequencing.sort(key=lambda x: x[1])
+            analyses.sort(key=lambda x: x[1])
+            
+            data = {'callready': callready, 'alignments': alignments,
+                    'sequencing': sequencing, 'analyses': analyses}
+            
+            if case_id in D:
+                D[case_id].append(data)
+            else:
+                D[case_id] = [data]
+
     return D
 
 
 
-
-def count_case_analysis_workflows(case_analysis_data):
+def count_case_analysis_workflows(case_data):
     '''
     (dict) -> dict
     
@@ -498,31 +564,110 @@ def count_case_analysis_workflows(case_analysis_data):
     
     Parameters
     ----------
-    - cases (dict): Dictionary with case analysis extracted from the analysis review database
+    - case_data (dict): Dictionary with case analysis extracted from the analysis review database
     '''
         
     D = {}
     
-    for case in case_analysis_data:
-        if case not in D:
-            D[case] = {'callready': [], 'downstream': [], 'analysis': {}}
-        for d in case_analysis_data[case]:
-            D[case]['callready'].extend(d['callready'])
-            D[case]['downstream'].extend(d['downstream'])
-            for i in d['analysis']:
-                if i not in D[case]['analysis']:
-                    D[case]['analysis'][i] = []
-                D[case]['analysis'][i].extend(d['analysis'][i])
+    # {"Samples": {"TumourWT": {"library_type": "WT",
+    #                           "tissue_type": "R",
+    #                           "negate_tissue_type": true,
+    #                           "sample": "PANX_1779_Pa_P 101-060-017_LCM_WT"},
+    #              "TumourWG": {"library_type": "WG", "tissue_type": "R",
+    #                           "negate_tissue_type": true,
+    #                           "sample": "PANX_1779_Pa_P 101-060-017_LCM_WG"},
+                 
+    #              "NormalWG": {"library_type": "WG", "tissue_type": "R",
+    #                           "negate_tissue_type": false,
+    #                           "sample": "PANX_1779_Ly_R 101-060-017_BuffyCoat_WG"}},
+    #  "Data": {"Sequencing": [
+    #      {"workflow_id": "vidarr:clinical/run/30f3f85fb20fe586aa30939647762aad947caf2d30d388207e4a765cad9ac6e6",
+    #       "workflow_name": "bcl2fastq",
+    #       "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG":
+    #                    {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}],
+    #           "inputs": ["NA"]},
+    #          {"workflow_id": "vidarr:clinical/run/084876172db77249210ed8715466a12bb4ad2039c3028e67e43c0d8c995f2882",
+    #           "workflow_name": "bcl2fastq",
+    #           "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG":
+    #                        {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}],
+    #               "inputs": ["NA"]},
+    #              {"workflow_id": "vidarr:clinical/run/d7392df73793867d2e0c18052854f64684461170d4800dd71894381ff5f80a69", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/a55acb4f73ae1ee0da34a39bb168fedb111ffb6bf6552a390f3c05b2ea4b6856", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/51146126538f9c98dfef7cb438106ae10737bd99af53f3d9edf51fcbf13232a8", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/ff0ef41835ee9d891530a9e40f7d855119c44d4e00fe892cf6a93d6a938f258b", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/195ed99ab1377ed439fc019f751cb1d19204b66a208033ce1278fa5e46a78ae3", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/2db568631e17ea96d9514e21e8ac25f52fda2288dd2128046d621b4fb5d76637", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/2bc701dc18e47bd12a8bfe5fe75fb3ca15570cd04221e8cdb187eff70dd8fe8e", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/d23b9536b8c3b52deeb05fd5f00211fab89afc4010cf8ea7df3562f73cd878ee", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/4b78dc4a7622b74283d6ea9b977863d462c660dcf6d1359c957138f7f07586fe", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/76479108cdda0584eba4f02f1cba55f7302511604d3ac95611f9ff58c8cfb3c0", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/ac6d7117e0f1f2dbb4b5217c535a12e36aabf59c55eb38eb052a4e2a0cba0a58", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}], "TumourWTalign": [{"workflow_id": "vidarr:clinical/run/d7392df73793867d2e0c18052854f64684461170d4800dd71894381ff5f80a69", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/76479108cdda0584eba4f02f1cba55f7302511604d3ac95611f9ff58c8cfb3c0", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}], "TumourWGalign": [{"workflow_id": "vidarr:clinical/run/30f3f85fb20fe586aa30939647762aad947caf2d30d388207e4a765cad9ac6e6", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/084876172db77249210ed8715466a12bb4ad2039c3028e67e43c0d8c995f2882", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/ff0ef41835ee9d891530a9e40f7d855119c44d4e00fe892cf6a93d6a938f258b", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/195ed99ab1377ed439fc019f751cb1d19204b66a208033ce1278fa5e46a78ae3", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/2db568631e17ea96d9514e21e8ac25f52fda2288dd2128046d621b4fb5d76637", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/d23b9536b8c3b52deeb05fd5f00211fab89afc4010cf8ea7df3562f73cd878ee", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/ac6d7117e0f1f2dbb4b5217c535a12e36aabf59c55eb38eb052a4e2a0cba0a58", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["NA"]}], "NormalWGalign": [{"workflow_id": "vidarr:clinical/run/a55acb4f73ae1ee0da34a39bb168fedb111ffb6bf6552a390f3c05b2ea4b6856", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/51146126538f9c98dfef7cb438106ae10737bd99af53f3d9edf51fcbf13232a8", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/2bc701dc18e47bd12a8bfe5fe75fb3ca15570cd04221e8cdb187eff70dd8fe8e", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["NA"]}, {"workflow_id": "vidarr:clinical/run/4b78dc4a7622b74283d6ea9b977863d462c660dcf6d1359c957138f7f07586fe", "workflow_name": "bcl2fastq", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["NA"]}]},
+         
+    #      "Analysis": {"mutect2_matched":
+    #                   [{"workflow_id": "vidarr:clinical/run/6b4ee54dc04f8c3fc3e481fcbe796da63446223609ca6cde01edec68cea05f9f",
+    #                     "workflow_name": "mutect2_matched",
+    #                     "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}, {"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6", "vidarr:clinical/run/7e329e4697f49970fef560b677c45682b33315470d1580c7c17a8bccebeac04c"]}], "variantEffectPredictor_matched": [{"workflow_id": "vidarr:clinical/run/05da2a0d37a1f416ecf25d3c08b63305fce4fa1ec262bd425654708adeec0488", "workflow_name": "variantEffectPredictor_matched", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}, {"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/6b4ee54dc04f8c3fc3e481fcbe796da63446223609ca6cde01edec68cea05f9f"]}], "delly_matched": [{"workflow_id": "vidarr:clinical/run/744f84138c3542a09f8bf3565825778e8aa97e764818fb836c9f6eacd21f47ee", "workflow_name": "delly_matched", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}, {"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6", "vidarr:clinical/run/7e329e4697f49970fef560b677c45682b33315470d1580c7c17a8bccebeac04c"]}], "gridss": [{"workflow_id": "vidarr:clinical/run/7ef5fc4660a363e54639716b1332ed0ba7faee2f67ab402be4f81a8ef04f89e6", "workflow_name": "gridss", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}, {"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6", "vidarr:clinical/run/7e329e4697f49970fef560b677c45682b33315470d1580c7c17a8bccebeac04c"]}], "purple": [{"workflow_id": "vidarr:clinical/run/c5759642f1d1565722272d09807f89388119f0767cafaae294c1b0f5f433b333", "workflow_name": "purple", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}, {"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6", "vidarr:clinical/run/7e329e4697f49970fef560b677c45682b33315470d1580c7c17a8bccebeac04c", "vidarr:clinical/run/6b4ee54dc04f8c3fc3e481fcbe796da63446223609ca6cde01edec68cea05f9f", "vidarr:clinical/run/7ef5fc4660a363e54639716b1332ed0ba7faee2f67ab402be4f81a8ef04f89e6"]}], "bamMergePreprocessing_by_sample": [{"workflow_id": "vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6", "workflow_name": "bamMergePreprocessing_by_sample", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/df4859eb6fc3df248ba6c5dc96e5afd5126a64d478f91eae4d21480d96009c11", "vidarr:clinical/run/5cd133979e5b58540ab9276430ca5f23ce6e5416e177dd16ebd1cbaf966338eb", "vidarr:clinical/run/83ea2a6d548ac21d75339bc914dab72102c926570f456699dfc04391785449fd", "vidarr:clinical/run/c05529dcdb18f287128194286661f9578e47e5328a45bc00f9917b37cf7ccf5b", "vidarr:clinical/run/4c99bccb7dbe70524360515034978e356c771dc268b0112e4ed629655e2d887e", "vidarr:clinical/run/e0e5693f225c659a05643be53882f0a80e1da4bd87c84503d24e7e729d0b7562", "vidarr:clinical/run/a8a5392caf65f120120d6dd593e27d1bb548cc195866953f2da090a853434e77"]}, {"workflow_id": "vidarr:clinical/run/7e329e4697f49970fef560b677c45682b33315470d1580c7c17a8bccebeac04c", "workflow_name": "bamMergePreprocessing_by_sample", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["vidarr:clinical/run/7282751b1816edb9b63e993d49869d59a743d797df25fb3cbb10e62cfe7571d2", "vidarr:clinical/run/2ad0644177bff4219c2e2dd54be33c6f768a75be3c09a9f40cf29c6b9e210471", "vidarr:clinical/run/71d572925ba9568bef3169ee70be2c08bea14f4d34a4d7a311868a48964478af", "vidarr:clinical/run/14a404d908ccacf7d2930fb61f01f8c0294e92832c9d398f83cbc3f10e1f9aba"]}], "bwaMem": [{"workflow_id": "vidarr:clinical/run/2ad0644177bff4219c2e2dd54be33c6f768a75be3c09a9f40cf29c6b9e210471", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["vidarr:clinical/run/2bc701dc18e47bd12a8bfe5fe75fb3ca15570cd04221e8cdb187eff70dd8fe8e"]}, {"workflow_id": "vidarr:clinical/run/e0e5693f225c659a05643be53882f0a80e1da4bd87c84503d24e7e729d0b7562", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/ff0ef41835ee9d891530a9e40f7d855119c44d4e00fe892cf6a93d6a938f258b"]}, {"workflow_id": "vidarr:clinical/run/7282751b1816edb9b63e993d49869d59a743d797df25fb3cbb10e62cfe7571d2", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["vidarr:clinical/run/a55acb4f73ae1ee0da34a39bb168fedb111ffb6bf6552a390f3c05b2ea4b6856"]}, {"workflow_id": "vidarr:clinical/run/14a404d908ccacf7d2930fb61f01f8c0294e92832c9d398f83cbc3f10e1f9aba", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["vidarr:clinical/run/51146126538f9c98dfef7cb438106ae10737bd99af53f3d9edf51fcbf13232a8"]}, {"workflow_id": "vidarr:clinical/run/4c99bccb7dbe70524360515034978e356c771dc268b0112e4ed629655e2d887e", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/d23b9536b8c3b52deeb05fd5f00211fab89afc4010cf8ea7df3562f73cd878ee"]}, {"workflow_id": "vidarr:clinical/run/c05529dcdb18f287128194286661f9578e47e5328a45bc00f9917b37cf7ccf5b", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/2db568631e17ea96d9514e21e8ac25f52fda2288dd2128046d621b4fb5d76637"]}, {"workflow_id": "vidarr:clinical/run/71d572925ba9568bef3169ee70be2c08bea14f4d34a4d7a311868a48964478af", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["vidarr:clinical/run/4b78dc4a7622b74283d6ea9b977863d462c660dcf6d1359c957138f7f07586fe"]}, {"workflow_id": "vidarr:clinical/run/83ea2a6d548ac21d75339bc914dab72102c926570f456699dfc04391785449fd", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/195ed99ab1377ed439fc019f751cb1d19204b66a208033ce1278fa5e46a78ae3"]}, {"workflow_id": "vidarr:clinical/run/df4859eb6fc3df248ba6c5dc96e5afd5126a64d478f91eae4d21480d96009c11", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/084876172db77249210ed8715466a12bb4ad2039c3028e67e43c0d8c995f2882"]}, {"workflow_id": "vidarr:clinical/run/a8a5392caf65f120120d6dd593e27d1bb548cc195866953f2da090a853434e77", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/ac6d7117e0f1f2dbb4b5217c535a12e36aabf59c55eb38eb052a4e2a0cba0a58"]}, {"workflow_id": "vidarr:clinical/run/5cd133979e5b58540ab9276430ca5f23ce6e5416e177dd16ebd1cbaf966338eb", "workflow_name": "bwaMem", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/30f3f85fb20fe586aa30939647762aad947caf2d30d388207e4a765cad9ac6e6"]}], "rsem": [{"workflow_id": "vidarr:clinical/run/83c406fc6b2e0b6696d2138b203bff7cfb71699660146db4c750f2e5c63ab7fe", "workflow_name": "rsem", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/5c6335a63df24f423ee8f83d029bb7506ca7bcd5b7f0bc01275e986ae12b1e8a"]}], "star_call_ready": [{"workflow_id": "vidarr:clinical/run/5c6335a63df24f423ee8f83d029bb7506ca7bcd5b7f0bc01275e986ae12b1e8a", "workflow_name": "star_call_ready", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/76479108cdda0584eba4f02f1cba55f7302511604d3ac95611f9ff58c8cfb3c0", "vidarr:clinical/run/d7392df73793867d2e0c18052854f64684461170d4800dd71894381ff5f80a69"]}], "starfusion": [{"workflow_id": "vidarr:clinical/run/e95dcc79de60179f3c1b07f4035588f7ae670c505727af78feb02377af8c7432", "workflow_name": "starfusion", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/5c6335a63df24f423ee8f83d029bb7506ca7bcd5b7f0bc01275e986ae12b1e8a"]}], "arriba": [{"workflow_id": "vidarr:clinical/run/dcc7b431e83f4483a10184ad84137136ad32ebcbb30486a637a80a526b0652d6", "workflow_name": "arriba", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/5c6335a63df24f423ee8f83d029bb7506ca7bcd5b7f0bc01275e986ae12b1e8a"]}], "msisensor": [{"workflow_id": "vidarr:clinical/run/8f82920f937f42b8e0782765a45c7867ebea05d749ac8e49fa2d7f6b1f1c3a23", "workflow_name": "msisensor", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}, {"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6", "vidarr:clinical/run/7e329e4697f49970fef560b677c45682b33315470d1580c7c17a8bccebeac04c"]}], "star_lane_level": [{"workflow_id": "vidarr:clinical/run/54cbe0e438e2731fdf66e121ba274a8a33ea9608b6444e91bbf72802cbd9e21f", "workflow_name": "star_lane_level", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/d7392df73793867d2e0c18052854f64684461170d4800dd71894381ff5f80a69"]}, {"workflow_id": "vidarr:clinical/run/d021c3ac7b2fa0f7ae95f7b8f81528369fa54edd0dba3c5c58bd717c7d98e10f", "workflow_name": "star_lane_level", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/76479108cdda0584eba4f02f1cba55f7302511604d3ac95611f9ff58c8cfb3c0"]}], "mavis": [{"workflow_id": "vidarr:clinical/run/751861f203c7ca0cdf7dd12a6d8e4690bd4716af0beaf238a1e5521116e2c441", "workflow_name": "mavis", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WT": {"library_type": "WT", "tissue_type": "R", "negate_tissue_type": true}}, {"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}, {"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/5c6335a63df24f423ee8f83d029bb7506ca7bcd5b7f0bc01275e986ae12b1e8a", "vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6", "vidarr:clinical/run/744f84138c3542a09f8bf3565825778e8aa97e764818fb836c9f6eacd21f47ee", "vidarr:clinical/run/dcc7b431e83f4483a10184ad84137136ad32ebcbb30486a637a80a526b0652d6", "vidarr:clinical/run/e95dcc79de60179f3c1b07f4035588f7ae670c505727af78feb02377af8c7432"]}], "hrDetect": [{"workflow_id": "vidarr:clinical/run/ef569288ce7b0b1d2b5343608f5580f3c0ce7b72b183ba8a71118cedb630f2e2", "workflow_name": "hrDetect", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}, {"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/6b4ee54dc04f8c3fc3e481fcbe796da63446223609ca6cde01edec68cea05f9f", "vidarr:clinical/run/c5759642f1d1565722272d09807f89388119f0767cafaae294c1b0f5f433b333"]}], "haplotypeCaller": [{"workflow_id": "vidarr:clinical/run/e91c429b0ee42bc8589155f8b447d2ae4f6a37aa40b87995d3845fc402b077f8", "workflow_name": "haplotypeCaller", "samples": [{"PANX_1779_Pa_P 101-060-017_LCM_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": true}}], "inputs": ["vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6"]}, {"workflow_id": "vidarr:clinical/run/f4567203383a504b23431a273faab11a86f9aa1d377ba0a0a0c56536803b6d1b", "workflow_name": "haplotypeCaller", "samples": [{"PANX_1779_Ly_R 101-060-017_BuffyCoat_WG": {"library_type": "WG", "tissue_type": "R", "negate_tissue_type": false}}], "inputs": ["vidarr:clinical/run/7e329e4697f49970fef560b677c45682b33315470d1580c7c17a8bccebeac04c"]}]}, "Anchors": {"TumourWG": ["vidarr:clinical/run/b3d3f31abfa9a91ad43b5101909043de8926b99b92b5e89c4bd89fa6d80586f6"], "TumourWT": ["vidarr:clinical/run/5c6335a63df24f423ee8f83d029bb7506ca7bcd5b7f0bc01275e986ae12b1e8a"], "NormalWG": ["vidarr:clinical/run/7e329e4697f49970fef560b677c45682b33315470d1580c7c17a8bccebeac04c"]}}
+   
+    
+        
+        
+    for case_id in case_data:
+        if case_id not in D:
+            D[case_id] = {'callready': [], 'downstream': [], 'analysis': {}}
+        for template in case_data[case_id]:
+            for sample in template['template']['Anchors']:
+                D[case_id]['callready'].extend(template['template']['Anchors'][sample])
+            for workflow in template['template']['Analysis']:
+                for d in template['template']['Analysis'][workflow]:
+                    if d['workflow_id'] not in D[case_id]['callready']:
+                        D[case_id]['downstream'].append(d['workflow_id'])
+                    if workflow not in D[case_id]['analysis']:
+                        D[case_id]['analysis'][workflow] = []
+                    D[case_id]['analysis'][workflow].append(d['workflow_id'])
             
-        D[case]['callready'] = len(set(D[case]['callready']))
-        D[case]['downstream'] = len(set(D[case]['downstream']))
-        for i in D[case]['analysis']:
-            D[case]['analysis'][i] = len(set(D[case]['analysis'][i]))
-            
+        D[case_id]['callready'] = len(set(D[case_id]['callready']))
+        D[case_id]['downstream'] = len(set(D[case_id]['downstream']))
+        for workflow in D[case_id]['analysis']:
+            D[case_id]['analysis'][workflow] = len(set(D[case_id]['analysis'][workflow]))
+          
     return D
 
 
+def list_assay_analysis_workflows(workflow_counts):
+    '''
+    (dict) -> list
+        
+    Returns a list of all the expected analysis workflows for an essay
+    
+    Parameters
+    ----------
+    - (workflow_counts): Dictionary with counts of each analysis workflow for each case with the same assay
+    '''
+    
+    # get all the analysis workflows
+    analysis_workflows = []
+    for case_id in workflow_counts:
+        for workflow in workflow_counts[case_id]['analysis']:
+            analysis_workflows.append(workflow)
+    analysis_workflows = sorted(list(set(analysis_workflows)))    
+    
+    return analysis_workflows
 
+
+def list_case_analysis_status(case_data):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with anlysis status of each case. Analysis status is
+    True if at least 1 template for a case is complete
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with case analysis extracted from the analysis review database
+    '''
+
+    D = {}
+    for case_id in case_data:
+        for d in case_data[case_id]:
+            if case_id in D:
+                D[case_id].append(d['valid'])
+            else:
+                D[case_id] = [d['valid']]
+
+    for case_id in D:
+        D[case_id] = bool(sum(D[case_id]))
+
+    return D
 
 
 def get_sequencing_input(database, case):
@@ -558,84 +703,127 @@ def get_sequencing_input(database, case):
 
 
 
-def list_assay_analysis_workflows(case_data):
-    '''
-    (dict) -> list
-        
-    Returns a list of all the expected analysis workflows for an essay
-    
-    Parameters
-    ----------
-    - (case_data): Dictionary with analysis workflow ids organized for each case with the same assay
-    '''
-    
-    # get all the analysis workflows
-    analysis_workflows = []
-    for case in case_data:
-        for d in case_data[case]:
-            analysis_workflows.extend(list(d['analysis'].keys()))
-    analysis_workflows = sorted(list(set(analysis_workflows)))    
-    
-    return analysis_workflows
+
 
 
 
 
 def most_recent_analysis_workflow(case_data, creation_dates):
     '''
-    (list, dict) -> list
+    (dict, dict) -> dict
     
-    Returns a list with the most recent workflow for each analysis template in a case
+    Returns a dictionary with a list of the most recent workflow for each analysis template of each case
        
     Parameters
     ----------
-    - case_data (list): List of templates with analysis data for a single case
+    - case_data (list): Dictionary with template information for each case
     - creation_dates (dict): Dictionary with creation dates of each workflow
     '''
+        
+    D = {}
     
-    most_recent = []
-       
-    for template in case_data:
-        L = []
-        for workflow_id in template['callready']:
-            #L.append(creation_dates[os.path.basename(workflow_id)])
-            L.append(creation_dates[workflow_id])
-        for workflow_id in template['downstream']:
-            L.append(creation_dates[workflow_id])
+    for case_id in case_data:
+        most_recent = []
+        for template in case_data[case_id]:
+            L = []
+            for i in ['Analysis', 'Data']:
+                for j in template['template'][i]:
+                    for d in template['template'][i][j]:
+                        workflow_id = d['workflow_id']
+                        L.append(creation_dates[workflow_id])
+            L.sort()
+            try:
+                date = time.strftime('%Y-%m-%d', time.localtime(int(L[-1])))
+            except:
+                date = 'NA'
+            most_recent.append(date)
+        D[case_id] = most_recent
         
-        L.sort()
-        try:
-            date = time.strftime('%Y-%m-%d', time.localtime(int(L[-1])))
-        except:
-            date = 'NA'
-        most_recent.append(date)
-        
-    return most_recent
+    return D
 
 
-def get_analysis_workflow_name(analysis):
+# def get_analysis_workflow_name(analysis):
+#     '''
+#     (dict) -> dict
+    
+#     Returns a dictionary with the name of workflows for each workflow id of
+#     an analysis group of a single case
+    
+#     Parameters
+#     ----------
+#     - analysis (dict): Dictionary with workflow ids of analysis workflows of a single case
+#     '''
+    
+#     D = {}
+    
+#     for workflow_name in analysis:
+#         for workflow_id in analysis[workflow_name]:
+#             assert workflow_id not in D
+#             D[workflow_id] = workflow_name
+    
+#     return D
+    
+    
+# def get_analysis_workflow_name(case_data):
+#     '''
+#     (dict) -> dict
+    
+#     Returns a dictionary with the worklow names of all workflow ids 
+#     in each template for each case
+    
+#     Parameters
+#     ----------
+#     - case_data (list): Dictionary with template information for each case
+#     '''
+    
+#     D = {}
+    
+#     for case_id in case_data:
+#         for template in case_data[case_id]:
+#             k = {}
+#             for i in ['Analysis', 'Data']:
+#                 for j in template['template'][i]:
+#                     for d in template['template'][i][j]:
+#                         workflow_id = d['workflow_id']
+#                         workflow_name = d['workflow_name']
+#                         k[workflow_id] = workflow_name
+#             if case_id not in D:
+#                 D[case_id] = []
+#             D[case_id].append(k)
+        
+#     return D    
+    
+
+def get_analysis_workflow_name(case_data):
     '''
     (dict) -> dict
     
-    Returns a dictionary with the name of workflows for each workflow id of
-    an analysis group of a single case
+    Returns a dictionary with the worklow names of all workflow ids 
+    in each template for each case
     
     Parameters
     ----------
-    - analysis (dict): Dictionary with workflow ids of analysis workflows of a single case
+    - case_data (list): Dictionary with template information for each case
     '''
     
     D = {}
     
-    for workflow_name in analysis:
-        for workflow_id in analysis[workflow_name]:
-            assert workflow_id not in D
-            D[workflow_id] = workflow_name
+    for case_id in case_data:
+        for template in case_data[case_id]:
+            for i in ['Analysis', 'Data']:
+                for j in template['template'][i]:
+                    for d in template['template'][i][j]:
+                        workflow_id = d['workflow_id']
+                        workflow_name = d['workflow_name']
+                        D[workflow_id] = workflow_name
+
+    return D    
+
+
+
+
     
-    return D
-    
-    
-def get_case_workflow_samples(database, case):
+def get_case_workflow_samples(database, case_id):
     '''
     (str, str) -> dict
     
@@ -644,14 +832,14 @@ def get_case_workflow_samples(database, case):
     Parameters
     ----------
     - database (str): Path to the database
-    - case (str): Case of interest
+    - case_id (str): Case of interest
     '''
     
     conn = connect_to_db(database)
     data = conn.execute("SELECT Workflow_Inputs.wfrun_id, Libraries.donor_id, Libraries.tissue_type, \
                         Libraries.tissue_origin, Libraries.library_type, Libraries.group_id FROM \
                         Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.library=Libraries.library \
-                        AND Libraries.case_id = ?;", (case,)).fetchall()     
+                        AND Libraries.case_id = ?;", (case_id,)).fetchall()     
     conn.close()
     
     D = {}
@@ -699,25 +887,33 @@ def get_assays(database, project_name):
 
 def get_missing_workflows(case_data):
     '''
-    (list) -> list
+    (dict) -> dict
     
-    Returns a list of list of mising workflows for each template of a single case
+    Returns a dictionary with a list of list of mising workflows for each template of each case
     
     Parameters
     ----------
-    - case_data (list): List of dictionaries with template of analysis data for a single case
+    - case_data (list): Dictionary with analysis data organized by case 
     '''
     
-    missing = []
+    D = {}
     
-    for d in case_data:
-        L = []
-        for workflow in d['analysis']:
-            if len(d['analysis'][workflow]) == 0:
-                L.append(workflow)
-        missing.append(L)
-        
-    return missing
+    for case_id in case_data:
+        missing = []
+        for template in case_data[case_id]:
+            L = []
+            for i in ['Analysis', 'Data']:
+                for workflow in template['template'][i]:
+                    if len(template['template'][i][workflow]) == 0:
+                        L.append(workflow)
+            L = list(set(L))                    
+            missing.append(L) 
+        D[case_id] = missing
+    
+    return D
+    
+    
+ 
     
     
 def get_case_parent_to_children_workflows(database, case):
@@ -971,6 +1167,83 @@ def get_cbioportal_deliverables():
     return deliverables
 
 
+# def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, deliverables=None):
+#     '''
+#     (dict, dict, dict, dict, dict, dict, None | dict)
+    
+#     Returns a dictionary with workflow information for a given block (ie, sample pair)
+#     and anchor bmpp parent workflow
+    
+#     Parameters
+#     ----------
+#     - case_data (dict): Dictionary with analysis templates for all cases in a project
+#     - selected_workflows (dict): Dictionary with selected status of each workflow in project
+#     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
+#     - deliverables (None | dict): None or dictionary with file extensions of standard deliverables
+#     '''
+        
+#     # create a lambda to evaluate the deliverable files
+#     # x is a pair of (file, file_ending)
+#     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
+   
+#     D = {}
+        
+#     for case in case_data:
+#         for template in case_data[case]:
+#             # make a list of workflows:
+#             callready = template['callready']
+#             workflows = {}
+#             for i in ['sequencing', 'analysis', 'alignments']:
+#                 for workflow in template[i]:
+#                     if template[i][workflow]:
+#                         workflows[workflow] = template[i][workflow]
+        
+#             # check that analysis workflows are selected
+#             # do not include call ready workflows because they can be shared across templates
+#             wfs = []
+#             for i in workflows.values():
+#                 wfs.extend(i)
+            
+#             analysis = [i for i in wfs if i not in callready]   
+#             if any(map(lambda x: x in selected_workflows, analysis)):
+#                 for workflow in workflows:
+#                     for wfrunid in workflows[workflow]:
+#                         # check if workflow is selected
+#                         if selected_workflows[wfrunid]:
+#                             # get workflow output files
+#                             outputfiles = workflow_outputfiles[wfrunid]                        
+                                        
+#                             # check that only workflows in standard eliverables are used
+#                             if deliverables:
+#                                 key = workflow.split('_')[0].lower()
+#                                 if key in deliverables:
+#                                     # map all file endings of deliverables with files
+#                                     groups = list(itertools.product(outputfiles, deliverables[key]))
+#                                     # determine which files are part of the deliverables
+#                                     F = list(map(G, groups))
+#                                     L = [groups[k][0] for k in range(len(F)) if F[k]]
+#                                     if L:
+#                                         if case not in D:
+#                                             D[case] = {}
+#                                         if workflow in D[case]:
+#                                             D[case][workflow].extend(L)
+#                                         else:
+#                                             D[case][workflow] = L
+#                             else:
+#                                 if case not in D:
+#                                     D[case] = {}
+#                                 if workflow in D[case]:
+#                                     D[case][workflow].extend(outputfiles)
+#                                 else:
+#                                     D[case][workflow] = outputfiles
+                            
+#                             D[case][workflow] = sorted(list(set(D[case][workflow])))  
+    
+    
+#     return D
+                    
+
+
 def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, deliverables=None):
     '''
     (dict, dict, dict, dict, dict, dict, None | dict)
@@ -991,35 +1264,22 @@ def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, de
     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
    
     D = {}
+    
+    for case_id in case_data:
+        for template in case_data[case_id]:
+            for i in ['Analysis', 'Data']:
+                for j in template['template'][i]:
+                    for d in template['template'][i][j]:
+                        workflow_id = d['workflow_id']
+                        workflow_name = d['workflow_name']
+                        # check that workflow is selected
+                        if workflow_id in selected_workflows and selected_workflows[workflow_id]:
+                            # get the workflow output files
+                            outputfiles = workflow_outputfiles[workflow_id]
         
-    for case in case_data:
-        for template in case_data[case]:
-            # make a list of workflows:
-            callready = template['callready']
-            workflows = {}
-            for i in ['sequencing', 'analysis', 'alignments']:
-                for workflow in template[i]:
-                    if template[i][workflow]:
-                        workflows[workflow] = template[i][workflow]
-        
-            # check that analysis workflows are selected
-            # do not include call ready workflows because they can be shared across templates
-            wfs = []
-            for i in workflows.values():
-                wfs.extend(i)
-            
-            analysis = [i for i in wfs if i not in callready]   
-            if any(map(lambda x: x in selected_workflows, analysis)):
-                for workflow in workflows:
-                    for wfrunid in workflows[workflow]:
-                        # check if workflow is selected
-                        if selected_workflows[wfrunid]:
-                            # get workflow output files
-                            outputfiles = workflow_outputfiles[wfrunid]                        
-                                        
                             # check that only workflows in standard eliverables are used
                             if deliverables:
-                                key = workflow.split('_')[0].lower()
+                                key = workflow_name.split('_')[0].lower()
                                 if key in deliverables:
                                     # map all file endings of deliverables with files
                                     groups = list(itertools.product(outputfiles, deliverables[key]))
@@ -1027,29 +1287,120 @@ def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, de
                                     F = list(map(G, groups))
                                     L = [groups[k][0] for k in range(len(F)) if F[k]]
                                     if L:
-                                        if case not in D:
-                                            D[case] = {}
-                                        if workflow in D[case]:
-                                            D[case][workflow].extend(L)
+                                        if case_id not in D:
+                                            D[case_id] = {}
+                                        if workflow_name not in D[case_id]:
+                                            D[case_id][workflow_name] = {}
+                                        if workflow_id not in D[case_id][workflow_name]:
+                                            D[case_id][workflow_name][workflow_id] = L
                                         else:
-                                            D[case][workflow] = L
+                                            D[case_id][workflow_name][workflow_id].extend(L)
                             else:
-                                if case not in D:
-                                    D[case] = {}
-                                if workflow in D[case]:
-                                    D[case][workflow].extend(outputfiles)
+                                if case_id not in D:
+                                    D[case_id] = {}
+                                if workflow_name not in D[case_id]:
+                                    D[case_id][workflow_name] = {}
+                                if workflow_id not in D[case_id][workflow_name]:
+                                    D[case_id][workflow_name][workflow_id] = outputfiles
                                 else:
-                                    D[case][workflow] = outputfiles
-                            
-                            D[case][workflow] = sorted(list(set(D[case][workflow])))  
+                                    D[case_id][workflow_name][workflow_id].extend(outputfiles)
+                                    
+                            if workflow_name in D[case_id] and workflow_id in D[case_id][workflow_name]:
+                                D[case_id][workflow_name][workflow_id] = sorted(list(set(D[case_id][workflow_name][workflow_id])))    
     
     
     return D
-                    
 
 
 
-def create_case_analysis_json(case, case_data, selected_workflows, workflow_outputfiles, selection):
+
+
+# def create_case_analysis_json(case, case_data, selected_workflows, workflow_outputfiles, selection):
+#     '''
+#     (str, list, dict, dict, str)
+    
+#     Returns a dictionary with workflow information for a given block (ie, sample pair)
+#     and anchor parent workflow (bmpp or star)
+    
+#     Parameters
+#     ----------
+#     - case (str): Case unique identifier
+#     - case_data (list): List of analysis templates for a single case in a project
+#     - selected_workflows (dict): Dictionary with selected status of each workflow in project
+#     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
+#     - selection (str): Include files from all selected workflows or files from the standard deliverables
+#                        Values: standard or all
+#     '''
+    
+#     # create a lambda to evaluate the deliverable files
+#     # x is a pair of (file, file_ending)
+#     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
+            
+#     # get the deliverables
+#     if selection == 'standard':
+#         deliverables = get_pipeline_standard_deliverables()
+#     elif selection == 'all':
+#         deliverables = {}
+    
+#     D = {}
+            
+#     for template in case_data:
+#         # make a list of workflows:
+#         callready = template['callready']
+#         workflows = {}
+#         for i in ['sequencing', 'analysis', 'alignments']:
+#             for workflow in template[i]:
+#                 if template[i][workflow]:
+#                     workflows[workflow] = template[i][workflow]
+            
+#         # check that analysis workflows are selected
+#         # do not include call ready workflows because they can be shared across templates
+#         wfs = []
+#         for i in workflows.values():
+#             wfs.extend(i)
+                
+#         analysis = [i for i in wfs if i not in callready]   
+#         if any(map(lambda x: x in selected_workflows, analysis)):
+#             for workflow in workflows:
+#                 for wfrunid in workflows[workflow]:
+#                     # check if workflow is selected
+#                     if selected_workflows[wfrunid]:
+#                         # get workflow output files
+#                         outputfiles = workflow_outputfiles[wfrunid]                        
+                                            
+#                         # check that only workflows in standard eliverables are used
+#                         if deliverables:
+#                             key = workflow.split('_')[0].lower()
+#                             if key in deliverables:
+#                                 # map all file endings of deliverables with files
+#                                 groups = list(itertools.product(outputfiles, deliverables[key]))
+#                                 # determine which files are part of the deliverables
+#                                 F = list(map(G, groups))
+#                                 L = [groups[k][0] for k in range(len(F)) if F[k]]
+#                                 if L:
+#                                     if case not in D:
+#                                         D[case] = {}
+#                                     if workflow in D[case]:
+#                                         D[case][workflow].extend(L)
+#                                     else:
+#                                         D[case][workflow] = L
+#                         else:
+#                             if case not in D:
+#                                 D[case] = {}
+#                             if workflow in D[case]:
+#                                 D[case][workflow].extend(outputfiles)
+#                             else:
+#                                 D[case][workflow] = outputfiles
+                        
+#                         D[case][workflow] = sorted(list(set(D[case][workflow])))  
+                       
+        
+        
+#     return D
+    
+
+
+def create_case_analysis_json(case_data, selected_workflows, workflow_outputfiles, selection):
     '''
     (str, list, dict, dict, str)
     
@@ -1078,62 +1429,167 @@ def create_case_analysis_json(case, case_data, selected_workflows, workflow_outp
     
     D = {}
             
-    for template in case_data:
-        # make a list of workflows:
-        callready = template['callready']
-        workflows = {}
-        for i in ['sequencing', 'analysis', 'alignments']:
-            for workflow in template[i]:
-                if template[i][workflow]:
-                    workflows[workflow] = template[i][workflow]
+    for case_id in case_data:
+        for template in case_data[case_id]:
+            for i in ['Analysis', 'Data']:
+                for j in template['template'][i]:
+                    for d in template['template'][i][j]:
+                        workflow_id = d['workflow_id']
+                        workflow_name = d['workflow_name']
+                        # check that workflow is selected
+                        if workflow_id in selected_workflows and selected_workflows[workflow_id]:
+                            # get the workflow output files
+                            outputfiles = workflow_outputfiles[workflow_id]
             
-        # check that analysis workflows are selected
-        # do not include call ready workflows because they can be shared across templates
-        wfs = []
-        for i in workflows.values():
-            wfs.extend(i)
-                
-        analysis = [i for i in wfs if i not in callready]   
-        if any(map(lambda x: x in selected_workflows, analysis)):
-            for workflow in workflows:
-                for wfrunid in workflows[workflow]:
-                    # check if workflow is selected
-                    if selected_workflows[wfrunid]:
-                        # get workflow output files
-                        outputfiles = workflow_outputfiles[wfrunid]                        
-                                            
-                        # check that only workflows in standard eliverables are used
-                        if deliverables:
-                            key = workflow.split('_')[0].lower()
-                            if key in deliverables:
-                                # map all file endings of deliverables with files
-                                groups = list(itertools.product(outputfiles, deliverables[key]))
-                                # determine which files are part of the deliverables
-                                F = list(map(G, groups))
-                                L = [groups[k][0] for k in range(len(F)) if F[k]]
-                                if L:
-                                    if case not in D:
-                                        D[case] = {}
-                                    if workflow in D[case]:
-                                        D[case][workflow].extend(L)
-                                    else:
-                                        D[case][workflow] = L
-                        else:
-                            if case not in D:
-                                D[case] = {}
-                            if workflow in D[case]:
-                                D[case][workflow].extend(outputfiles)
+                            # check that only workflows in standard eliverables are used
+                            if deliverables:
+                                key = workflow_name.split('_')[0].lower()
+                                if key in deliverables:
+                                    # map all file endings of deliverables with files
+                                    groups = list(itertools.product(outputfiles, deliverables[key]))
+                                    # determine which files are part of the deliverables
+                                    F = list(map(G, groups))
+                                    L = [groups[k][0] for k in range(len(F)) if F[k]]
+                                    if L:
+                                        if case_id not in D:
+                                            D[case_id] = {}
+                                        if workflow_name not in D[case_id]:
+                                            D[case_id][workflow_name] = {}
+                                        if workflow_id not in D[case_id][workflow_name]:
+                                            D[case_id][workflow_name][workflow_id] = L
+                                        else:
+                                            D[case_id][workflow_name][workflow_id].extend(L)
                             else:
-                                D[case][workflow] = outputfiles
-                        
-                        D[case][workflow] = sorted(list(set(D[case][workflow])))  
+                                if case_id not in D:
+                                    D[case_id] = {}
+                                if workflow_name not in D[case_id]:
+                                    D[case_id][workflow_name] = {}
+                                if workflow_id not in D[case_id][workflow_name]:
+                                    D[case_id][workflow_name][workflow_id] = outputfiles
+                                else:
+                                    D[case_id][workflow_name][workflow_id].extend(outputfiles)
+                            
+                            if workflow_name in D[case_id] and workflow_id in D[case_id][workflow_name]:
+                                D[case_id][workflow_name][workflow_id] = sorted(list(set(D[case_id][workflow_name][workflow_id])))  
                        
-        
-        
     return D
+
+
+
+
+
+
+
+
     
     
+# def create_cbioportal_json(case_data, selected_workflows, workflow_outputfiles, segmentation):
+#     '''
+#     (dict, dict, dict, str)
     
+#     Returns a dictionary with information required for cbioportal upload
+#     for donors in a projct 
+    
+#     Parameters
+#     ----------
+#     - case_data (dict): Dictionary with analysis templates for cases in a project
+#     - selected_workflows (dict): Dictionary with selected status of each workflow in project
+#     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
+#     - segmentation (str): Indicates if segmentation data comes from the sequenza or purple workflow.
+#                           Valid values: sequenza, purple
+#     '''
+    
+#     # create a lambda to evaluate the deliverable files
+#     # x is a pair of (file, file_ending)
+#     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
+    
+#     cbioportal_workflows = ['varianteffectpredictor', 'rsem', 'mavis']
+#     # add the segmentation workflow
+#     cbioportal_workflows.insert(1, segmentation)
+#     deliverables = get_cbioportal_deliverables()    
+    
+#     D = {}
+    
+#     for case in case_data:
+#         for template in case_data[case]:
+#             donor = template['donor']
+#             samples = {}
+#             for i in template['template']['Samples']:
+#                 if template['template']['Samples'][i]['tissue_type'] != 'R':
+#                     library_type = template['template']['Samples'][i]['library_type']
+#                     sample = template['template']['Samples'][i]['sample']
+#                     samples[library_type] = sample
+#             if len(samples) == 1:
+#                 samples = list(samples.values())[0]
+#             else:
+#                 assert 'WG' in samples
+#                 sample = samples['WG']
+        
+#             for workflow in template['template']['Analysis']:
+#                 # get the generic workflow name                      
+#                 key = workflow.split('_')[0].lower()
+#                 if key in cbioportal_workflows:
+#                     if template['template']['Analysis'][workflow]:
+#                         for d in template['template']['Analysis'][workflow]:
+#                             workflow_id = d['workflow_id']
+#                             if workflow_id in selected_workflows and selected_workflows[workflow_id]:
+#                                 # get workflow output files
+#                                 outputfiles = workflow_outputfiles[workflow_id]                        
+#                                 # map all file endings of deliverables with files
+#                                 groups = list(itertools.product(outputfiles, deliverables[key]))
+#                                 # determine which files are part of the deliverables
+#                                 F = list(map(G, groups))
+#                                 L = [groups[k][0] for k in range(len(F)) if F[k]]
+#                                 if L:
+#                                     if donor not in D:
+#                                         D[donor] = {}
+#                                     if sample not in D[donor]:
+#                                         D[donor][sample] = {}
+#                                     if key == 'purple':
+#                                         for i in L:
+#                                             if 'cnv' in i:
+#                                                 cnvfile = i
+#                                             elif 'purity' in i:
+#                                                 purityfile = i
+#                                         assert cnvfile and purityfile            
+#                                         D[donor][sample][workflow] = {'cnv': cnvfile, 'purity': purityfile}
+#                                     else:
+#                                         D[donor][sample][workflow] = L[0]
+
+#     return D
+    
+ 
+    
+ 
+def collect_tumor_sample_template(template):
+    '''
+    (dict) -> str
+    
+    Returns the tumor sample from the template
+          
+    Parameters
+    ----------
+    - template (dict): Dictionary with case template storing analysis data
+    '''
+
+    samples = {}
+    for i in template['template']['Samples']:
+        if template['template']['Samples'][i]['negate_tissue_type']:
+            library_type = template['template']['Samples'][i]['library_type']
+            sample = template['template']['Samples'][i]['sample']
+            samples[library_type] = sample
+    
+    if len(samples) == 1:
+        sample = list(samples.values())[0]
+    else:
+        assert 'WG' in samples
+        sample = samples['WG']
+
+    return sample    
+ 
+    
+    
+ 
 def create_cbioportal_json(case_data, selected_workflows, workflow_outputfiles, segmentation):
     '''
     (dict, dict, dict, str)
@@ -1158,24 +1614,13 @@ def create_cbioportal_json(case_data, selected_workflows, workflow_outputfiles, 
     # add the segmentation workflow
     cbioportal_workflows.insert(1, segmentation)
     deliverables = get_cbioportal_deliverables()    
-    
+
     D = {}
     
-    for case in case_data:
-        for template in case_data[case]:
+    for case_id in case_data:
+        for template in case_data[case_id]:
             donor = template['donor']
-            samples = {}
-            for i in template['template']['Samples']:
-                if template['template']['Samples'][i]['tissue_type'] != 'R':
-                    library_type = template['template']['Samples'][i]['library_type']
-                    sample = template['template']['Samples'][i]['sample']
-                    samples[library_type] = sample
-            if len(samples) == 1:
-                samples = list(samples.values())[0]
-            else:
-                assert 'WG' in samples
-                sample = samples['WG']
-        
+            sample = collect_tumor_sample_template(template)
             for workflow in template['template']['Analysis']:
                 # get the generic workflow name                      
                 key = workflow.split('_')[0].lower()
@@ -1183,9 +1628,10 @@ def create_cbioportal_json(case_data, selected_workflows, workflow_outputfiles, 
                     if template['template']['Analysis'][workflow]:
                         for d in template['template']['Analysis'][workflow]:
                             workflow_id = d['workflow_id']
+                            # check that workflow is selected
                             if workflow_id in selected_workflows and selected_workflows[workflow_id]:
-                                # get workflow output files
-                                outputfiles = workflow_outputfiles[workflow_id]                        
+                                # get the workflow output files
+                                outputfiles = workflow_outputfiles[workflow_id]
                                 # map all file endings of deliverables with files
                                 groups = list(itertools.product(outputfiles, deliverables[key]))
                                 # determine which files are part of the deliverables
@@ -1210,6 +1656,7 @@ def create_cbioportal_json(case_data, selected_workflows, workflow_outputfiles, 
     return D
     
     
+ 
 
 def get_selected_workflows(project_name, database, table = 'Workflows'):
     '''
@@ -1273,6 +1720,41 @@ def get_workflow_outputfiles(database, project_name):
 
 
 
+# def get_review_status(case_data, selected_workflows):
+#     '''
+#     (dict, dict) -> dict
+    
+#     Returns a dictionary with review status for each case in project
+#     A case is considered to be reviewed if any worklow has been selected
+    
+#     Parameters
+#     ----------
+#     - case_data (dict): Dictionary with analysis template for each case
+#     - selected_workflows (dict): Dictionary with selection status of each workflow in a project
+#     '''
+    
+#     D = {}
+    
+#     for case in case_data:
+#         status = 0
+#         for template in case_data[case]:
+#             for i in ['callready', 'downstream']:
+#                 for wfrun_id in template[i]:
+#                     if selected_workflows[wfrun_id]:
+#                         status = 1
+#                         break
+#             for i in ['sequencing', 'alignments', 'analysis']:
+#                 for workflow in template[i]:
+#                     for wfrun_id in template[i][workflow]:
+#                         if selected_workflows[wfrun_id]:
+#                             status = 1
+#                             break
+#         D[case] = status
+    
+#     return D
+    
+
+
 def get_review_status(case_data, selected_workflows):
     '''
     (dict, dict) -> dict
@@ -1288,24 +1770,27 @@ def get_review_status(case_data, selected_workflows):
     
     D = {}
     
-    for case in case_data:
+    for case_id in case_data:
         status = 0
-        for template in case_data[case]:
-            for i in ['callready', 'downstream']:
-                for wfrun_id in template[i]:
-                    if selected_workflows[wfrun_id]:
-                        status = 1
-                        break
-            for i in ['sequencing', 'alignments', 'analysis']:
-                for workflow in template[i]:
-                    for wfrun_id in template[i][workflow]:
-                        if selected_workflows[wfrun_id]:
+        for template in case_data[case_id]:
+            for i in ['Analysis', 'Data']:
+                for j in template['template'][i]:
+                    for d in template['template'][i][j]:
+                        if d['workflow_id'] in selected_workflows:
+                            if selected_workflows[d['workflow_id']]:
+                                status = 1
+                                break
+            for i in template['template']['Anchors']:
+                for j in template['template']['Anchors'][i]:
+                    if j in selected_workflows:
+                        if selected_workflows[j]:
                             status = 1
                             break
-        D[case] = status
+            
+        D[case_id] = status
     
     return D
-    
+
 
 
 def identify_deliverables(project_info):
@@ -1333,7 +1818,7 @@ def identify_deliverables(project_info):
 
 
 
-def get_workflow_names(database, case):
+def get_workflow_names(database, case_id):
     '''
     (str, str) -> dict
     
@@ -1342,11 +1827,11 @@ def get_workflow_names(database, case):
     Parameters
     ----------
     - database (str): Path to the database
-    - case (str): Case of interest
+    - case_id (str): Case of interest
     '''
     
     conn = connect_to_db(database)
-    data = conn.execute("SELECT wfrun_id, wf FROM Workflows WHERE case_id = ?;", (case,)).fetchall()     
+    data = conn.execute("SELECT wfrun_id, wf FROM Workflows WHERE case_id = ?;", (case_id,)).fetchall()     
     conn.close()
     
     D = {}
@@ -1358,30 +1843,55 @@ def get_workflow_names(database, case):
     return  D
 
 
+# def list_template_workflows(template):
+#     '''
+#     (dict) -> list
+    
+#     Returns all the workflow identifiers of a single template of a case
+    
+#     Parameters
+#     ----------
+#     - template (dict): Dictionary with analysis data for a single template of a case
+#     '''
+
+#     L = []
+
+#     if 'Data' in template['template']:
+#         for i in template['template']['Data']:
+#             for d in template['template']['Data'][i]['workflows']:
+#                 L.append(d['workflow_id'])
+#     if 'Analysis' in template['template']:
+#         for workflow in template['template']['Analysis']:
+#             for d in template['template']['Analysis'][workflow]:
+#                 L.append(d['workflow_id'])
+#     L = list(set(L))
+    
+#     return L
+    
+
+
 def list_template_workflows(template):
-    '''
-    (dict) -> list
+   '''
+   (dict) -> list
     
-    Returns all the workflow identifiers of a single template of a case
+   Returns all the workflow identifiers of a single template of a case
     
-    Parameters
-    ----------
-    - template (dict): Dictionary with analysis data for a single template of a case
-    '''
+   Parameters
+   ----------
+   - template (dict): Dictionary with case template storing analysis data 
+   '''
 
-    L = []
+   L = []
 
-    if 'Data' in template['template']:
-        for i in template['template']['Data']:
-            for d in template['template']['Data'][i]['workflows']:
-                L.append(d['workflow_id'])
-    if 'Analysis' in template['template']:
-        for workflow in template['template']['Analysis']:
-            for d in template['template']['Analysis'][workflow]:
-                L.append(d['workflow_id'])
-    L = list(set(L))
-    
-    return L
+   for i in ['Analysis', 'Data']:
+       for j in template['template'][i]:
+           for d in template['template'][i][j]:
+               workflow_id = d['workflow_id']
+               L.append(workflow_id)
+   L = list(set(L))
+   
+   return L
+               
     
     
 def create_graph_edges(workflow_ids, parent_to_children):
