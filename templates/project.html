@@ -160,8 +160,7 @@
           </a>
         </td>        
         <td>{{ i['ext_id'] }}</td>        
-        <td>{{ i['assay'] }}</td>
-        
+        <td><a class="table_link" href="{{ url_for('analysis', project_name=project['project_id'], assay=i['assay'] | format_identifier) }}">{{ i['assay'] }}</a></td>
         <td>
           {% if i['case_id'] in signoffs %}
             {% if 'Release Approval' in signoffs[i['case_id']] %}
