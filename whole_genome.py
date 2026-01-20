@@ -1621,38 +1621,44 @@ def create_cbioportal_json(case_data, selected_workflows, workflow_outputfiles, 
     for case_id in case_data:
         for template in case_data[case_id]:
             donor = template['donor']
-            sample = collect_tumor_sample_template(template)
-            for workflow in template['template']['Analysis']:
-                # get the generic workflow name                      
-                key = workflow.split('_')[0].lower()
-                if key in cbioportal_workflows:
-                    if template['template']['Analysis'][workflow]:
-                        for d in template['template']['Analysis'][workflow]:
-                            workflow_id = d['workflow_id']
-                            # check that workflow is selected
-                            if workflow_id in selected_workflows and selected_workflows[workflow_id]:
-                                # get the workflow output files
-                                outputfiles = workflow_outputfiles[workflow_id]
-                                # map all file endings of deliverables with files
-                                groups = list(itertools.product(outputfiles, deliverables[key]))
-                                # determine which files are part of the deliverables
-                                F = list(map(G, groups))
-                                L = [groups[k][0] for k in range(len(F)) if F[k]]
-                                if L:
-                                    if donor not in D:
-                                        D[donor] = {}
-                                    if sample not in D[donor]:
-                                        D[donor][sample] = {}
-                                    if key == 'purple':
-                                        for i in L:
-                                            if 'cnv' in i:
-                                                cnvfile = i
-                                            elif 'purity' in i:
-                                                purityfile = i
-                                        assert cnvfile and purityfile            
-                                        D[donor][sample][workflow] = {'cnv': cnvfile, 'purity': purityfile}
-                                    else:
-                                        D[donor][sample][workflow] = L[0]
+            try:
+                sample = collect_tumor_sample_template(template)
+            except:
+                sample = ''
+            if sample:
+                for workflow in template['template']['Analysis']:
+                    # get the generic workflow name                      
+                    key = workflow.split('_')[0].lower()
+                    if key in cbioportal_workflows:
+                        if template['template']['Analysis'][workflow]:
+                            for d in template['template']['Analysis'][workflow]:
+                                workflow_id = d['workflow_id']
+                                # check that workflow is selected
+                                if workflow_id in selected_workflows and selected_workflows[workflow_id]:
+                                    # get the workflow output files
+                                    outputfiles = workflow_outputfiles[workflow_id]
+                                    # map all file endings of deliverables with files
+                                    groups = list(itertools.product(outputfiles, deliverables[key]))
+                                    # determine which files are part of the deliverables
+                                    F = list(map(G, groups))
+                                    L = [groups[k][0] for k in range(len(F)) if F[k]]
+                                    if L:
+                                        if case_id not in D:
+                                            D[case_id] = {}
+                                        if donor not in D[case_id]:
+                                            D[case_id][donor] = {}
+                                        if sample not in D[case_id][donor]:
+                                            D[case_id][donor][sample] = {}
+                                        if key == 'purple':
+                                            for i in L:
+                                                if 'cnv' in i:
+                                                    cnvfile = i
+                                                elif 'purity' in i:
+                                                    purityfile = i
+                                            assert cnvfile and purityfile            
+                                            D[case_id][donor][sample][workflow] = {'cnv': cnvfile, 'purity': purityfile}
+                                        else:
+                                            D[case_id][donor][sample][workflow] = L[0]
 
     return D
     
