@@ -1469,8 +1469,9 @@ def create_case_analysis_json(case_data, selected_workflows, workflow_outputfile
                                 else:
                                     D[case_id][workflow_name][workflow_id].extend(outputfiles)
                             
-                            if workflow_name in D[case_id] and workflow_id in D[case_id][workflow_name]:
-                                D[case_id][workflow_name][workflow_id] = sorted(list(set(D[case_id][workflow_name][workflow_id])))  
+                            if case_id in D:
+                                if workflow_name in D[case_id] and workflow_id in D[case_id][workflow_name]:
+                                    D[case_id][workflow_name][workflow_id] = sorted(list(set(D[case_id][workflow_name][workflow_id])))  
                        
     return D
 
