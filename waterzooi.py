@@ -20,7 +20,7 @@ from db_helper import connect_to_db
 from utilities import get_library_design, secret_key_generator, get_case_md5sums, \
     extract_case_signoff, extract_nabu_signoff, list_signoff_deliverables, remove_cases_with_no_approval_signoff, \
     remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff, \
-    get_workflow_release_status, get_file_release_status 
+    get_workflow_release_status, get_file_release_status, cbioportal_format 
 from whole_genome import get_workflows_analysis_date, \
     get_selected_workflows, update_wf_selection, get_input_sequences, get_cases_with_analysis,\
     get_case_analysis_samples, count_case_analysis_workflows,\
@@ -304,7 +304,7 @@ def sequencing(project_name):
 def analysis(project_name, assay):
     
     assay = assay.replace('+:+', '/')
-        
+    
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
     # get the deliverables
@@ -374,7 +374,10 @@ def analysis(project_name, assay):
             elif deliverable in ['sequenza', 'purple']:
                 # remove cases for which cbioportal release is signed off
                 analysis_data = remove_cases_with_competed_cbioportal_release(analysis_data, signoffs, deliverable)
-        
+                if analysis_data:
+                    # reformat json accoring to cbioportal expectations
+                    analysis_data = cbioportal_format(analysis_data)
+                      
         return Response(
             response=json.dumps(analysis_data),
             mimetype="application/json",
@@ -664,7 +667,12 @@ def download_cbioportal_data(project_name, case_id, assay, segmentation):
         analysis_data = remove_cases_with_no_approval_signoff(analysis_data, case_signoffs)
         # remove cases for which cbioportal release is signed off
         analysis_data = remove_cases_with_competed_cbioportal_release(analysis_data, case_signoffs, segmentation)
-    
+    # reformat json to include only donors and samples
+    if analysis_data:
+        analysis_data = cbioportal_format(analysis_data)
+        
+        
+        
     # send the json to outoutfile                    
     return Response(
         response=json.dumps(analysis_data),

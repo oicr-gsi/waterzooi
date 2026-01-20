@@ -353,6 +353,31 @@ def remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverab
                         
 
 
+def cbioportal_format(analysis_data):
+    '''
+    (dict) -> dict
+
+    Returns a dictionary with cbioportal data keeping only donors and samples
+    and removinf case identifiers     
+    
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with cbioportal data for one or more cases
+    '''
+    
+    D = {}
+    
+    for case_id in analysis_data:
+        for donor in analysis_data[case_id]:
+            for sample in analysis_data[case_id][donor]:
+                if donor not in D:
+                    D[donor] = {}
+                assert sample not in D[donor]
+                D[donor][sample] = analysis_data[case_id][donor][sample]
+    
+    return D
+    
+
 
 def get_workflow_file_qc(database, case_id):
     '''
