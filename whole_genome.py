@@ -1139,7 +1139,12 @@ def get_pipeline_standard_deliverables():
                                'purple.cnv.gene.tsv', '.purple.segment.tsv',
                                '.solPrimary.purple.zip', '.purple_alternates.zip',
                                '.purple.somatic.vcf.gz'],
-                    'gridds': ['.purple.sv.vcf.gz']}
+                    'gridds': ['.purple.sv.vcf.gz'],
+                    'bcl2fastq': ['.fastq.gz'],
+                    'fileimportforanalysis': ['.fastq.gz'],
+                    'fileimport': ['.fastq.gz'],
+                    'import_fastq': ['.fastq.gz']}
+
     
     return deliverables
 
