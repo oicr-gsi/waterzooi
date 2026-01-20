@@ -264,7 +264,7 @@ def sequencing(project_name):
         
         platforms = request.form.getlist('platform')
                 
-        D = {}
+        L = []
         for i in sequences:
             d = {'Case': i['case_id'],
                  'Donor': i['donor'],
@@ -282,11 +282,11 @@ def sequencing(project_name):
             if platforms:
                 # check that platform is selected
                 if platform_names[i['platform']] in platforms:
-                    D[i['case_id']] = d     
+                    L.append(d)    
             else:
-                D[i['case_id']] = d
+                L.append(d)
                     
-        data = pd.DataFrame(D.values())
+        data = pd.DataFrame(L)
         outputfile = '{0}_libraries.xlsx'.format(project_name)
         data.to_excel(outputfile, index=False)
             
