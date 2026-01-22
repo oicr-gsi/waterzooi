@@ -477,3 +477,70 @@ def get_file_release_status(database, case_id):
 
     return D    
     
+
+def template_error_formatting(errors):
+    '''
+    (list) -> list
+    
+    Returns a list of error messages for each template of a single case formatted
+    to display a list of elements
+        
+    Parameters
+    ----------
+    - errors (list): List with error messages for each template of a single case
+    '''
+    
+    for i in range(len(errors)):
+        # extract the list of workflows
+        if '(' in errors[i]:
+            wk = errors[i][errors[i].index('(')+1:errors[i].index(')')]
+            # replace workflows  from error message
+            message = errors[i].replace(wk, '').replace(' ()', '')
+            wk = wk.split(':')
+        else:
+            message = errors[i]
+            wk = ''
+        errors[i] = {'message': message, 'workflows': wk}
+        
+        
+        
+    return errors
+        
+        
+def case_error_formatting(errors):
+    '''
+    (str) -> dict
+    
+    Returns a dictionary with error message for the combined error message across
+    templates for a single case
+            
+    Parameters
+    ----------
+    - errors (str): Combined error across templates of a single case
+    '''
+    
+    # extract the list of workflows
+    if '(' in errors:
+        wk = errors[errors.index('(')+1:errors.index(')')]
+        # replace workflows  from error message
+        message = errors.replace(wk, '').replace(' ()', '')
+        wk = wk.split(':')
+    else:
+        message = errors
+        wk = ''
+    errors = {'message': message, 'workflows': wk}
+        
+    return errors
+   
+        
+   
+    
+        
+        
+        
+    
+    
+    
+    
+
+

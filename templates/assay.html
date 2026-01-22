@@ -260,7 +260,18 @@
                 {% endif %} 
               </td>
               <td>
-                {{ errors[i] }}
+                {% if errors[i] %}
+                  {% if errors[i]['message'] %}
+                    {{ errors[i]['message'] }}
+                  {% endif %}
+                  {% if errors[i]['workflows'] %}
+                    <ul style="list-style-type: none;">
+                      {% for err in errors[i]['workflows'] %}
+                        <li> {{err}} </li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}      
+                {% endif %}
               </td>
               {% for workflow in analysis_workflows %}
                 {% if workflow in workflow_counts[i]['analysis'] %}

@@ -20,7 +20,8 @@ from db_helper import connect_to_db
 from utilities import get_library_design, secret_key_generator, get_case_md5sums, \
     extract_case_signoff, extract_nabu_signoff, list_signoff_deliverables, remove_cases_with_no_approval_signoff, \
     remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff, \
-    get_workflow_release_status, get_file_release_status, cbioportal_format 
+    get_workflow_release_status, get_file_release_status, cbioportal_format, template_error_formatting, \
+    case_error_formatting    
 from whole_genome import get_workflows_analysis_date, \
     get_selected_workflows, update_wf_selection, get_input_sequences, get_cases_with_analysis,\
     get_case_analysis_samples, count_case_analysis_workflows,\
@@ -335,6 +336,8 @@ def analysis(project_name, assay):
     analysis_status = list_case_analysis_status(case_data)
     # get the combined error messages across template for each assay
     errors = get_case_error_message(case_data)
+    for i in errors:
+        errors[i] = case_error_formatting(errors[i])
     # get the sequencing status of each case
     sequencing_status = get_case_sequencing_status(database, project_name)
     # get the selected status of each workflows
@@ -411,6 +414,10 @@ def case_analysis(project_name, assay, case_id):
     assay = assay.replace('+:+', '/')
     case_id = case_id.replace('+:+', '/')
     
+    print(case_id)
+    print(assay)
+    
+    
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
     deliverables = identify_deliverables(project)
@@ -469,6 +476,9 @@ def case_analysis(project_name, assay, case_id):
     valid = [i['valid'] for i in case_data[case_id]]
     # list the errors of each template
     errors = [i['error'] for i in case_data[case_id]]
+    # reformat the errors
+    errors = template_error_formatting(errors)
+    
 
     if request.method == 'POST':
         # get the list of checked workflows        

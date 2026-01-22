@@ -1107,7 +1107,6 @@ def get_input_sequences(database, case, wfrun_id):
 
 
 
-
 def get_pipeline_standard_deliverables():
     '''
     (None) -> dict
