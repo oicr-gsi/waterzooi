@@ -143,7 +143,9 @@
                                 <li> {{d['deliverableType']}} </li>
                                 <li> {{d['username']}} </li>
                                 {% if d['comment'] %}
-                                  <li><a href="https://jira.oicr.on.ca/browse/{{d['comment']}}" target="_blank">{{d['comment']}}</a></li>   
+                                  {% for k in d['comment'] %}
+                                     <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{k}}</a></li>   
+                                  {% endfor %}
                                 {% endif %}
                               </ul>
                             </span>
@@ -190,7 +192,9 @@
                                   <li>{{d['deliverable']}}</li>
                                   <li>{{d['username']}}</li>
                                   {% if d['comment'] %}
-                                    <li><a href="https://jira.oicr.on.ca/browse/{{d['comment']}}" target="_blank">{{d['comment']}}</a></li>   
+                                    {% for k in d['comment'] %}
+                                      <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{k}}</a></li>   
+                                    {% endfor %}
                                   {% endif %}
                                 </ul>
                               </span>

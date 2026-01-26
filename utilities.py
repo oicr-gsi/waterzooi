@@ -209,16 +209,26 @@ def extract_nabu_signoff(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca
     response = requests.get(nabu, headers=headers)
     if response.status_code == 200:
         for d in response.json():
-            case = d['caseIdentifier']
-            if case in cases:
-                if case not in D:
-                    D[case] = {}
+            case_id = d['caseIdentifier']
+            if case_id in cases:
+                comment = d['comment']
+                if comment and comment.startswith('G') and '-' in comment:
+                    comment = comment.split('-')
+                    c = ['-'.join([comment[0], comment[i]]) for i in range(1, len(comment))]
+                else:
+                    if comment:
+                        c = [d['comment']]
+                    else:
+                        c = d['comment']
+                d['comment'] = c
+                if case_id not in D:
+                    D[case_id] = {}
                 step = d['signoffStepName']
                 step = ' '.join(list(map(lambda x: x.lower().capitalize(), step.split('_'))))
-                if step in D[case]:
-                    D[case][step].append(d)
+                if step in D[case_id]:
+                    D[case_id][step].append(d)
                 else:
-                    D[case][step] = [d]
+                    D[case_id][step] = [d]
     return D
 
 
