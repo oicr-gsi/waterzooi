@@ -206,7 +206,6 @@ def project_page(project_name):
     cases = get_cases(project_name, database)
     # sort by case id
     cases = sorted(cases, key=lambda d: d['case_id']) 
-    
     # get signoffs
     case_names = [d['case_id'] for d in cases]
     signoffs = extract_nabu_signoff(case_names, nabu_key_file)
@@ -305,6 +304,10 @@ def sequencing(project_name):
 def analysis(project_name, assay):
     
     assay = assay.replace('+:+', '/')
+    
+    print(assay)
+    
+    
     
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
