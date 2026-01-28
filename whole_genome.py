@@ -507,49 +507,50 @@ def organize_analysis_workflows(case_data):
     
     for case_id in case_data:
         for template in case_data[case_id]:
-            # track sequencing workflows
-            seq = []            
-            # get sequencing workflows
-            sequencing = []
-            for d in template['template']['Data']['Sequencing']:
-                sequencing.append([d['workflow_id'], d['workflow_name']])
-                seq.append(d['workflow_id'])
-            # get alignment workflows
-            alignments = []
-            for i in template['template']['Data']:
-                if i != 'Sequencing':
-                    for d in template['template']['Data'][i]:
-                        if d['workflow_id'] not in seq:
-                            alignments.append([d['workflow_id'], d['workflow_name']])    
-            # track the anchor workflows
-            anchors = []
-            for i in template['template']['Anchors']:
-                anchors.extend(template['template']['Anchors'][i])
-            # get the analysis and callready workflows
-            callready, analyses = [], []
-            for i in template['template']['Analysis']:
-                for d in template['template']['Analysis'][i]:
-                    workflow_id = d['workflow_id']
-                    workflow_name = d['workflow_name']
-                    if workflow_id in anchors:
-                        callready.append([workflow_id, workflow_name])
-                    else:
-                        analyses.append([workflow_id, workflow_name])
+            if template['template']:
+                # track sequencing workflows
+                seq = []            
+                # get sequencing workflows
+                sequencing = []
+                for d in template['template']['Data']['Sequencing']:
+                    sequencing.append([d['workflow_id'], d['workflow_name']])
+                    seq.append(d['workflow_id'])
+                # get alignment workflows
+                alignments = []
+                for i in template['template']['Data']:
+                    if i != 'Sequencing':
+                        for d in template['template']['Data'][i]:
+                            if d['workflow_id'] not in seq:
+                                alignments.append([d['workflow_id'], d['workflow_name']])    
+                # track the anchor workflows
+                anchors = []
+                for i in template['template']['Anchors']:
+                    anchors.extend(template['template']['Anchors'][i])
+                # get the analysis and callready workflows
+                callready, analyses = [], []
+                for i in template['template']['Analysis']:
+                    for d in template['template']['Analysis'][i]:
+                        workflow_id = d['workflow_id']
+                        workflow_name = d['workflow_name']
+                        if workflow_id in anchors:
+                            callready.append([workflow_id, workflow_name])
+                        else:
+                            analyses.append([workflow_id, workflow_name])
             
             
-            # sort lists according to workflow names
-            callready.sort(key=lambda x: x[1])
-            alignments.sort(key=lambda x: x[1])
-            sequencing.sort(key=lambda x: x[1])
-            analyses.sort(key=lambda x: x[1])
+                # sort lists according to workflow names
+                callready.sort(key=lambda x: x[1])
+                alignments.sort(key=lambda x: x[1])
+                sequencing.sort(key=lambda x: x[1])
+                analyses.sort(key=lambda x: x[1])
             
-            data = {'callready': callready, 'alignments': alignments,
-                    'sequencing': sequencing, 'analyses': analyses}
+                data = {'callready': callready, 'alignments': alignments,
+                        'sequencing': sequencing, 'analyses': analyses}
             
-            if case_id in D:
-                D[case_id].append(data)
-            else:
-                D[case_id] = [data]
+                if case_id in D:
+                    D[case_id].append(data)
+                else:
+                    D[case_id] = [data]
 
     return D
 
@@ -693,18 +694,21 @@ def most_recent_analysis_workflow(case_data, creation_dates):
     for case_id in case_data:
         most_recent = []
         for template in case_data[case_id]:
-            L = []
-            for i in ['Analysis', 'Data']:
-                for j in template['template'][i]:
-                    for d in template['template'][i][j]:
-                        workflow_id = d['workflow_id']
-                        L.append(creation_dates[workflow_id])
-            L.sort()
-            try:
-                date = time.strftime('%Y-%m-%d', time.localtime(int(L[-1])))
-            except:
-                date = 'NA'
-            most_recent.append(date)
+            if template['template']:
+                L = []
+                for i in ['Analysis', 'Data']:
+                    for j in template['template'][i]:
+                        for d in template['template'][i][j]:
+                            workflow_id = d['workflow_id']
+                            L.append(creation_dates[workflow_id])
+                L.sort()
+                try:
+                    date = time.strftime('%Y-%m-%d', time.localtime(int(L[-1])))
+                except:
+                    date = 'NA'
+                most_recent.append(date)
+            else:
+                most_recent = 'NA'
         D[case_id] = most_recent
         
     return D
@@ -778,12 +782,13 @@ def get_analysis_workflow_name(case_data):
     
     for case_id in case_data:
         for template in case_data[case_id]:
-            for i in ['Analysis', 'Data']:
-                for j in template['template'][i]:
-                    for d in template['template'][i][j]:
-                        workflow_id = d['workflow_id']
-                        workflow_name = d['workflow_name']
-                        D[workflow_id] = workflow_name
+            if template['template']:
+                for i in ['Analysis', 'Data']:
+                    for j in template['template'][i]:
+                        for d in template['template'][i][j]:
+                            workflow_id = d['workflow_id']
+                            workflow_name = d['workflow_name']
+                            D[workflow_id] = workflow_name
 
     return D    
 
@@ -869,13 +874,14 @@ def get_missing_workflows(case_data):
     for case_id in case_data:
         missing = []
         for template in case_data[case_id]:
-            L = []
-            for i in ['Analysis', 'Data']:
-                for workflow in template['template'][i]:
-                    if len(template['template'][i][workflow]) == 0:
-                        L.append(workflow)
-            L = list(set(L))                    
-            missing.append(L) 
+            if template['template']:
+                L = []
+                for i in ['Analysis', 'Data']:
+                    for workflow in template['template'][i]:
+                        if len(template['template'][i][workflow]) == 0:
+                            L.append(workflow)
+                L = list(set(L))                    
+                missing.append(L) 
         D[case_id] = missing
     
     return D
@@ -1864,10 +1870,11 @@ def list_template_workflows(template):
    L = []
 
    for i in ['Analysis', 'Data']:
-       for j in template['template'][i]:
-           for d in template['template'][i][j]:
-               workflow_id = d['workflow_id']
-               L.append(workflow_id)
+       if template['template']:
+           for j in template['template'][i]:
+               for d in template['template'][i][j]:
+                   workflow_id = d['workflow_id']
+                   L.append(workflow_id)
    L = list(set(L))
    
    return L
