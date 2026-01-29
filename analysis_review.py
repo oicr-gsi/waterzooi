@@ -487,7 +487,7 @@ def add_analysis_to_template(connected_workflows, workflow_info, workflows_to_sa
 
     
     
-def add_data_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, template): 
+def add_data_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows, template): 
     '''
     (dict, dict, dict, dict) -> None
     
@@ -500,11 +500,10 @@ def add_data_to_template(connected_workflows, workflow_info, workflows_to_sample
     - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
     - child_to_parents_workflows (dict): Dictionary with parent worfklows mapped to worfklow ids
     - fastq_workflows (list): List of fastq-generating workflow names
+    - data_workflows (list): List of lane level alignment workflows
     - template (dict): Dictionary with data to collect
     '''
         
-    data_workflows = fastq_workflows + ['bwamem']
-    
     for workflow_id in connected_workflows:
         workflow_name = workflow_info[workflow_id]
         samples = [{sample: workflows_to_samples[workflow_id][sample]} for sample in workflows_to_samples[workflow_id]]
@@ -515,11 +514,11 @@ def add_data_to_template(connected_workflows, workflow_info, workflows_to_sample
              'samples': samples,
              'inputs': inputs}
         
-        if workflow_name in fastq_workflows:
+        if workflow_name.lower() in fastq_workflows:
             if d not in template['Data']['Sequencing']:
                 template['Data']['Sequencing'].append(d)
                 
-        if workflow_name in data_workflows:
+        if workflow_name.lower() in data_workflows:
             for k in samples:
                 for sample in k:
                     library_type = k[sample]['library_type']
@@ -560,9 +559,9 @@ def add_anchors_to_template(connected_workflows, workflow_info, workflows_to_sam
                     template['Anchors'][sample_type].append(workflow_id)
         
 
-def fill_group_template(assay, connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows):
+def fill_group_template(assay, connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows):
     '''
-    (dict, dict, dict, dict, dict) -> list
+    (dict, list, dict, dict, dict, list, list) -> list
     
     Returns a list of templates with analysis data for each block
     
@@ -574,6 +573,7 @@ def fill_group_template(assay, connected_workflows, workflow_info, workflows_to_
     - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
     - child_to_parents_workflows (dict): Dictionary with parent worfklows mapped to worfklow ids
     - fastq_workflows (list): List of fastq-generating workflow names
+    - data_workflows (list): List of lane level alignment workflows
     '''
 
     # create template from the assay
@@ -583,7 +583,7 @@ def fill_group_template(assay, connected_workflows, workflow_info, workflows_to_
     # add the analysis section
     add_analysis_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, template)    
     # add alignment data
-    add_data_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, template)    
+    add_data_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows, template)    
     # add anchor workflows
     add_anchors_to_template(connected_workflows, workflow_info, workflows_to_samples, template)
     
@@ -1031,8 +1031,11 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
     '''
     
     
-    # defined fastq generating workflows
+    # define fastq generating workflows
     fastq_workflows = ['bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq']
+    # define lane lavel workflows
+    data_workflows = ['bwamem', 'star_lane_level']
+    
     
     # list QC workflows
     assay_configurations = extract_assay_workflows(assay_config_file)
@@ -1116,7 +1119,7 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
                         connected = find_related_workflows(groups, group, parent_to_children_workflows, workflow_info, fastq_workflows)
                         # remove QC workflows
                         connected = [i for i in connected if workflow_info[i] not in qc_workflows]
-                        template = fill_group_template(assay, connected, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows)
+                        template = fill_group_template(assay, connected, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows)
                         templates.append(template)
                     
                     
