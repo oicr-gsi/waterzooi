@@ -417,10 +417,6 @@ def case_analysis(project_name, assay, case_id):
     assay = assay.replace('+:+', '/')
     case_id = case_id.replace('+:+', '/')
     
-    print(case_id)
-    print(assay)
-    
-    
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
     deliverables = identify_deliverables(project)
@@ -474,7 +470,7 @@ def case_analysis(project_name, assay, case_id):
         plot_html = pyo.plot(fig, output_type='div', include_plotlyjs='cdn')
         figures.append(plot_html)
     # sort each workflow into call ready, analysis, and sequencing, alignments for each template   
-    case_analysis = organize_analysis_workflows(case_data)
+    case_analysis = organize_analysis_workflows(case_data, parent_to_children)
     # list the validattion of each template
     valid = [i['valid'] for i in case_data[case_id]]
     # list the errors of each template

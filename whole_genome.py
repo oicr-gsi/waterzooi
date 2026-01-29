@@ -492,9 +492,9 @@ def get_case_analysis_samples(cases):
 
 
 
-def organize_analysis_workflows(case_data):
+def organize_analysis_workflows(case_data, parent_to_children):
     '''
-    (dict) -> dict
+    (dict, dict) -> dict
     
     Returns a dictionary with workflow ids organized in sections for each template and each case
     
@@ -515,13 +515,6 @@ def organize_analysis_workflows(case_data):
                 for d in template['template']['Data']['Sequencing']:
                     sequencing.append([d['workflow_id'], d['workflow_name']])
                     seq.append(d['workflow_id'])
-                # get alignment workflows
-                alignments = []
-                for i in template['template']['Data']:
-                    if i != 'Sequencing':
-                        for d in template['template']['Data'][i]:
-                            if d['workflow_id'] not in seq:
-                                alignments.append([d['workflow_id'], d['workflow_name']])    
                 # track the anchor workflows
                 anchors = []
                 for i in template['template']['Anchors']:
@@ -537,7 +530,21 @@ def organize_analysis_workflows(case_data):
                         else:
                             analyses.append([workflow_id, workflow_name])
             
-            
+                # get alignment workflows
+                alignments = []
+                for d in template['template']['Data']['Sequencing']:
+                    # get the children of the sequencing workflow
+                    children = parent_to_children[d['workflow_id']]
+                    for workflow_id in children:
+                        # keep workflow that are in analyses
+                        # but not in anchors
+                        # (ie star_call_read <-- fastqs; bmpp <-- lane level bams)
+                        if workflow_id not in anchors:
+                            for i in analyses:
+                                if workflow_id == i[0]:
+                                    alignments.append([i[0], i[1]])
+                                    break
+                            
                 # sort lists according to workflow names
                 callready.sort(key=lambda x: x[1])
                 alignments.sort(key=lambda x: x[1])
@@ -656,7 +663,7 @@ def get_sequencing_input(database, case):
                         Workflow_Inputs.wfrun_id FROM Workflow_Inputs JOIN Workflows \
                         WHERE  Workflow_Inputs.wfrun_id = Workflows.wfrun_id \
                         AND LOWER(Workflows.wf) IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
-                        'fileimport', 'import_fastq', 'bwamem') AND Workflow_Inputs.case_id = ?;", (case,)).fetchall()
+                        'fileimport', 'import_fastq', 'bwamem', 'star_lane_level') AND Workflow_Inputs.case_id = ?;", (case,)).fetchall()
     conn.close()
 
     D = {}
