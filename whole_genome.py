@@ -1088,43 +1088,91 @@ def get_input_sequences(database, case, wfrun_id):
 
 
 
-def get_pipeline_standard_deliverables():
+def get_pipeline_deliverables(selection):
     '''
-    (None) -> dict
+    (str) -> dict
     
     Returns a dictionary with the file extensions or file endings for each workflow
-    for which output files are released as part of the standard WGS package
+    for which output files are released as part of the standard WGS package 
+    or as part of the MOH deliverables
     
     Parameters
     ----------
      None
     '''
     
-    deliverables = {'bammergepreprocessing': ['.bai', '.bam'],
-                    'varianteffectpredictor': ['.mutect2.filtered.vep.vcf.gz',
-                                               '.mutect2.filtered.vep.vcf.gz.tbi',
-                                               '.mutect2.filtered.maf.gz'],
-                    'delly': ['.somatic_filtered.delly.merged.vcf.gz',
-                      '.somatic_filtered.delly.merged.vcf.gz.tbi'],
-                    'sequenza': ['.zip', 'summary.pdf', 'alternative_solutions.json'],
-                    'mavis': ['.tab', '.zip'],
-                    'star': ['.bai', '.bam'],
-                    'rsem': ['.genes.results', '.isoforms.results', '.transcript.bam'],
-                    'starfusion': ['.tsv'],
-                    'arriba': ['.tsv', '.fusions.pdf'],
-                    'hrdetect': ['.signatures.json'],
-                    'msisensor': ['.msi', '.msi_germline', '.msi_somatic', '.msi.booted'],
-                    'purple': ['.purple.purity.tsv', '.purple.purity.qc', '.purple.qc',
-                               '.purple.purity.range.tsv', '.purple.cnv.somatic.tsv',
-                               'purple.cnv.gene.tsv', '.purple.segment.tsv',
-                               '.solPrimary.purple.zip', '.purple_alternates.zip',
-                               '.purple.somatic.vcf.gz'],
-                    'gridds': ['.purple.sv.vcf.gz'],
-                    'bcl2fastq': ['.fastq.gz'],
-                    'fileimportforanalysis': ['.fastq.gz'],
-                    'fileimport': ['.fastq.gz'],
-                    'import_fastq': ['.fastq.gz']}
-
+    if selection == 'standard':
+        deliverables = {'bammergepreprocessing': ['.bai', '.bam'],
+                        'star': ['.bai', '.bam'],
+                        'rsem': ['.genes.results', '.isoforms.results', '.transcript.bam'],
+                        'hrdetect': ['.signatures.json'],
+                        'mavis': ['.tab', '.zip'],
+                        'starfusion': ['.tsv'],
+                        'arriba': ['.tsv', '.fusions.pdf'],
+                        'msisensor': ['.msi', '.msi_germline', '.msi_somatic', '.msi.booted'],
+                        'purple': ['.purple_alternates.zip',
+                                   'purple.cnv.gene.tsv',
+                                   '.purple.cnv.somatic.tsv',
+                                   '.solPrimary.purple.zip',
+                                   '.purple.purity.range.tsv',
+                                   '.purple.purity.tsv',       
+                                   '.purple.qc',
+                                   '.purple.segment.tsv',
+                                   '.purple.somatic.vcf.gz',
+                                   '.purple.somatic.vcf.gz.tbi',
+                                   '.purple.purity.qc'],
+                        'gridds': ['.purple.sv.vcf.gz',
+                                   '.purple.sv.vcf.gz.tbi'],
+                        'varianteffectpredictor': ['.mutect2.filtered.vep.vcf.gz',
+                                                   '.mutect2.filtered.vep.vcf.gz.tbi',
+                                                   '.mutect2.filtered.maf.gz'],
+                        'delly': ['.somatic_filtered.delly.merged.vcf.gz',
+                                  '.somatic_filtered.delly.merged.vcf.gz.tbi'],
+                        'sequenza': ['.zip', 'summary.pdf', 'alternative_solutions.json'],
+                        'bcl2fastq': ['.fastq.gz'],
+                        'fileimportforanalysis': ['.fastq.gz'],
+                        'fileimport': ['.fastq.gz'],
+                        'import_fastq': ['.fastq.gz']}
+    
+    elif selection == 'MOH_pipeline':
+        deliverables = {'bammergepreprocessing': ['.bai', '.bam'],
+                        'star_call_ready': ['.bai', '.bam'],
+                        'rsem': ['.genes.results', '.isoforms.results'],
+                        'hrdetect': ['.signatures.json'],
+                        'mavis': ['.tab', '.zip'],
+                        'starfusion': ['.tsv'], 
+                        'arriba': ['.tsv'],
+                        'msisensor': ['.msi',
+                                      '.msi_germline',
+                                      '.msi_somatic',
+                                      '.msi.booted'],
+                        'purple': ['.purple_alternates.zip',
+                                   'purple.cnv.gene.tsv',
+                                   '.purple.cnv.somatic.tsv',
+                                   '.solPrimary.purple.zip',
+                                   '.purple.purity.range.tsv',
+                                   '.purple.purity.tsv',       
+                                   '.purple.qc',
+                                   '.purple.segment.tsv',
+                                   '.purple.somatic.vcf.gz',
+                                   '.purple.somatic.vcf.gz.tbi',
+                                   '.purple.purity.qc'],
+                        'gridds': ['.purple.sv.vcf.gz',
+                                   '.purple.sv.vcf.gz.tbi'],
+                        'varianteffectpredictor': ['.mutect2.filtered.vep.vcf.gz',
+                                                   '.mutect2.filtered.vep.vcf.gz.tbi',
+                                                   '.mutect2.filtered.maf.gz'],
+                        'delly': ['.somatic_filtered.delly.merged.vcf.gz',
+                                  '.somatic_filtered.delly.merged.vcf.gz.tbi'],
+                        'varscan': ['somatic.snp.vcf',
+                                    'somatic.snp',
+                                    'somatic.copynumber.filtered'],
+                        'sequenza': ['.zip', 'alternative_solutions.json'],
+                        'haplotypecaller': ['.g.vcf.gz',
+                                            '.g.vcf.gz.tbi']}
+       
+    else:
+        deliverables = {}
     
     return deliverables
 
@@ -1241,7 +1289,7 @@ def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, de
     - case_data (dict): Dictionary with analysis templates for all cases in a project
     - selected_workflows (dict): Dictionary with selected status of each workflow in project
     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
-    - deliverables (None | dict): None or dictionary with file extensions of standard deliverables
+    - deliverables (None | dict): None or dictionary with file extensions of standard deliverables or MOH deliverables
     '''
         
     # create a lambda to evaluate the deliverable files
@@ -1295,8 +1343,6 @@ def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, de
     
     
     return D
-
-
 
 
 
@@ -1399,7 +1445,7 @@ def create_case_analysis_json(case_data, selected_workflows, workflow_outputfile
     - selected_workflows (dict): Dictionary with selected status of each workflow in project
     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
     - selection (str): Include files from all selected workflows or files from the standard deliverables
-                       Values: standard or all
+                       Values: standard or all  or MOH_pipeline
     '''
     
     # create a lambda to evaluate the deliverable files
@@ -1407,10 +1453,7 @@ def create_case_analysis_json(case_data, selected_workflows, workflow_outputfile
     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
             
     # get the deliverables
-    if selection == 'standard':
-        deliverables = get_pipeline_standard_deliverables()
-    elif selection == 'all':
-        deliverables = {}
+    deliverables = get_pipeline_deliverables(selection)
     
     D = {}
             

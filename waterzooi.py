@@ -21,7 +21,7 @@ from utilities import get_library_design, secret_key_generator, get_case_md5sums
     extract_case_signoff, extract_nabu_signoff, list_signoff_deliverables, remove_cases_with_no_approval_signoff, \
     remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff, \
     get_workflow_release_status, get_file_release_status, cbioportal_format, template_error_formatting, \
-    case_error_formatting    
+    case_error_formatting, moh_format    
 from whole_genome import get_workflows_analysis_date, \
     get_selected_workflows, update_wf_selection, get_input_sequences, get_cases_with_analysis,\
     get_case_analysis_samples, count_case_analysis_workflows,\
@@ -31,7 +31,7 @@ from whole_genome import get_workflows_analysis_date, \
     get_workflow_output_files, delete_cases_with_distinct_checksums,\
     map_donors_to_cases, list_assay_analysis_workflows, \
     get_sequencing_input, get_case_error_message, create_analysis_json, \
-    get_workflow_outputfiles, get_pipeline_standard_deliverables,\
+    get_workflow_outputfiles, get_pipeline_deliverables,\
     create_case_analysis_json, get_review_status, identify_deliverables, \
     create_cbioportal_json, get_workflow_names, list_template_workflows, \
     create_graph_edges, plot_graph, list_case_analysis_status, get_workflow_counts, \
@@ -305,10 +305,6 @@ def analysis(project_name, assay):
     
     assay = assay.replace('+:+', '/')
     
-    print(assay)
-    
-    
-    
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
     # get the deliverables
@@ -348,18 +344,25 @@ def analysis(project_name, assay):
     # get the review status of each case
     review_status = get_review_status(case_data, selected_workflows)
         
-    
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
         # get the workflow output files
         workflow_outputfiles = get_workflow_outputfiles(database, project_name)
-        if deliverable == 'selected':
-            analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles)
-            filename = '{0}.pipeline.json'.format(project_name)
-        elif deliverable == 'standard':
-            standard_deliverables = get_pipeline_standard_deliverables()
-            analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles, standard_deliverables)
-            filename = '{0}.pipeline.standard.json'.format(project_name)
+        # get deliverables
+        if deliverable in ['selected', 'standard', 'MOH_pipeline']:
+            pipeline_deliverables = get_pipeline_deliverables(deliverable)
+            analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles, pipeline_deliverables)
+            if deliverable == 'selected':
+                #analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles)
+                filename = '{0}.pipeline.json'.format(project_name)
+            elif deliverable == 'standard':
+                #standard_deliverables = get_pipeline_standard_deliverables()
+                #analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles, standard_deliverables)
+                filename = '{0}.pipeline.standard.json'.format(project_name)
+            elif deliverable == 'MOH_pipeline':
+                # format data for moh release
+                analysis_data = moh_format(analysis_data, donors)
+                filename = '{0}.MOH.pipeline.json'.format(project_name)
         
         elif deliverable in ['purple', 'sequenza']:
             selected_workflows = get_selected_workflows(project_name, workflow_db, 'Workflows')
@@ -373,7 +376,7 @@ def analysis(project_name, assay):
         # keep only cases with proper signoff (completed release approval and deliverable not signed off)
         if analysis_data:
             analysis_data = remove_cases_with_no_approval_signoff(analysis_data, signoffs)
-            if deliverable in ['selected', 'standard']:
+            if deliverable in ['selected', 'standard', 'MOH_pipeline']:
                 # remove workflows part of deliverables with complete signoff
                 analysis_data = remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverable, 'pipeline')
                 analysis_data = remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverable, 'fastq')
@@ -643,7 +646,12 @@ def download_analysis_data(project_name, case_id, assay, selection):
         # remove workflows part of deliverables with complete signoff
         analysis_data = remove_workflows_with_deliverable_signoff(analysis_data, case_signoffs, selection, 'pipeline')
         analysis_data = remove_workflows_with_deliverable_signoff(analysis_data, case_signoffs, selection, 'fastq')
-        
+    
+        # format data for moh release
+        if selection == 'MOH_pipeline':
+            donors = map_donors_to_cases(case_data)
+            analysis_data = moh_format(analysis_data, donors)
+            
     # send the json to outoutfile                    
     return Response(
         response=json.dumps(analysis_data),

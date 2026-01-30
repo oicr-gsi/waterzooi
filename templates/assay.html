@@ -39,6 +39,11 @@
             {% else %}
               <input class="checkbox_small" type="checkbox" name="deliverable" value="standard" id="deliverable"/><label>standard</label><br>      
             {% endif %}
+            {% if deliverable == 'MOH_pipeline' %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="MOH_pipeline" id="deliverable" checked/><label>MOH pipeline</label><br>      
+            {% else %}
+              <input class="checkbox_small" type="checkbox" name="deliverable" value="MOH_pipeline" id="deliverable"/><label>MOH pipeline</label><br>      
+            {% endif %}
           {% endif %}
           {% if deliverables['cbioportal'] %}
             {% if deliverable == 'sequenza' %}

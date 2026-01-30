@@ -328,7 +328,7 @@ def remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverab
     - analysis_data (dict): Dictionary with selected analysis workflows for each case 
     - signoffs (dict): Case signoffs extracted from Nabu
     - deliverable (str): Selected option in waterzooi 
-    - deliverable_type: type of delivrable :pipeline or fastq
+    - deliverable_type: type of deliverable :pipeline or fastq
     '''
     
     fastq_workflows = ['bcl2fastq', 'casava', 'fileimport', 'fileimportforanalysis', 'import_fastq']
@@ -336,7 +336,7 @@ def remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverab
     for case_id in analysis_data:
         # remove workflows
         remove_workflows = False
-        if deliverable in ['all', 'selected', 'standard']:
+        if deliverable in ['all', 'selected', 'standard', 'MOH_pipeline']:
             if 'Release' in signoffs[case_id]:
                 for d in signoffs[case_id]['Release']:
                     if deliverable_type in d['deliverable'].lower() and d['qcPassed']:
@@ -368,7 +368,7 @@ def cbioportal_format(analysis_data):
     (dict) -> dict
 
     Returns a dictionary with cbioportal data keeping only donors and samples
-    and removinf case identifiers     
+    and removing case identifiers     
     
     Parameters
     ----------
@@ -388,6 +388,55 @@ def cbioportal_format(analysis_data):
     return D
     
 
+
+def moh_format(analysis_data, donors):
+    '''
+    (dict, dict) -> dict
+    
+    Returns a dictionary with workflow information for a given block (ie, sample pair)
+    and anchor bmpp parent workflow
+    
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with analysis workflow data for one or more cases
+    - donors (dict): Dictionary with donor id mapped to case id
+    '''
+        
+    groups = {'purple': 'calls.copynumber',
+              'sequenza': 'calls.copynumber',
+              'varscan': 'calls.copynumber',
+              'gridss': 'calls.copynumber',
+              'rsem': 'calls.expression',
+              'bammergepreprocessing': 'alignments_WG.callready',  
+              'haplotypecaller': 'calls.germline.mutations',
+              'starfusion': 'calls.fusions',
+              'arriba': 'calls.fusions',
+              'mavis': 'calls.structuralvariants',
+              'delly': 'calls.structuralvariants',
+              'star_call_ready': 'alignments_WT.callready',
+              'varianteffectpredictor': 'calls.mutations',           
+              'msisensor': 'calls.msi',
+              'hrdetect': 'calls.hrd'}
+              
+                        
+    D = {}
+    
+    for case_id in analysis_data:
+        # get the donor
+        donor = donors[case_id]
+        for workflow in analysis_data[case_id]:
+            name = workflow.split('_')[0].lower()
+            assert name in groups
+            group = groups[name]
+            for workflow_id in analysis_data[case_id][workflow]:
+                if donor not in D:
+                    D[donor] = {}
+                if group not in D[donor]:
+                    D[donor][group] = []
+                D[donor][group].extend(analysis_data[case_id][workflow][workflow_id])    
+                    
+    return D
+    
 
 def get_workflow_file_qc(database, case_id):
     '''
