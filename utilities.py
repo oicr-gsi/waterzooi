@@ -146,7 +146,37 @@ def get_case_md5sums(database, project_name):
     return D
     
 
-def extract_case_signoff(case, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case'):
+
+
+def ticket_format(d):
+    '''
+    (dict) -> str
+    
+    '''
+    
+    
+    comment = d['comment']
+    if comment and comment.startswith('G') and '-' in comment:
+        comment = comment.split('-')
+        c = ['-'.join([comment[0], comment[i]]) for i in range(1, len(comment))]
+    else:
+        if comment:
+            c = [d['comment']]
+        else:
+            c = d['comment']
+    
+    return c
+    
+
+
+
+
+
+
+
+
+
+def extract_case_signoff(case_id, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case'):
     '''
     (str, str, str) -> dict
     
@@ -154,7 +184,7 @@ def extract_case_signoff(case, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/
         
     Parameters
     ----------
-    - case (str): Case identifier
+    - case_id (str): Case identifier
     - nabu_key_file (str): File storing the nabu API key
     - nabu (str): URL to access the case in Nabu
     '''
@@ -168,22 +198,25 @@ def extract_case_signoff(case, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/
     
     D = {}
     
-    response = requests.get(nabu + '/{0}/sign-off'.format(case), headers=headers)
+    response = requests.get(nabu + '/{0}/sign-off'.format(case_id), headers=headers)
     if response.status_code == 200:
         for d in response.json():
-            case = d['caseIdentifier']
-            if case not in D:
-                D[case] = {}
+            case_identifier = d['caseIdentifier']
+            assert case_id == case_identifier
+            # format jira ticket
+            ticket = ticket_format(d)
+            d['comment'] = ticket
+            if case_id not in D:
+                D[case_id] = {}
             step = d['signoffStepName']
             step = ' '.join(list(map(lambda x: x.lower().capitalize(), step.split('_'))))
-            if step in D[case]:
-                D[case][step].append(d)
+            if step in D[case_id]:
+                D[case_id][step].append(d)
             else:
-                D[case][step] = [d]
+                D[case_id][step] = [d]
     return D
 
     
-
 def extract_nabu_signoff(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case/sign-off'):
     '''
     (list, str, str) -> dict
@@ -211,16 +244,8 @@ def extract_nabu_signoff(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca
         for d in response.json():
             case_id = d['caseIdentifier']
             if case_id in cases:
-                comment = d['comment']
-                if comment and comment.startswith('G') and '-' in comment:
-                    comment = comment.split('-')
-                    c = ['-'.join([comment[0], comment[i]]) for i in range(1, len(comment))]
-                else:
-                    if comment:
-                        c = [d['comment']]
-                    else:
-                        c = d['comment']
-                d['comment'] = c
+                ticket = ticket_format(d)
+                d['comment'] = ticket
                 if case_id not in D:
                     D[case_id] = {}
                 step = d['signoffStepName']
