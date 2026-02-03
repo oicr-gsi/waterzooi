@@ -394,65 +394,67 @@
               {% endfor %}              
             </table>  
              
+            {% if case_analysis[case_id][i]['alignments'] %}
 
-            <p style="font-size:16px;"> Lane-level alignments </p>     
+              <p style="font-size:16px;"> Lane-level alignments </p>     
 
-            <table id="block_table">
-              <thead>
-                <th>workflow_run_id</th>
-                <th>workflow</th>
-                <th>file release</th>
-                <th>limskey</th>
-                <th>library</th>
-                <th>date</th>     
-                <th>samples</th>
-                <th>select</th>
-              </thead>     
+              <table id="block_table">
+                <thead>
+                  <th>workflow_run_id</th>
+                  <th>workflow</th>
+                  <th>file release</th>
+                  <th>limskey</th>
+                  <th>library</th>
+                  <th>date</th>     
+                  <th>samples</th>
+                  <th>select</th>
+                </thead>     
             
-              {% for workflow in case_analysis[case_id][i]['alignments'] %}
-                <tr>  
-                  <td>
-                    <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=workflow.0 | format_identifier) }}">
-                        {{ workflow.0 | basename | shorten_workflow_id }}
-                    </a>
-                  </td>
-                  <td>
-                    {{ workflow.1 }}
-                  </td> 
-                  <td>
-                    {% if workflow_id not in workflow_qc %}
-                      NA
-                    {% elif workflow_qc[workflow.0] == True %}
-                      <span style="font-size:16px;color:#70db70">&#10004;</span>
-                    {% elif workflow_qc[workflow.0] == False %}
-                      <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-                    {% else %}
-                      <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow.0]}}</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {{ seq_inputs[workflow.0]['limskey'] }}
-                  </td> 
-                  <td>
-                    {{ seq_inputs[workflow.0]['library'] }}
-                  </td> 
-                  <td>
-                    {{ creation_dates[workflow.0] | readable_time }}
-                  </td> 
-                  <td>
-                    {{ samples[workflow.0].0 }}
-                  </td>
-                  <td>
-                    {% if selected[workflow.0] %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0" checked/>
-                    {% else %}
-                      <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0"/>  
-                    {% endif %}    
-                  </td>
-                </tr>
-              {% endfor %}              
-            </table>  
-             
+                {% for workflow in case_analysis[case_id][i]['alignments'] %}
+                  <tr>  
+                    <td>
+                      <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=workflow.0 | format_identifier) }}">
+                          {{ workflow.0 | basename | shorten_workflow_id }}
+                      </a>
+                    </td>
+                    <td>
+                      {{ workflow.1 }}
+                    </td> 
+                    <td>
+                      {% if workflow_id not in workflow_qc %}
+                        NA
+                      {% elif workflow_qc[workflow.0] == True %}
+                        <span style="font-size:16px;color:#70db70">&#10004;</span>
+                      {% elif workflow_qc[workflow.0] == False %}
+                        <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                      {% else %}
+                        <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow.0]}}</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {{ seq_inputs[workflow.0]['limskey'] }}
+                    </td> 
+                    <td>
+                      {{ seq_inputs[workflow.0]['library'] }}
+                    </td> 
+                    <td>
+                      {{ creation_dates[workflow.0] | readable_time }}
+                    </td> 
+                    <td>
+                      {{ samples[workflow.0].0 }}
+                    </td>
+                    <td>
+                      {% if selected[workflow.0] %}
+                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0" checked/>
+                      {% else %}
+                        <input class="checkbox" type="checkbox" name="workflow" value="{{workflow.0}}" id="workflow.0"/>  
+                      {% endif %}    
+                    </td>
+                  </tr>
+                {% endfor %}              
+              </table>  
+            {% endif %}
+              
             <p style="font-size:16px;"> Workflow relationships </p>
           
 

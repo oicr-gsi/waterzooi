@@ -663,7 +663,7 @@ def get_sequencing_input(database, case):
                         Workflow_Inputs.wfrun_id FROM Workflow_Inputs JOIN Workflows \
                         WHERE  Workflow_Inputs.wfrun_id = Workflows.wfrun_id \
                         AND LOWER(Workflows.wf) IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
-                        'fileimport', 'import_fastq', 'bwamem', 'star_lane_level') AND Workflow_Inputs.case_id = ?;", (case,)).fetchall()
+                        'fileimport', 'import_fastq', 'bwamem', 'bwamem2', 'star_lane_level') AND Workflow_Inputs.case_id = ?;", (case,)).fetchall()
     conn.close()
 
     D = {}
@@ -883,10 +883,9 @@ def get_missing_workflows(case_data):
         for template in case_data[case_id]:
             if template['template']:
                 L = []
-                for i in ['Analysis', 'Data']:
-                    for workflow in template['template'][i]:
-                        if len(template['template'][i][workflow]) == 0:
-                            L.append(workflow)
+                for workflow in template['template']['Analysis']:
+                    if len(template['template']['Analysis'][workflow]) == 0:
+                        L.append(workflow)
                 L = list(set(L))                    
                 missing.append(L) 
         D[case_id] = missing

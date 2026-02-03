@@ -696,7 +696,7 @@ def evaluate_extra_analyses(template, assay):
     for workflow in template['Analysis']:
         
         # skipp bwamem and star lane level which can have multiple workflows
-        if workflow.lower() not in ['bwamem', 'star_lane_level']:
+        if workflow.lower() not in ['bwamem', 'bwamem2', 'star_lane_level']:
             samples = {}
             extra = 0
             for d in template['Analysis'][workflow]:
@@ -1034,7 +1034,7 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
     # define fastq generating workflows
     fastq_workflows = ['bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq']
     # define lane lavel workflows
-    data_workflows = ['bwamem', 'star_lane_level']
+    data_workflows = ['bwamem', 'bwamem2', 'star_lane_level']
     
     
     # list QC workflows

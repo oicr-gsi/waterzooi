@@ -347,17 +347,17 @@ def get_workflow_names(database):
 
     conn = sqlite3.connect(database)
     conn.row_factory = sqlite3.Row
-    data = conn.execute("SELECT wfrun_id, wf, wfv FROM Workflows").fetchall() 
+    data = conn.execute("SELECT wfrun_id, wf FROM Workflows").fetchall() 
     conn.close()
 
     D = {}
     
     for i in data:
         if i['wfrun_id'] in D:
-            assert D[i['wfrun_id']] == {'wf': i['wf'], 'wfv': i['wfv']}
+            assert D[i['wfrun_id']] == i['wf']
         else:
-            D[i['wfrun_id']] = {'wf': i['wf'], 'wfv': i['wfv']}
-
+            D[i['wfrun_id']] = i['wf']
+            
     return D
 
 
@@ -402,24 +402,20 @@ def get_workflow_inputs(database):
     
     for child in workflow_relationships:
         if child != 'NA':
-            name = workflow_names[child]['wf']
-            version = workflow_names[child]['wfv']
+            name = workflow_names[child]
             if is_analysis_worfklow(name):
                 # get the parents workflows
-                parents_m = [workflow_names[i] for i in workflow_relationships[child] if i != 'NA' and is_analysis_worfklow(workflow_names[i]['wf'])]
+                parents_m = [workflow_names[i] for i in workflow_relationships[child] if i != 'NA' and is_analysis_worfklow(workflow_names[i])]
                 # eliminate doublons
                 seen = []
-                parents = [i for i in parents_m if i not in seen and not seen.append(i)]
+                parents = sorted([i for i in parents_m if i not in seen and not seen.append(i)])
                 library_type = sorted(workflow_library_types[child], key=lambda x: (x['library_type'], x['negate_tissue_type']))
                 d = {'library_types': library_type, 'parents': parents}  
             
                 if name not in D:
-                   D[name] = {}
-                if version not in D[name]:
-                   D[name][version] = []
-                if d not in D[name][version]:
-                   D[name][version].append(d)
-            
+                   D[name] = []
+                if d not in D[name]:
+                   D[name].append(d)
     
     return D
 
@@ -442,17 +438,80 @@ def parent_workflows_in_assay(assay_config, parents):
     L = []
     
     # check that parent workflows are in the assay
-    for d in parents:
-        if d['wf'] in assay_config and d['wfv'] == assay_config[d['wf']]:
-            L.append(True)
-        else:
-            L.append(False)
+    for i in parents:
+        L.append(i in assay_config)
+    
     
     return all(L)
     
     
 
 
+# def record_analysis_assay_data(samples, assay_config, workflow_inputs):
+#     '''
+#     (dict, dict, dict)     
+    
+    
+    
+#     Parameters
+#     ----------
+#     - samples (dict): Dictionary with the assay samples
+#     - assay_config (dict): Dictionary with expected assay workflows    
+#     - workflow_inputs (dict): Dictionary with workflow inputs (library types and parent workflows)
+#                               estimated from production data
+#     '''
+    
+#     D = {}
+    
+    
+#     ###### should workflow inputs be restricted to analysis workflows???
+#     ###### maybe include all workflows if some analysis worjkflows have non -analsysis wf parents
+    
+    
+#     for workflow in assay_config:
+#         wfv = assay_config[workflow]
+        
+#         # need to convert to list because of inconsistencies in the assay config
+#         if type(wfv) == str:
+#             wfv = [wfv]
+
+#         ### assuming that different workflow versions have the same inputs
+        
+#         for version in wfv:
+#             if is_analysis_worfklow(workflow) and is_sequencing_workflow(workflow) == False:
+#                 if workflow in workflow_inputs and version in workflow_inputs[workflow]:
+#                     if workflow not in D:
+#                         D[workflow] = {'version': wfv, 'samples': [], 'inputs': []}    
+                    
+#                     if samples:
+                        
+#                         for sample in samples:
+#                             library_type = samples[sample]['library_type']
+#                             negate_tissue_type = samples[sample]['negate_tissue_type']
+                    
+#                             for i in workflow_inputs[workflow][version]:
+#                                 # check that parent workflows are defined in the assay
+#                                 if parent_workflows_in_assay(assay_config, i['parents']):
+#                                     for j in i['library_types']:
+#                                         if library_type == j['library_type'] and negate_tissue_type == j['negate_tissue_type']:
+#                                             D[workflow]['samples'].append(sample)
+#                                             D[workflow]['inputs'].extend([k['wf'] for k in i['parents']])
+#                         D[workflow]['inputs'] = list(set(D[workflow]['inputs']))                           
+#                         D[workflow]['samples'] = list(set(D[workflow]['samples']))
+#                 else:
+#                     return {}
+    
+#     # check that samples are defined
+#     for workflow in D:
+#         if len(D[workflow]['samples']) == 0:
+#             print('assay has no sample')
+#             return {}
+        
+                                            
+#     return D 
+                    
+
+        
 def record_analysis_assay_data(samples, assay_config, workflow_inputs):
     '''
     (dict, dict, dict)     
@@ -475,37 +534,25 @@ def record_analysis_assay_data(samples, assay_config, workflow_inputs):
     
     
     for workflow in assay_config:
-        wfv = assay_config[workflow]
-        
-        # need to convert to list because of inconsistencies in the assay config
-        if type(wfv) == str:
-            wfv = [wfv]
-
-        ### assuming that different workflow versions have the same inputs
-        
-        for version in wfv:
-            if is_analysis_worfklow(workflow) and is_sequencing_workflow(workflow) == False:
-                if workflow in workflow_inputs and version in workflow_inputs[workflow]:
-                    if workflow not in D:
-                        D[workflow] = {'version': wfv, 'samples': [], 'inputs': []}    
-                    
-                    if samples:
-                        
-                        for sample in samples:
-                            library_type = samples[sample]['library_type']
-                            negate_tissue_type = samples[sample]['negate_tissue_type']
-                    
-                            for i in workflow_inputs[workflow][version]:
-                                # check that parent workflows are defined in the assay
-                                if parent_workflows_in_assay(assay_config, i['parents']):
-                                    for j in i['library_types']:
-                                        if library_type == j['library_type'] and negate_tissue_type == j['negate_tissue_type']:
-                                            D[workflow]['samples'].append(sample)
-                                            D[workflow]['inputs'].extend([k['wf'] for k in i['parents']])
-                        D[workflow]['inputs'] = list(set(D[workflow]['inputs']))                           
-                        D[workflow]['samples'] = list(set(D[workflow]['samples']))
-                else:
-                    return {}
+        if is_analysis_worfklow(workflow) and is_sequencing_workflow(workflow) == False:
+            if workflow in workflow_inputs:
+                if workflow not in D:
+                    D[workflow] = {'samples': [], 'inputs': []}    
+                if samples:
+                    for sample in samples:
+                        library_type = samples[sample]['library_type']
+                        negate_tissue_type = samples[sample]['negate_tissue_type']
+                        for i in workflow_inputs[workflow]:
+                            # check that parent workflows are defined in the assay
+                            if parent_workflows_in_assay(assay_config, i['parents']):
+                                for j in i['library_types']:
+                                    if library_type == j['library_type'] and negate_tissue_type == j['negate_tissue_type']:
+                                        D[workflow]['samples'].append(sample)
+                                        D[workflow]['inputs'].extend([k for k in i['parents']])
+                    D[workflow]['inputs'] = list(set(D[workflow]['inputs']))                           
+                    D[workflow]['samples'] = list(set(D[workflow]['samples']))
+            else:
+                return {}
     
     # check that samples are defined
     for workflow in D:
@@ -515,8 +562,26 @@ def record_analysis_assay_data(samples, assay_config, workflow_inputs):
         
                                             
     return D 
-                    
-     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def create_assay_template(assay_name, assay_version, qc_workflows, assay_config, assay, workflow_inputs):
     '''
@@ -599,8 +664,7 @@ def generate_templates(database, assay_config_file='enabled_workflows.json', pin
             if assay_version in assay_configurations[assay_name]:
                 assay_config = assay_configurations[assay_name][assay_version]
                 template = create_assay_template(assay_name, assay_version, qc_workflows, assay_config, assay, workflow_inputs)
-                    
-            
+                
             else:
                 print('version {0} not in assay_config'.format(assay_version))
                 template = {}
