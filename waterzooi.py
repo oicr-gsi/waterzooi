@@ -698,8 +698,8 @@ def download_cbioportal_data(project_name, case_id, assay, segmentation):
         headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.cbioportal.json".format(case_id, project_name, assay)})
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# if __name__ == "__main__":
+#     app.run(debug=True)
 
 
 #if __name__ == "__main__":
