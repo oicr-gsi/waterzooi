@@ -32,23 +32,25 @@ def collect_sequence_info(project_name, database):
     
     # get sequences    
     conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT Files.attributes, Files.case_id, Files.donor_id, \
-                      Files.file, Files.wfrun_id, Files.limskey, Samples.ext_id, Libraries.library, \
-                      Libraries.library_type, Libraries.tissue_origin, Libraries.sample_id,\
-                      Libraries.group_id, Libraries.group_id_description , Libraries.tissue_type, \
-                      Workflows.wf, Workflow_Inputs.platform, Workflow_Inputs.run, \
-                      Workflow_Inputs.lane FROM Files JOIN Samples JOIN Libraries JOIN \
-                      Workflows JOIN Workflow_Inputs WHERE Files.project_id = '{0}' \
-                      AND Workflow_Inputs.project_id = '{0}' AND Libraries.project_id = '{0}' \
-                      AND Workflows.project_id = '{0}' AND Samples.project_id = '{0}' \
-                      AND Files.wfrun_id = Workflow_Inputs.wfrun_id \
-                      AND Files.wfrun_id = Workflows.wfrun_id AND \
-                      Libraries.case_id = Samples.case_id \
-                      AND Samples.donor_id = Files.donor_id \
-                      AND Workflow_Inputs.library = Libraries.library \
-                      AND Libraries.case_id = Files.case_id AND Libraries.case_id = Workflows.case_id \
-                      AND Libraries.case_id = Workflow_Inputs.case_id AND LOWER(Workflows.wf) in ('casava', 'bcl2fastq', 'fileimportforanalysis',\
-                      'fileimport', 'import_fastq');".format(project_name)).fetchall()    
+    cmd = "SELECT DISTINCT Files.attributes, Files.case_id, Files.donor_id, \
+          Files.file, Files.wfrun_id, Files.limskey, Samples.ext_id, Libraries.library, \
+          Libraries.library_type, Libraries.tissue_origin, Libraries.sample_id,\
+          Libraries.group_id, Libraries.group_id_description , Libraries.tissue_type, \
+          Workflows.wf, Workflow_Inputs.platform, Workflow_Inputs.run, \
+          Workflow_Inputs.lane FROM Files JOIN Samples JOIN Libraries JOIN \
+          Workflows JOIN Workflow_Inputs WHERE Files.project_id = ? \
+          AND Workflow_Inputs.project_id = ? AND Libraries.project_id = ? \
+          AND Workflows.project_id = ? AND Samples.project_id = ? \
+          AND Files.wfrun_id = Workflow_Inputs.wfrun_id \
+          AND Files.wfrun_id = Workflows.wfrun_id AND \
+          Libraries.case_id = Samples.case_id \
+          AND Samples.donor_id = Files.donor_id \
+          AND Workflow_Inputs.library = Libraries.library \
+          AND Libraries.case_id = Files.case_id AND Libraries.case_id = Workflows.case_id \
+          AND Libraries.case_id = Workflow_Inputs.case_id AND LOWER(Workflows.wf) in ('casava', 'bcl2fastq', 'fileimportforanalysis',\
+          'fileimport', 'import_fastq');"    
+    
+    data = conn.execute(cmd, (project_name, project_name, project_name, project_name, project_name)).fetchall()
     
     conn.close()
 
@@ -105,8 +107,9 @@ def get_platform_shortname(project_name, database):
     
     # get sequences    
     conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT Workflow_Inputs.platform FROM Workflow_Inputs WHERE \
-                         Workflow_Inputs.project_id = '{0}';".format(project_name)).fetchall()
+    cmd = "SELECT DISTINCT Workflow_Inputs.platform FROM Workflow_Inputs WHERE \
+          Workflow_Inputs.project_id = ?;"
+    data = conn.execute(cmd, (project_name,)).fetchall()
     conn.close()
 
     D = {}
