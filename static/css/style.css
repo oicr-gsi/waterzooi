@@ -205,6 +205,37 @@ button.select_button_small:focus {
   visibility: visible;
 }
 
+.tooltip .tooltipsignoff {
+  visibility: hidden;
+  width: 150px;
+  background-color: #ffffe6;
+  color: black;
+  text-align: center;
+  padding-top: 3px;
+  padding-bottom: 3px;
+  padding-left: 3px;
+  padding-right: 3px;
+  border-radius: 6px;
+  position: absolute;
+  z-index: 1;
+  font-family: Arial, Helvetica, sans-serif;
+  font-style: normal;
+  font-size: 9px;
+}
+
+.tooltip:hover .tooltipsignoff {
+  visibility: visible;
+}
+
+
+.tooltipsignoff a {
+  background-color: #ffffe6;
+  color: black;
+  text-decoration:none;
+  font-size:9px;
+  font-family: Arial, Helvetica, sans-serif;
+  text-align: left;
+}
 
 
 .miso_link {
@@ -390,6 +421,30 @@ button.review_button:focus {
 }
 
 
+.ready_button {
+  background-color: #84e184;
+  border: none;
+  color: white;
+  padding: 8px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-blocks;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 14px;
+  margin-left: 0px;
+  margin-right: 0px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  transition-duration: 0.0s; 
+}
+.ready_button:hover {
+  background-color: #196719;
+  }
+button.ready_button:focus {
+  background-color: #196719;
+}
+
 
 #block_header_table {
   margin-left: auto;
@@ -483,13 +538,17 @@ button.select_button:focus {
   text-align: center;
   text-decoration: none;
   display: inline-block;
-  font-size: 12px;
+  font-size: 9px;
   cursor: pointer;
   border-radius: 8px;
   transition-duration: 0.4s;
   padding: 0px;
-  display: inline-blocks;
+  display: inline-block;
+  box-sizing: border-box;
   margin-bottom: 4px;
+  margin-top: 0px;
+  position: relative;
+  left: 10px;
 }
 .download_button_small a {
   color: white;
@@ -631,10 +690,15 @@ button.select_button:focus {
 
 
 
-
-#review_below {
-  font-size:12px
-
+.table_link {
+  color: black;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 12px; 
+  text-align: left;
+  text-decoration:none;
+}
+.miso_link:hover {
+  color: white;
 }
 
 
@@ -644,41 +708,10 @@ button.select_button:focus {
 
 
 
+#review_below {
+  font-size:12px
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
 
@@ -746,6 +779,5 @@ button.select_button:focus {
   background-color: #196719;
   color: white;
 }
-
 
 

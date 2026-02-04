@@ -1,0 +1,238 @@
+{% extends 'project_base.html' %}
+
+
+{% block link %}
+  <a href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
+  <a href="{{ url_for('analysis', project_name=project['project_id'], assay=assay | format_identifier) }}">{{assay}}</a>   
+  <a class="selected" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier)}}">{{case}}</a>
+{% endblock %}
+
+
+{% block content %}
+
+  <table id="block_header_table" style="margin-top:60px;">
+    <tr>
+      <th>Workflow id</th>
+      <th>File release</th>
+      <th>Name</th>
+      <th>Version</th>
+    </tr>
+    <tr>
+      <td>{{ workflow_id }}</td>
+      <td>
+        {% if workflow_id not in workflow_qc %}
+          NA
+        {% elif workflow_qc[workflow_id] == True %}
+          <span style="font-size:16px;color:#70db70">&#10004;</span>
+        {% elif workflow_qc[workflow_id] == False %}
+          <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+        {% else %}
+          <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow_id]}}</span>
+        {% endif %}
+      </td>
+      <td>{{ workflow_info[workflow_id].0 }}</td>
+      <td>{{ workflow_info[workflow_id].1 }}</td>
+    </tr>
+  </table>
+  
+  
+
+  <h2> Output files: </h2>     
+  
+  {% if outputfiles %}
+    <table id="wgs_table">
+      <tr>
+        <th>Samples</th>
+        <th>Files</th>
+        <th>File status</th>
+      </tr>
+      {% set samples = outputfiles.keys() | sort %}
+      {% for i in samples %}
+        {% set rowNum = outputfiles[i] | length %}
+        <tbody>       
+          <tr>
+            {% if ';' in i %}
+            <td rowspan="{{rowNum}}">
+              <dl>
+                {% for k in i.split(';') %}
+                  <dt>{{k}}</dt>
+                {% endfor %}
+              </dl>
+            </td>
+            {% else %}
+              <td rowspan="{{rowNum}}">{{ i }}</td>
+            {% endif %} 
+                  
+            <td>{{ outputfiles[i].0 }}</td>
+            <td>
+              {% if outputfiles[i].0 not in file_qc %}
+                NA
+              {% elif file_qc[outputfiles[i].0] == True %}
+                <span style="font-size:16px;color:#70db70">&#10004;</span>
+              {% elif file_qc[outputfiles[i].0] == False %}
+                <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+              {% else %}
+                <span style="font-size:16px;color:#248f24;">{{file_qc[outputfiles[i].0]}}</span>
+            {% endif %}
+          </td>
+          {% for j in outputfiles[i][1:] %}
+              <tr>
+                <td>{{ j }}</td>
+                <td>
+                  {% if j not in file_qc %}
+                    NA
+                  {% elif file_qc[j] == True %}
+                    <span style="font-size:16px;color:#70db70">&#10004;</span>
+                  {% elif file_qc[j] == False %}
+                    <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                  {% else %}
+                    <span style="font-size:16px;color:#248f24;">{{file_qc[j]}}</span>
+                  {% endif %}
+                </td>
+              </tr>        
+             {% endfor %}
+          </tr>
+         </tbody>    
+      {% endfor %}
+    </table>
+  {% else %}
+    <p style="font-size:22px; font-style:bold;"> No output file to display </p>     
+  {% endif %}
+  
+
+
+
+
+
+
+  {% if child_to_parents[workflow_id] != ['NA'] %}  
+    <h2> Parent workflows: </h2> 
+
+    <table id="workflow_table">
+      <tr>
+        <th colspan="3">Parents</th>
+      </tr>
+      <tr>    
+        <th>Name</th>
+        <th>Workflow id</th>
+        <th>File release</th>
+      </tr>
+      {% for parent in child_to_parents[workflow_id] | sort %}
+        <tr>
+          <td>{{ workflow_info[parent].0 }}</td>
+          <td>
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=parent | format_identifier) }}">
+              {{parent}}
+            </a>
+          </td>
+          <td>
+            {% if parent not in workflow_qc %}
+              NA
+            {% elif workflow_qc[parent] == True %}
+              <span style="font-size:16px;color:#70db70">&#10004;</span>
+            {% elif workflow_qc[parent] == False %}
+              <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+            {% else %}
+              <span style="font-size:16px;color:#248f24;">{{workflow_qc[parent]}}</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+
+{% endif %}  
+
+
+{% if parent_to_children[workflow_id] != ['NA'] %}  
+  <h2> Downstream workflows: </h2> 
+
+  <table id="workflow_table">
+    <tr>
+      <th colspan="3">Children</th>  
+    </tr>
+    <tr>
+      <th>Name</th>
+      <th>Workflow id</th>
+      <th>File release</th>
+    </tr>  
+    {% for child in parent_to_children[workflow_id] %}
+      <tr>
+        <td>{{ workflow_info[child].0 }}</td>
+          <td>
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=child | format_identifier) }}">
+              {{child}}
+            </a>
+          </td>
+          <td>
+            {% if child not in workflow_qc %}
+              NA
+            {% elif workflow_qc[child] == True %}
+              <span style="font-size:16px;color:#70db70">&#10004;</span>
+            {% elif workflow_qc[child] == False %}
+              <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+            {% else %}
+              <span style="font-size:16px;color:#248f24;">{{workflow_qc[child]}}</span>
+            {% endif %}
+          </td>
+      </tr>  
+    {% endfor %}
+  </table>
+
+{% endif %}  
+
+
+
+<h2> Input sequences: </h2>   
+
+<table id="simple_table">
+  <tr>
+    <th>Samples</th>
+    <th>Libraries</th>
+    <th>Limskeys</th>
+    <th>File swids</th>
+    <th>Files</th>
+    <th>File release</th>
+  </tr>
+  
+  {% set sampleseq = input_sequences.keys() | sort %}
+  {% for i in sampleseq %}
+    {% for j in range(input_sequences[i] | length) %}
+      <tr>      
+        {% for k in input_sequences[i][j] %}
+          <td>
+            {{k}}
+          </td>
+        {% endfor %}  
+        <td>
+          {% if input_sequences[i][j][-1] not in file_qc %}
+            NA
+          {% elif file_qc[input_sequences[i][j][-1]] == True %}
+            <span style="font-size:16px;color:#70db70">&#10004;</span>
+          {% elif file_qc[input_sequences[i][j][-1]] == False %}
+            <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+          {% else %}
+            <span style="font-size:16px;color:#248f24;">{{file_qc[input_sequences[i][j][-1]]}}</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  {% endfor %}
+</table>
+
+
+
+
+
+
+    
+  <footer>
+    <p class="data_update"> Data last updated: {{project['last_updated'].split('_')[0]}} </p>
+  </footer>
+  
+  
+
+
+
+
+{% endblock %}
+

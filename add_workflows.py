@@ -8,7 +8,7 @@ Created on Mon Jan 15 15:36:41 2024
 
 import os
 import sqlite3
-from utilities import connect_to_db
+from db_helper import connect_to_db, insert_multiple_records
 import argparse
 
 
@@ -65,18 +65,23 @@ def add_missing_workflow(workflow_db, project_id, workflows, workflow_table='Wor
     ----------
     - workflow_db (str): Path to the sqlite database storing Workflow information
     - project_id (str): Name of project of interest
-    - workflows (list): List of workflow ids not alread recorded in the workflow_db
+    - workflows (list): List of workflow ids not already recorded in the workflow_db
     - workflow_table : Table in db storing the workflow information. Default is Workflows
     '''
 
-    column_names = ('wfrun_id', 'project_id', 'selected')
+    column_names = ['wfrun_id', 'project_id', 'selected']
+    
+    data = [[workflow_id, project_id, 0] for workflow_id in workflows]
     
     conn = connect_to_db(workflow_db)
-    for workflow_id in workflows:
-        # insert data into table
-        conn.execute('INSERT INTO {0} {1} VALUES {2}'.format(workflow_table, column_names, (workflow_id, project_id, 0)))
-        conn.commit()
+    insert_multiple_records(data, conn, workflow_db, workflow_table, column_names)
     conn.close()
+    
+    # for workflow_id in workflows:
+    #     # insert data into table
+    #     conn.execute('INSERT INTO {0} {1} VALUES {2}'.format(workflow_table, column_names, (workflow_id, project_id, 0)))
+    #     conn.commit()
+    # conn.close()
 
 
 def update_workflow_db(workflow_db, main_db, project_table, workflow_table):
@@ -104,8 +109,9 @@ def update_workflow_db(workflow_db, main_db, project_table, workflow_table):
         recorded_workflows = collect_workflows(workflow_db, project, workflow_table)
         # make a list of workflows to be added
         workflows = list(set(new_workflows).difference(set(recorded_workflows)))
-        # add the missing workflows for the project of focus
-        add_missing_workflow(workflow_db, project, workflows, workflow_table)
+        if workflows:
+            # add the missing workflows for the project of focus
+            add_missing_workflow(workflow_db, project, workflows, workflow_table)
         
         
 
@@ -138,18 +144,40 @@ def setup_database(database, table = 'Workflows'):
     conn.close()
 
 
-if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(prog = 'add_workflows.py', description='Updates the Workflows database with workflow ids from the main database', add_help=True)
-    parser.add_argument('-w', '--workflow_db', dest='workflow_db', help='Path to the database storing workflow information')
-    parser.add_argument('-m', '--main_db', dest = 'main_db', help = 'Path to the main database storing production information')
+
+
+if os.path.isfile('workflows_case.db') == False:
+    setup_database('workflows_case.db', 'Workflows')
+update_workflow_db('workflows_case.db', 'waterzooi_db_case.db', 'Projects', 'Workflows')
+
+
+
+# if os.path.isfile('workflows_case_small.db') == False:
+#     setup_database('workflows_case_small.db', 'Workflows')
+# update_workflow_db('workflows_case_small.db', 'waterzooi_db_case_small.db', 'Projects', 'Workflows')
+
+# if os.path.isfile('workflows_case_new.db') == False:
+#     setup_database('workflows_case_new.db', 'Workflows')
+# update_workflow_db('workflows_case_new.db', 'waterzooi_db_case_new.db', 'Projects', 'Workflows')
+
+
+
+
+
+
+# if __name__ == '__main__':
+
+#     parser = argparse.ArgumentParser(prog = 'add_workflows.py', description='Updates the Workflows database with workflow ids from the main database', add_help=True)
+#     parser.add_argument('-w', '--workflow_db', dest='workflow_db', help='Path to the database storing workflow information')
+#     parser.add_argument('-m', '--main_db', dest = 'main_db', help = 'Path to the main database storing production information')
         
-    # get arguments from the command line
-    args = parser.parse_args()
-    # create database if doesn't exist
-    if os.path.isfile(args.workflow_db) == False:
-        setup_database(args.workflow_db, 'Workflows')
-    # add missing workflows
-    update_workflow_db(args.workflow_db, args.main_db, 'Projects', 'Workflows')
+#     # get arguments from the command line
+#     args = parser.parse_args()
+#     # create database if doesn't exist
+#     if os.path.isfile(args.workflow_db) == False:
+#         setup_database(args.workflow_db, 'Workflows')
+#     # add missing workflows
+#     update_workflow_db(args.workflow_db, args.main_db, 'Projects', 'Workflows')
     
     

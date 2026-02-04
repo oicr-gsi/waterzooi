@@ -4,11 +4,11 @@
 {% block link %}
   <a href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
   {% if pipeline == 'whole_genome_sequencing' %}
-    <a href="{{ url_for('wgs_case', project_name=project['project_id'], case=case, sample_pair=sample_pair) }}">Analysis Blocks</a> 
+    <a href="{{ url_for('wgs_case', project_name=project['project_id'], case_id=case_id, sample_pair=sample_pair) }}">Analysis Blocks</a> 
   {% elif pipeline == 'whole_transcriptome' %}
-    <a href="{{ url_for('wt_case', project_name=project['project_id'], case=case, tumor_sample=sample_pair) }}">Analysis Blocks</a> 
+    <a href="{{ url_for('wt_case', project_name=project['project_id'], case_id=case_id, tumor_sample=sample_pair) }}">Analysis Blocks</a> 
   {% elif pipeline == 'shallow_whole_genome' %}
-    <a href="{{ url_for('swg_sample', project_name=project['project_id'], case=case, sample=sample_pair) }}">Shallow Whole Genome Sample</a> 
+    <a href="{{ url_for('swg_sample', project_name=project['project_id'], case_id=case_id, sample=sample_pair) }}">Shallow Whole Genome Sample</a> 
   {% endif %}
 {% endblock %}
 
