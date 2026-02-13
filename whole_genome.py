@@ -71,30 +71,6 @@ def get_workflow_counts(case_id, database, workflow_table='Workflows'):
     return counts
 
    
-# def get_amount_data(case_id, database, workflow_table='Workflows'):
-#     '''
-#     (str, str, str) -> dict
-    
-#     Returns a dictionary with the amount of data (ie, lane count) for each workflow in a case
-        
-#     Parameters
-#     ----------
-#     - case_id (str): Case identifier
-#     - database (str): Path to the sqlite database
-#     - workflow_table (str): Name of the table containing the workflow information in database
-#     '''
-    
-#     conn = connect_to_db(database)
-#     query = "SELECT DISTINCT {0}.lane_count, {0}.wfrun_id FROM {0} WHERE {0}.case_id = ?;".format(workflow_table)
-#     data = conn.execute(query, (case_id,)).fetchall()
-#     conn.close()
-
-#     counts = {}
-#     for i in data:
-#         counts[i['wfrun_id']] = i['lane_count']
-    
-#     return counts
-
 
 def get_call_ready_samples(project_name, bmpp_run_id, database):
     '''
@@ -425,73 +401,6 @@ def get_case_analysis_samples(cases):
     return D
     
 
-# def get_case_analysis_workflows(cases):
-#     '''
-#     (dict) -> dict
-    
-#     Returns a dictionary with analysis workflow ids organized for each case
-    
-#     Parameters
-#     ----------
-#     - cases (dict): Dictionary with case analysis extracted from the analysis review database
-#     '''
-        
-#     D = {}
-    
-#     for case in cases:
-#         if case not in D:
-#             D[case] = []
-#         for d in cases[case]:
-#             callready = []
-#             if 'Anchors' in d['template']:
-#                 for i in d['template']['Anchors']:
-#                     callready.append(d['template']['Anchors'][i]['workflows'])
-#             callready = list(set(callready))
-#             downstream = []
-#             if 'Analysis' in d['template']:
-#                 for i in d['template']['Analysis']:
-#                     for j in d['template']['Analysis'][i]:
-#                         downstream.append(j['workflow_id'])
-#             downstream = list(set(downstream))
-#             sequencing = {}
-#             if 'Data' in d['template']:
-#                 for i in d['template']['Data']['Sequencing']['workflows']:
-#                     workflow_name = i['workflow_name']
-#                     workflow_id = i['workflow_id']
-#                     if workflow_name in sequencing:
-#                         sequencing[workflow_name].append(workflow_id)
-#                     else:
-#                         sequencing[workflow_name] = [workflow_id]
-#                 sequencing[workflow_name] = list(set(sequencing[workflow_name]))
-#             analysis = {}
-#             if 'Analysis' in d['template']:
-#                 for i in d['template']['Analysis']:
-#                     if i not in analysis:
-#                         analysis[i] = []
-#                     for j in d['template']['Analysis'][i]:
-#                         analysis[i].append(j['workflow_id'])
-#                 analysis[i] = list(set(analysis[i]))   
-#             alignments = {}
-#             if 'Data' in d['template']:
-#                 for i in d['template']['Data']:
-#                     if i != 'Sequencing':
-#                         for k in d['template']['Data'][i]['workflows']:
-#                             wfname = k['workflow_name']
-#                             workflow_id = k['workflow_id']   
-#                             if wfname not in sequencing:
-#                                 if wfname not in alignments:
-#                                     alignments[wfname] = []
-#                                 alignments[wfname].append(workflow_id)
-#                                 alignments[wfname] = list(set(alignments[wfname]))
-                        
-#             D[case].append({'callready': callready, 'downstream': downstream,
-#                             'sequencing': sequencing, 'analysis': analysis,
-#                             'alignments': alignments})
-        
-#     return D
-
-
-
 def organize_analysis_workflows(case_data, parent_to_children):
     '''
     (dict, dict) -> dict
@@ -679,11 +588,6 @@ def get_sequencing_input(database, case):
 
 
 
-
-
-
-
-
 def most_recent_analysis_workflow(case_data, creation_dates):
     '''
     (dict, dict) -> dict
@@ -721,57 +625,6 @@ def most_recent_analysis_workflow(case_data, creation_dates):
     return D
 
 
-# def get_analysis_workflow_name(analysis):
-#     '''
-#     (dict) -> dict
-    
-#     Returns a dictionary with the name of workflows for each workflow id of
-#     an analysis group of a single case
-    
-#     Parameters
-#     ----------
-#     - analysis (dict): Dictionary with workflow ids of analysis workflows of a single case
-#     '''
-    
-#     D = {}
-    
-#     for workflow_name in analysis:
-#         for workflow_id in analysis[workflow_name]:
-#             assert workflow_id not in D
-#             D[workflow_id] = workflow_name
-    
-#     return D
-    
-    
-# def get_analysis_workflow_name(case_data):
-#     '''
-#     (dict) -> dict
-    
-#     Returns a dictionary with the worklow names of all workflow ids 
-#     in each template for each case
-    
-#     Parameters
-#     ----------
-#     - case_data (list): Dictionary with template information for each case
-#     '''
-    
-#     D = {}
-    
-#     for case_id in case_data:
-#         for template in case_data[case_id]:
-#             k = {}
-#             for i in ['Analysis', 'Data']:
-#                 for j in template['template'][i]:
-#                     for d in template['template'][i][j]:
-#                         workflow_id = d['workflow_id']
-#                         workflow_name = d['workflow_name']
-#                         k[workflow_id] = workflow_name
-#             if case_id not in D:
-#                 D[case_id] = []
-#             D[case_id].append(k)
-        
-#     return D    
-    
 
 def get_analysis_workflow_name(case_data):
     '''
@@ -800,9 +653,6 @@ def get_analysis_workflow_name(case_data):
     return D    
 
 
-
-
-    
 def get_case_workflow_samples(database, case_id):
     '''
     (str, str) -> dict
@@ -1168,8 +1018,12 @@ def get_pipeline_deliverables(selection):
                                     'somatic.copynumber.filtered'],
                         'sequenza': ['.zip', 'alternative_solutions.json'],
                         'haplotypecaller': ['.g.vcf.gz',
-                                            '.g.vcf.gz.tbi']}
-       
+                                            '.g.vcf.gz.tbi'],
+                        'bcl2fastq': ['.fastq.gz'],
+                        'fileimportforanalysis': ['.fastq.gz'],
+                        'fileimport': ['.fastq.gz'],
+                        'import_fastq': ['.fastq.gz']}
+        
     else:
         deliverables = {}
     
@@ -1198,82 +1052,6 @@ def get_cbioportal_deliverables():
                     
     return deliverables
 
-
-# def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, deliverables=None):
-#     '''
-#     (dict, dict, dict, dict, dict, dict, None | dict)
-    
-#     Returns a dictionary with workflow information for a given block (ie, sample pair)
-#     and anchor bmpp parent workflow
-    
-#     Parameters
-#     ----------
-#     - case_data (dict): Dictionary with analysis templates for all cases in a project
-#     - selected_workflows (dict): Dictionary with selected status of each workflow in project
-#     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
-#     - deliverables (None | dict): None or dictionary with file extensions of standard deliverables
-#     '''
-        
-#     # create a lambda to evaluate the deliverable files
-#     # x is a pair of (file, file_ending)
-#     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
-   
-#     D = {}
-        
-#     for case in case_data:
-#         for template in case_data[case]:
-#             # make a list of workflows:
-#             callready = template['callready']
-#             workflows = {}
-#             for i in ['sequencing', 'analysis', 'alignments']:
-#                 for workflow in template[i]:
-#                     if template[i][workflow]:
-#                         workflows[workflow] = template[i][workflow]
-        
-#             # check that analysis workflows are selected
-#             # do not include call ready workflows because they can be shared across templates
-#             wfs = []
-#             for i in workflows.values():
-#                 wfs.extend(i)
-            
-#             analysis = [i for i in wfs if i not in callready]   
-#             if any(map(lambda x: x in selected_workflows, analysis)):
-#                 for workflow in workflows:
-#                     for wfrunid in workflows[workflow]:
-#                         # check if workflow is selected
-#                         if selected_workflows[wfrunid]:
-#                             # get workflow output files
-#                             outputfiles = workflow_outputfiles[wfrunid]                        
-                                        
-#                             # check that only workflows in standard eliverables are used
-#                             if deliverables:
-#                                 key = workflow.split('_')[0].lower()
-#                                 if key in deliverables:
-#                                     # map all file endings of deliverables with files
-#                                     groups = list(itertools.product(outputfiles, deliverables[key]))
-#                                     # determine which files are part of the deliverables
-#                                     F = list(map(G, groups))
-#                                     L = [groups[k][0] for k in range(len(F)) if F[k]]
-#                                     if L:
-#                                         if case not in D:
-#                                             D[case] = {}
-#                                         if workflow in D[case]:
-#                                             D[case][workflow].extend(L)
-#                                         else:
-#                                             D[case][workflow] = L
-#                             else:
-#                                 if case not in D:
-#                                     D[case] = {}
-#                                 if workflow in D[case]:
-#                                     D[case][workflow].extend(outputfiles)
-#                                 else:
-#                                     D[case][workflow] = outputfiles
-                            
-#                             D[case][workflow] = sorted(list(set(D[case][workflow])))  
-    
-    
-#     return D
-                    
 
 
 def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, deliverables=None):
@@ -1343,91 +1121,6 @@ def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, de
     
     return D
 
-
-
-# def create_case_analysis_json(case, case_data, selected_workflows, workflow_outputfiles, selection):
-#     '''
-#     (str, list, dict, dict, str)
-    
-#     Returns a dictionary with workflow information for a given block (ie, sample pair)
-#     and anchor parent workflow (bmpp or star)
-    
-#     Parameters
-#     ----------
-#     - case (str): Case unique identifier
-#     - case_data (list): List of analysis templates for a single case in a project
-#     - selected_workflows (dict): Dictionary with selected status of each workflow in project
-#     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
-#     - selection (str): Include files from all selected workflows or files from the standard deliverables
-#                        Values: standard or all
-#     '''
-    
-#     # create a lambda to evaluate the deliverable files
-#     # x is a pair of (file, file_ending)
-#     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
-            
-#     # get the deliverables
-#     if selection == 'standard':
-#         deliverables = get_pipeline_standard_deliverables()
-#     elif selection == 'all':
-#         deliverables = {}
-    
-#     D = {}
-            
-#     for template in case_data:
-#         # make a list of workflows:
-#         callready = template['callready']
-#         workflows = {}
-#         for i in ['sequencing', 'analysis', 'alignments']:
-#             for workflow in template[i]:
-#                 if template[i][workflow]:
-#                     workflows[workflow] = template[i][workflow]
-            
-#         # check that analysis workflows are selected
-#         # do not include call ready workflows because they can be shared across templates
-#         wfs = []
-#         for i in workflows.values():
-#             wfs.extend(i)
-                
-#         analysis = [i for i in wfs if i not in callready]   
-#         if any(map(lambda x: x in selected_workflows, analysis)):
-#             for workflow in workflows:
-#                 for wfrunid in workflows[workflow]:
-#                     # check if workflow is selected
-#                     if selected_workflows[wfrunid]:
-#                         # get workflow output files
-#                         outputfiles = workflow_outputfiles[wfrunid]                        
-                                            
-#                         # check that only workflows in standard eliverables are used
-#                         if deliverables:
-#                             key = workflow.split('_')[0].lower()
-#                             if key in deliverables:
-#                                 # map all file endings of deliverables with files
-#                                 groups = list(itertools.product(outputfiles, deliverables[key]))
-#                                 # determine which files are part of the deliverables
-#                                 F = list(map(G, groups))
-#                                 L = [groups[k][0] for k in range(len(F)) if F[k]]
-#                                 if L:
-#                                     if case not in D:
-#                                         D[case] = {}
-#                                     if workflow in D[case]:
-#                                         D[case][workflow].extend(L)
-#                                     else:
-#                                         D[case][workflow] = L
-#                         else:
-#                             if case not in D:
-#                                 D[case] = {}
-#                             if workflow in D[case]:
-#                                 D[case][workflow].extend(outputfiles)
-#                             else:
-#                                 D[case][workflow] = outputfiles
-                        
-#                         D[case][workflow] = sorted(list(set(D[case][workflow])))  
-                       
-        
-        
-#     return D
-    
 
 
 def create_case_analysis_json(case_data, selected_workflows, workflow_outputfiles, selection):
@@ -1503,92 +1196,6 @@ def create_case_analysis_json(case_data, selected_workflows, workflow_outputfile
     return D
 
 
-
-
-
-
-
-
-    
-    
-# def create_cbioportal_json(case_data, selected_workflows, workflow_outputfiles, segmentation):
-#     '''
-#     (dict, dict, dict, str)
-    
-#     Returns a dictionary with information required for cbioportal upload
-#     for donors in a projct 
-    
-#     Parameters
-#     ----------
-#     - case_data (dict): Dictionary with analysis templates for cases in a project
-#     - selected_workflows (dict): Dictionary with selected status of each workflow in project
-#     - workflow_outputfiles (dict): Dictionary with outputfiles for each workflow run
-#     - segmentation (str): Indicates if segmentation data comes from the sequenza or purple workflow.
-#                           Valid values: sequenza, purple
-#     '''
-    
-#     # create a lambda to evaluate the deliverable files
-#     # x is a pair of (file, file_ending)
-#     G = lambda x: x[1] in x[0] and x[0][x[0].rindex(x[1]):] == x[1]
-    
-#     cbioportal_workflows = ['varianteffectpredictor', 'rsem', 'mavis']
-#     # add the segmentation workflow
-#     cbioportal_workflows.insert(1, segmentation)
-#     deliverables = get_cbioportal_deliverables()    
-    
-#     D = {}
-    
-#     for case in case_data:
-#         for template in case_data[case]:
-#             donor = template['donor']
-#             samples = {}
-#             for i in template['template']['Samples']:
-#                 if template['template']['Samples'][i]['tissue_type'] != 'R':
-#                     library_type = template['template']['Samples'][i]['library_type']
-#                     sample = template['template']['Samples'][i]['sample']
-#                     samples[library_type] = sample
-#             if len(samples) == 1:
-#                 samples = list(samples.values())[0]
-#             else:
-#                 assert 'WG' in samples
-#                 sample = samples['WG']
-        
-#             for workflow in template['template']['Analysis']:
-#                 # get the generic workflow name                      
-#                 key = workflow.split('_')[0].lower()
-#                 if key in cbioportal_workflows:
-#                     if template['template']['Analysis'][workflow]:
-#                         for d in template['template']['Analysis'][workflow]:
-#                             workflow_id = d['workflow_id']
-#                             if workflow_id in selected_workflows and selected_workflows[workflow_id]:
-#                                 # get workflow output files
-#                                 outputfiles = workflow_outputfiles[workflow_id]                        
-#                                 # map all file endings of deliverables with files
-#                                 groups = list(itertools.product(outputfiles, deliverables[key]))
-#                                 # determine which files are part of the deliverables
-#                                 F = list(map(G, groups))
-#                                 L = [groups[k][0] for k in range(len(F)) if F[k]]
-#                                 if L:
-#                                     if donor not in D:
-#                                         D[donor] = {}
-#                                     if sample not in D[donor]:
-#                                         D[donor][sample] = {}
-#                                     if key == 'purple':
-#                                         for i in L:
-#                                             if 'cnv' in i:
-#                                                 cnvfile = i
-#                                             elif 'purity' in i:
-#                                                 purityfile = i
-#                                         assert cnvfile and purityfile            
-#                                         D[donor][sample][workflow] = {'cnv': cnvfile, 'purity': purityfile}
-#                                     else:
-#                                         D[donor][sample][workflow] = L[0]
-
-#     return D
-    
- 
-    
- 
 def collect_tumor_sample_template(template):
     '''
     (dict) -> str
@@ -1753,42 +1360,6 @@ def get_workflow_outputfiles(database, project_name):
 
 
 
-
-# def get_review_status(case_data, selected_workflows):
-#     '''
-#     (dict, dict) -> dict
-    
-#     Returns a dictionary with review status for each case in project
-#     A case is considered to be reviewed if any worklow has been selected
-    
-#     Parameters
-#     ----------
-#     - case_data (dict): Dictionary with analysis template for each case
-#     - selected_workflows (dict): Dictionary with selection status of each workflow in a project
-#     '''
-    
-#     D = {}
-    
-#     for case in case_data:
-#         status = 0
-#         for template in case_data[case]:
-#             for i in ['callready', 'downstream']:
-#                 for wfrun_id in template[i]:
-#                     if selected_workflows[wfrun_id]:
-#                         status = 1
-#                         break
-#             for i in ['sequencing', 'alignments', 'analysis']:
-#                 for workflow in template[i]:
-#                     for wfrun_id in template[i][workflow]:
-#                         if selected_workflows[wfrun_id]:
-#                             status = 1
-#                             break
-#         D[case] = status
-    
-#     return D
-    
-
-
 def get_review_status(case_data, selected_workflows):
     '''
     (dict, dict) -> dict
@@ -1876,33 +1447,6 @@ def get_workflow_names(database, case_id):
         D[workflow_id] = workflow_name
     
     return  D
-
-
-# def list_template_workflows(template):
-#     '''
-#     (dict) -> list
-    
-#     Returns all the workflow identifiers of a single template of a case
-    
-#     Parameters
-#     ----------
-#     - template (dict): Dictionary with analysis data for a single template of a case
-#     '''
-
-#     L = []
-
-#     if 'Data' in template['template']:
-#         for i in template['template']['Data']:
-#             for d in template['template']['Data'][i]['workflows']:
-#                 L.append(d['workflow_id'])
-#     if 'Analysis' in template['template']:
-#         for workflow in template['template']['Analysis']:
-#             for d in template['template']['Analysis'][workflow]:
-#                 L.append(d['workflow_id'])
-#     L = list(set(L))
-    
-#     return L
-    
 
 
 def list_template_workflows(template):

@@ -441,7 +441,11 @@ def moh_format(analysis_data, donors):
               'star_call_ready': 'alignments_WT.callready',
               'varianteffectpredictor': 'calls.mutations',           
               'msisensor': 'calls.msi',
-              'hrdetect': 'calls.hrd'}
+              'hrdetect': 'calls.hrd',
+              'bcl2fastq': 'fastq',
+              'fileimportforanalysis': 'fastq',
+              'fileimport': 'fastq',
+              'import_fastq': 'fastq'}
               
                         
     D = {}
