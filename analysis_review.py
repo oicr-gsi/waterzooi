@@ -5,21 +5,18 @@ Created on Fri Sep 20 16:36:23 2024
 @author: rjovelin
 """
 
-import sqlite3
 import json
 import argparse
 import os
-import hashlib
 import itertools
 from collections import deque
 from generate_assays import generate_templates, list_qc_workflows, extract_assay_workflows
 from db_helper import connect_to_db, define_columns, initiate_db, insert_multiple_records, \
     delete_unique_record, delete_multiple_records
-from data_helper import load_data, clean_up_data, clean_up_workflows, is_case_info_complete
-from commons import get_cases_md5sum, find_sequencing_attributes, convert_to_bool, \
-    list_case_workflows, get_donor_name, compute_md5, case_to_update    
+from data_helper import load_data, clean_up_workflows, is_case_info_complete
+from commons import get_cases_md5sum, find_sequencing_attributes, get_donor_name, \
+    compute_md5, case_to_update    
     
-
 
 
 def collect_sample_workflows(case_data):
@@ -1159,24 +1156,21 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
         conn.close()
 
 
-
-generate_cache('provenance_reporter.json', 'enabled_workflows.json', 'waterzooi_db_case.db', 'http://pinery.gsi.oicr.on.ca/assays', 'analysis_review_case.db', table='templates')
-
-
-
-
-
-
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser(prog = 'analysis_review.py', description='Script to generate the analyais review cache')
-#     parser.add_argument('-p', '--provenance', dest = 'provenance', help = 'Path to the provenance reporter data json', required=True)
-#     parser.add_argument('-db', '--database', dest='database', help='Path to the analysis review database', required=True)    
-#     parser.add_argument('-cq', '--calcontaqc', dest = 'calcontaqc_db', default = '/scratch2/groups/gsi/production/qcetl_v1/calculatecontamination/latest', help = 'Path to the merged rnaseq calculateContamination database. Default is /scratch2/groups/gsi/production/qcetl_v1/calculatecontamination/latest')
-
-
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(prog = 'analysis_review.py', description='Script to generate the analyais review cache')
+    parser.add_argument('-pv', '--provenance', dest = 'provenance', default = '/scratch2/groups/gsi/production/pr_refill_v2/provenance_reporter.json',
+                        help = 'Path to the provenance reporter data json. Default is /scratch2/groups/gsi/production/pr_refill_v2/provenance_reporter.json')
+    parser.add_argument('-ad', '--analysis', dest='analysis_db', default = '/scratch2/groups/gsi/production/waterzooi/analysis_review_case.db', 
+                        help='Path to the analysis review database')    
+    parser.add_argument('-wd', '--waterzooi', dest='waterzooi_db', default = '/scratch2/groups/gsi/production/waterzooi/waterzooi_db_case.db',
+                        help='Path to the waterzooi database. Default is /scratch2/groups/gsi/production/waterzooi/waterzooi_db_case.db')    
+    parser.add_argument('-pi', '--pinery', dest='pinery', default = 'http://pinery.gsi.oicr.on.ca/assays',
+                        help='Pinery URL. Default is http://pinery.gsi.oicr.on.ca/assays')    
+    parser.add_argument('-ac', '--assays', dest='assay_config', help='Path to the assay config json', required = True)    
     
-#     # get arguments from the command line
-#     args = parser.parse_args()
-#     # generate sqlite cache
-#     generate_cache(args.provenance, args.database)    
+    # get arguments from the command line
+    args = parser.parse_args()
+    # generate sqlite cache
+    generate_cache(args.provenance, args.assay_config, args.waterzooi_db, args.pinery, args.analysis_db, table='templates')
+
     
