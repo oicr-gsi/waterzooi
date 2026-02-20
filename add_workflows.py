@@ -77,12 +77,6 @@ def add_missing_workflow(workflow_db, project_id, workflows, workflow_table='Wor
     insert_multiple_records(data, conn, workflow_db, workflow_table, column_names)
     conn.close()
     
-    # for workflow_id in workflows:
-    #     # insert data into table
-    #     conn.execute('INSERT INTO {0} {1} VALUES {2}'.format(workflow_table, column_names, (workflow_id, project_id, 0)))
-    #     conn.commit()
-    # conn.close()
-
 
 def update_workflow_db(workflow_db, main_db, project_table, workflow_table):
     '''
@@ -144,40 +138,18 @@ def setup_database(database, table = 'Workflows'):
     conn.close()
 
 
+if __name__ == '__main__':
 
-
-
-if os.path.isfile('workflows_case.db') == False:
-    setup_database('workflows_case.db', 'Workflows')
-update_workflow_db('workflows_case.db', 'waterzooi_db_case.db', 'Projects', 'Workflows')
-
-
-
-# if os.path.isfile('workflows_case_small.db') == False:
-#     setup_database('workflows_case_small.db', 'Workflows')
-# update_workflow_db('workflows_case_small.db', 'waterzooi_db_case_small.db', 'Projects', 'Workflows')
-
-# if os.path.isfile('workflows_case_new.db') == False:
-#     setup_database('workflows_case_new.db', 'Workflows')
-# update_workflow_db('workflows_case_new.db', 'waterzooi_db_case_new.db', 'Projects', 'Workflows')
-
-
-
-
-
-
-# if __name__ == '__main__':
-
-#     parser = argparse.ArgumentParser(prog = 'add_workflows.py', description='Updates the Workflows database with workflow ids from the main database', add_help=True)
-#     parser.add_argument('-w', '--workflow_db', dest='workflow_db', help='Path to the database storing workflow information')
-#     parser.add_argument('-m', '--main_db', dest = 'main_db', help = 'Path to the main database storing production information')
+    parser = argparse.ArgumentParser(prog = 'add_workflows.py', description='Updates the Workflows database with workflow ids from the main database', add_help=True)
+    parser.add_argument('-w', '--workflow_db', dest='workflow_db', default = 'workflows_case.db', help='Path to the database storing workflow information')
+    parser.add_argument('-m', '--main_db', dest = 'main_db', default = 'waterzooi_db_case.db', help = 'Path to the main database storing production information')
         
-#     # get arguments from the command line
-#     args = parser.parse_args()
-#     # create database if doesn't exist
-#     if os.path.isfile(args.workflow_db) == False:
-#         setup_database(args.workflow_db, 'Workflows')
-#     # add missing workflows
-#     update_workflow_db(args.workflow_db, args.main_db, 'Projects', 'Workflows')
-    
+    # get arguments from the command line
+    args = parser.parse_args()
+    # create database if doesn't exist
+    if os.path.isfile(args.workflow_db) == False:
+        setup_database(args.workflow_db, 'Workflows')
+    # add missing workflows
+    update_workflow_db(args.workflow_db, args.main_db, 'Projects', 'Workflows')
+
     
