@@ -1053,7 +1053,7 @@ def generate_cache(provenance_data_file, assay_config_file, waterzooi_database, 
     print('loaded data')
     
     # generate assays
-    assays = generate_templates(waterzooi_database, assay_config_file, pinery)
+    assays = generate_templates(waterzooi_database, assay_configurations, qc_workflows, pinery)
         
     # track all cases in production
     P = []

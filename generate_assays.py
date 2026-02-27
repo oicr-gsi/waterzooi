@@ -51,25 +51,16 @@ def extract_assay_workflows(assay_config_file):
     workflows = json.load(infile)
     infile.close()
     
-    return workflows
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    D = {}
+    
+    for assay in workflows['values']:
+        for version in workflows['values'][assay]['versions']:
+            if assay not in D:
+                D[assay] = {}
+            assert version not in D[assay]
+            D[assay][version] = list(workflows['values'][assay]['versions'][version]['workflows'].keys())
+    
+    return D
 
 
 
@@ -514,14 +505,14 @@ def parent_workflows_in_assay(assay_config, parents):
         
 def record_analysis_assay_data(samples, assay_config, workflow_inputs):
     '''
-    (dict, dict, dict)     
+    (dict, list, dict)     
     
     
     
     Parameters
     ----------
     - samples (dict): Dictionary with the assay samples
-    - assay_config (dict): Dictionary with expected assay workflows    
+    - assay_config (list): Dictionary with expected assay workflows    
     - workflow_inputs (dict): Dictionary with workflow inputs (library types and parent workflows)
                               estimated from production data
     '''
@@ -585,7 +576,7 @@ def record_analysis_assay_data(samples, assay_config, workflow_inputs):
 
 def create_assay_template(assay_name, assay_version, qc_workflows, assay_config, assay, workflow_inputs):
     '''
-    (str, str, list, dict, dict, dict) -> dict
+    (str, str, list, list, dict, dict) -> dict
     
     Returns a template representing the expected data for a given assay
         
@@ -594,7 +585,7 @@ def create_assay_template(assay_name, assay_version, qc_workflows, assay_config,
     - assay_name (str): Name of the assay
     - assay_version (str): Version of the assay
     - qc_workflows (list): List of QC workflows
-    - assay_config (dict): Dictionary with expected assay workflows    
+    - assay_config (list): List with expected assay workflows    
     - assay (dict): Dictionary with assay information from Pinery 
     - workflow_inputs (dict): Dictionary with workflow inputs (library types and parent workflows)
                               estimated from production data
@@ -628,9 +619,9 @@ def create_assay_template(assay_name, assay_version, qc_workflows, assay_config,
      
     
 
-def generate_templates(database, assay_config_file='enabled_workflows.json', pinery='http://pinery.gsi.oicr.on.ca/assays'):
+def generate_templates(database, assay_configurations, qc_workflows, pinery='http://pinery.gsi.oicr.on.ca/assays'):
     '''
-    (str, str, str) -> dict
+    (str, dict, list, str) -> dict
 
 
     Returns a dictionary with the templates of all assays defined in pinery
@@ -640,15 +631,11 @@ def generate_templates(database, assay_config_file='enabled_workflows.json', pin
     Parameters
     ----------
     - database (str): Path to the waterzooi database
-    - assay_config_file (str): Path to the assay config file
+    - assay_configurations (dict): Dictionary with workflows for each assay and version
+    - qc_workflows (list): List of QC workflkows
     - pinery (str): URL to Pinery assay endpoint
     '''
 
-    assay_configurations = extract_assay_workflows(assay_config_file)
-    print('extracted the assay configurations')
-    # make a list of QC workflows
-    qc_workflows = list_qc_workflows(assay_configurations)
-    print('listed qc workflows')
     assays = extract_assays(pinery)
     print('extracted assays')
     workflow_inputs = get_workflow_inputs(database)
@@ -683,9 +670,4 @@ def generate_templates(database, assay_config_file='enabled_workflows.json', pin
     return D
 
 
-
-
-# database = '../provenanceReporter/waterzooi_db_case.db'
-# templates = generate_templates(database, assay_config_file='enabled_workflows.json', pinery='http://pinery.gsi.oicr.on.ca/assays')
-#assays = generate_templates('waterzooi_db_case.db', 'enabled_workflows.json', 'http://pinery.gsi.oicr.on.ca/assays')
 
