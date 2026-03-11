@@ -726,29 +726,29 @@ def evaluate_template_samples(template, assay):
     return complete, error
 
 
-def evaluate_template_raw_data(template):
-    '''
-    (dict) -> (bool, str)
+# def evaluate_template_raw_data(template):
+#     '''
+#     (dict) -> (bool, str)
     
-    Returns a boolean indicating if the raw data (sequences and alignments)
-    is mmissing from the template, and the corresponding error message
+#     Returns a boolean indicating if the raw data (sequences and alignments)
+#     is mmissing from the template, and the corresponding error message
     
-    Parameters
-    ----------
-    - template (dict): Dictionary collecting data for the given assay
-    '''
+#     Parameters
+#     ----------
+#     - template (dict): Dictionary collecting data for the given assay
+#     '''
     
-    complete = True
-    error = ''
+#     complete = True
+#     error = ''
 
-    # evaluate sequencing and alignments
-    for i in template['Data']:
-        if len(template['Data'][i]) == 0:
-            complete = False
-    if complete == False:
-        error = 'missing raw data'        
+#     # evaluate sequencing and alignments
+#     for i in template['Data']:
+#         if len(template['Data'][i]) == 0:
+#             complete = False
+#     if complete == False:
+#         error = 'missing raw data'        
 
-    return complete, error
+#     return complete, error
 
 
 def get_samples_for_analysis_evaluation(template):
@@ -959,9 +959,9 @@ def evaluate_assay(template, assay):
     error.append(err)
     
     # evaluate raw data (sequences + alignments)
-    cpl, err = evaluate_template_raw_data(template)
-    complete.append(cpl)
-    error.append(err)
+    # cpl, err = evaluate_template_raw_data(template)
+    # complete.append(cpl)
+    # error.append(err)
     
     # evaluate missing analyses workflows
     cpl, err = evaluate_missing_analyses(template, assay)

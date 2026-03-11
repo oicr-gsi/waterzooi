@@ -201,7 +201,7 @@ def is_lane_level_workflow(workflow, library_type):
         return 'star_lane_level' in workflow.lower()
     else:
         # other library types use versions of bwamem
-        return 'bwamem' in workflow.lower()
+        return 'bwa' in workflow.lower()
       
    
     
@@ -438,145 +438,30 @@ def parent_workflows_in_assay(assay_config, parents):
     
 
 
-# def record_analysis_assay_data(samples, assay_config, workflow_inputs):
-#     '''
-#     (dict, dict, dict)     
-    
-    
-    
-#     Parameters
-#     ----------
-#     - samples (dict): Dictionary with the assay samples
-#     - assay_config (dict): Dictionary with expected assay workflows    
-#     - workflow_inputs (dict): Dictionary with workflow inputs (library types and parent workflows)
-#                               estimated from production data
-#     '''
-    
-#     D = {}
-    
-    
-#     ###### should workflow inputs be restricted to analysis workflows???
-#     ###### maybe include all workflows if some analysis worjkflows have non -analsysis wf parents
-    
-    
-#     for workflow in assay_config:
-#         wfv = assay_config[workflow]
-        
-#         # need to convert to list because of inconsistencies in the assay config
-#         if type(wfv) == str:
-#             wfv = [wfv]
-
-#         ### assuming that different workflow versions have the same inputs
-        
-#         for version in wfv:
-#             if is_analysis_worfklow(workflow) and is_sequencing_workflow(workflow) == False:
-#                 if workflow in workflow_inputs and version in workflow_inputs[workflow]:
-#                     if workflow not in D:
-#                         D[workflow] = {'version': wfv, 'samples': [], 'inputs': []}    
-                    
-#                     if samples:
-                        
-#                         for sample in samples:
-#                             library_type = samples[sample]['library_type']
-#                             negate_tissue_type = samples[sample]['negate_tissue_type']
-                    
-#                             for i in workflow_inputs[workflow][version]:
-#                                 # check that parent workflows are defined in the assay
-#                                 if parent_workflows_in_assay(assay_config, i['parents']):
-#                                     for j in i['library_types']:
-#                                         if library_type == j['library_type'] and negate_tissue_type == j['negate_tissue_type']:
-#                                             D[workflow]['samples'].append(sample)
-#                                             D[workflow]['inputs'].extend([k['wf'] for k in i['parents']])
-#                         D[workflow]['inputs'] = list(set(D[workflow]['inputs']))                           
-#                         D[workflow]['samples'] = list(set(D[workflow]['samples']))
-#                 else:
-#                     return {}
-    
-#     # check that samples are defined
-#     for workflow in D:
-#         if len(D[workflow]['samples']) == 0:
-#             print('assay has no sample')
-#             return {}
-        
-                                            
-#     return D 
-                    
-
-        
-def record_analysis_assay_data(samples, assay_config, workflow_inputs):
+def record_analysis_assay_data(assay_config):
     '''
-    (dict, list, dict)     
+    (list)     
     
-    
+    Returns a dictionary with each analysis workflow from assay_config
     
     Parameters
     ----------
-    - samples (dict): Dictionary with the assay samples
     - assay_config (list): Dictionary with expected assay workflows    
-    - workflow_inputs (dict): Dictionary with workflow inputs (library types and parent workflows)
-                              estimated from production data
     '''
     
     D = {}
     
-    
-    ###### should workflow inputs be restricted to analysis workflows???
-    ###### maybe include all workflows if some analysis worjkflows have non -analsysis wf parents
-    
-    
     for workflow in assay_config:
         if is_analysis_worfklow(workflow) and is_sequencing_workflow(workflow) == False:
-            if workflow in workflow_inputs:
-                if workflow not in D:
-                    D[workflow] = {'samples': [], 'inputs': []}    
-                if samples:
-                    for sample in samples:
-                        library_type = samples[sample]['library_type']
-                        negate_tissue_type = samples[sample]['negate_tissue_type']
-                        for i in workflow_inputs[workflow]:
-                            # check that parent workflows are defined in the assay
-                            if parent_workflows_in_assay(assay_config, i['parents']):
-                                for j in i['library_types']:
-                                    if library_type == j['library_type'] and negate_tissue_type == j['negate_tissue_type']:
-                                        D[workflow]['samples'].append(sample)
-                                        D[workflow]['inputs'].extend([k for k in i['parents']])
-                    D[workflow]['inputs'] = list(set(D[workflow]['inputs']))                           
-                    D[workflow]['samples'] = list(set(D[workflow]['samples']))
-            else:
-                return {}
-    
-    # check that samples are defined
-    for workflow in D:
-        if len(D[workflow]['samples']) == 0:
-            print('assay has no sample')
-            return {}
-        
-                                            
+            if workflow not in D:
+                D[workflow] = {'samples': [], 'inputs': []}    
+            
     return D 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def create_assay_template(assay_name, assay_version, qc_workflows, assay_config, assay, workflow_inputs):
+def create_assay_template(assay_name, assay_version, qc_workflows, assay_config, assay):
     '''
-    (str, str, list, list, dict, dict) -> dict
+    (str, str, list, list, dict) -> dict
     
     Returns a template representing the expected data for a given assay
         
@@ -587,8 +472,6 @@ def create_assay_template(assay_name, assay_version, qc_workflows, assay_config,
     - qc_workflows (list): List of QC workflows
     - assay_config (list): List with expected assay workflows    
     - assay (dict): Dictionary with assay information from Pinery 
-    - workflow_inputs (dict): Dictionary with workflow inputs (library types and parent workflows)
-                              estimated from production data
     '''
        
     D = {'Samples':{},
@@ -608,7 +491,7 @@ def create_assay_template(assay_name, assay_version, qc_workflows, assay_config,
     # record anchor workflows (call read workflows)
     D["Anchors"] = record_anchors_assay_data(samples, assay_config)
     # record analysis workflows
-    D['Analysis'] = record_analysis_assay_data(samples, assay_config, workflow_inputs)
+    D['Analysis'] = record_analysis_assay_data(assay_config)
     
     for i in D:
         if len(D[i]) == 0:
@@ -616,12 +499,12 @@ def create_assay_template(assay_name, assay_version, qc_workflows, assay_config,
             return {}
     
     return D
-     
-    
 
-def generate_templates(database, assay_configurations, qc_workflows, pinery='http://pinery.gsi.oicr.on.ca/assays'):
+
+
+def generate_templates(assay_configurations, qc_workflows, pinery='http://pinery.gsi.oicr.on.ca/assays'):
     '''
-    (str, dict, list, str) -> dict
+    (dict, list, str) -> dict
 
 
     Returns a dictionary with the templates of all assays defined in pinery
@@ -630,7 +513,6 @@ def generate_templates(database, assay_configurations, qc_workflows, pinery='htt
 
     Parameters
     ----------
-    - database (str): Path to the waterzooi database
     - assay_configurations (dict): Dictionary with workflows for each assay and version
     - qc_workflows (list): List of QC workflkows
     - pinery (str): URL to Pinery assay endpoint
@@ -638,8 +520,7 @@ def generate_templates(database, assay_configurations, qc_workflows, pinery='htt
 
     assays = extract_assays(pinery)
     print('extracted assays')
-    workflow_inputs = get_workflow_inputs(database)
-    print('extracted the workflow inputs')
+    
 
     D = {}
     
@@ -650,7 +531,7 @@ def generate_templates(database, assay_configurations, qc_workflows, pinery='htt
         if assay_name in assay_configurations:
             if assay_version in assay_configurations[assay_name]:
                 assay_config = assay_configurations[assay_name][assay_version]
-                template = create_assay_template(assay_name, assay_version, qc_workflows, assay_config, assay, workflow_inputs)
+                template = create_assay_template(assay_name, assay_version, qc_workflows, assay_config, assay)
                 
             else:
                 print('version {0} not in assay_config'.format(assay_version))
@@ -668,6 +549,4 @@ def generate_templates(database, assay_configurations, qc_workflows, pinery='htt
         
             
     return D
-
-
 
