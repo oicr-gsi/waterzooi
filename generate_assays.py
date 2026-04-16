@@ -80,11 +80,19 @@ def record_assay_samples(assay):
     if 'tests' in assay:
         # check the assay samples:
         for d in assay['tests']:
+            # set library source but check if mismatch
             library_source = d['library_source_template_type']
+            if 'library_qualification_source_template_type' in d:
+                # some samples have SW library type but in library source is WG in the test
+                if d['library_qualification_source_template_type'] != d['library_source_template_type']:
+                    library_source = d['library_qualification_source_template_type']
             if 'tissue_type' not in d:
-                ## assume this is a tumor only assay
-                tissue_type = 'R'
-                negate_tissue_type = True
+                # assay is single test but samples can be Normal or Tumor
+                # keep samples undefined, and replace after evaluating data
+                tissue_type = '?'
+                negate_tissue_type = '?'
+                sample_tissue = '?'
+                sample_name = '?' + library_source
             else:
                 tissue_type = d['tissue_type']
                 negate_tissue_type = d['negate_tissue_type']
@@ -493,10 +501,10 @@ def create_assay_template(assay_name, assay_version, qc_workflows, assay_config,
     # record analysis workflows
     D['Analysis'] = record_analysis_assay_data(assay_config)
     
-    for i in D:
-        if len(D[i]) == 0:
-            print(i, 'is empty')
-            return {}
+    # for i in D:
+    #     if len(D[i]) == 0:
+    #         print(i, 'is empty')
+    #         return {}
     
     return D
 
