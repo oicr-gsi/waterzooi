@@ -32,6 +32,8 @@
     </p>
   </div> 
 
+  
+
   {% for i in range(case_analysis[case_id] | length) %} 
     <form method="POST" action = "">
         <div class="somatic_block">
@@ -197,6 +199,9 @@
             </tr>
           </table>  
         
+
+          {% if case_analysis[case_id][i]['callready'] %}
+
           <p style="font-size:16px;"> Call-ready workflows </p>     
 
             <table id="block_table">
@@ -254,6 +259,10 @@
               {% endfor %}              
             </table>  
 
+          {% endif %}
+
+          {% if case_analysis[case_id][i]['analyses'] %}
+            
             <p style="font-size:16px;"> Analysis workflows </p>     
 
             <table id="block_table">
@@ -335,8 +344,11 @@
               {% endfor %}
             </table>  
         
-        
-            <p style="font-size:16px;"> Sequencing </p>     
+          {% endif %}
+          
+          {% if case_analysis[case_id][i]['sequencing'] %}
+
+          <p style="font-size:16px;"> Sequencing </p>     
 
             <table id="block_table">
               <thead>
@@ -393,8 +405,10 @@
                 </tr>
               {% endfor %}              
             </table>  
-             
-            {% if case_analysis[case_id][i]['alignments'] %}
+          
+          {% endif %}  
+
+          {% if case_analysis[case_id][i]['alignments'] %}
 
               <p style="font-size:16px;"> Lane-level alignments </p>     
 
@@ -454,13 +468,14 @@
                 {% endfor %}              
               </table>  
             {% endif %}
-              
+            
+            {% if case_analysis[case_id][i]['analyses'] %}
+
             <p style="font-size:16px;"> Workflow relationships </p>
           
-
             {{ figures[i] | safe }}
 
-
+            {% endif %}
 
 
           </div>
