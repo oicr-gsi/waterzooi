@@ -75,7 +75,10 @@ def define_columns(database):
                                               'filepath', 'username', 'ticket', 'qcstatus'],
                                     'types': ['VARCHAR(256)', 'VARCHAR(572)', 'VARCHAR(572)',
                                               'VARCHAR(572)', 'VARCHAR(572)', 'VARCHAR(128)',
-                                              'VARCHAR(128)', 'VARCHAR(128)']}}
+                                              'VARCHAR(128)', 'VARCHAR(128)']},
+                        'Workflow_status': {'names': ['wfrun_id', 'project_id', 'selected'],
+                                            'types': ['VARCHAR(572)', 'VARCHAR(128)', 'INT']}}                          
+                        
     elif database == 'analysis_review':
         columns = {'templates': {'names':  ['case_id', 'donor_id', 'project_id', 'assay',
                                             'template', 'valid', 'error', 'md5'],
@@ -111,7 +114,7 @@ def create_table(database_name, database, table):
     table_format = ', '.join(list(map(lambda x: ' '.join(x), list(zip(column_names, column_types)))))
 
     if database == 'waterzooi':
-        if table  in ['Workflows', 'Parents', 'Files', 'Libraries', 'Workflow_Inputs', 'Samples', 'Checksums', 'File_qc']:
+        if table  in ['Workflows', 'Parents', 'Files', 'Libraries', 'Workflow_Inputs', 'Samples', 'Checksums', 'File_qc', 'Workflow_status']:
             constraints = '''FOREIGN KEY (project_id)
                 REFERENCES Projects (project_id)'''
             table_format = table_format + ', ' + constraints 
@@ -123,7 +126,7 @@ def create_table(database_name, database, table):
                   REFERENCES Workflows (wfrun_id)''' 
             table_format = table_format + ', ' + constraints + ', PRIMARY KEY (parents_id, children_id, project_id, case_id)'
     
-        if table == 'Worklows':
+        if table in ['Worklows', 'Workflow_status']:
             table_format = table_format + ', PRIMARY KEY (wfrun_id, project_id)'
     
         if table == 'Files':

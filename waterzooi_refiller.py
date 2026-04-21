@@ -12,7 +12,7 @@ import argparse
 import time
 import os
 import requests
-
+import sqlite3
 from db_helper import connect_to_db, define_columns, initiate_db, insert_multiple_records, \
     delete_unique_record, delete_multiple_records
 from data_helper import load_data, clean_up_workflows, is_case_info_complete
@@ -833,9 +833,9 @@ def record_case_info(case_data, database, recorded_md5sums, project_info, file_q
         print('collected file qc info')
            
         # make a parallel list with table names
-        table_names = [tables['workflows'], tables['files'], tables['files_qc'],
-                       tables['libraries'], tables['samples'], tables['workflow_inputs'],
-                       tables['parents'], tables['checksums']]
+        table_names = [tables['workflows'], tables['files'],
+                       tables['files_qc'], tables['libraries'], tables['samples'],
+                       tables['workflow_inputs'], tables['parents'], tables['checksums']]
         # make a parallel list with column names
         column_names = [columns[i]['names'] for i in table_names]
         
@@ -873,9 +873,59 @@ def record_case_info(case_data, database, recorded_md5sums, project_info, file_q
     return project_info, recorded_md5sums
     
 
-
-
-
+def update_workflow_status(case_data, database, columns, table = 'Workflow_status'):
+    '''
+    (dict, str, dict, str) -> None
+    
+    Insert new workflows in the workflow_status table and remove workflows not in production
+        
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with production data for a case 
+    - database (str): Path to the waterzooi database
+    - columns (dict): Dictionary with column names and types for each table in database
+    - table (str): Name of the table with workflow status
+    '''
+     
+    workflow_info = collect_workflow_info(case_data)
+    
+    # get the recorded worfflows
+    if os.path.isfile(database):
+        conn = sqlite3.connect(database)
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        current_tables = cur.fetchall()
+        current_tables = [i[0] for i in current_tables]    
+        if table in current_tables:
+            conn.row_factory = sqlite3.Row
+            data = conn.execute("SELECT * from {0};".format(table)).fetchall()
+            data = list(set(data))        
+            recorded_workflows = [i['wfrun_id'] for i in data]
+        else:
+            recorded_workflows = []
+        conn.close()
+    else:
+        recorded_workflows = []
+    
+    # add workflows if not recorded
+    workflows_to_add = list(set(workflow_info.keys()).difference(set(recorded_workflows)))
+    if workflows_to_add:
+        L = []
+        for workflow_id in workflow_info:
+            for project_id in workflow_info[workflow_id]:
+                L.append([workflow_id, project_id, 0])
+        conn = connect_to_db(database)
+        insert_multiple_records(data, conn, database, table, columns[table]['names'])
+        conn.close()
+           
+    # remove workflows not in production
+    workflows_to_remove = list(set(recorded_workflows).difference(workflow_info.keys()))
+    if workflows_to_remove:
+        conn = connect_to_db(database)
+        delete_multiple_records(workflows_to_remove, conn, database, table, 'wfrun_id')
+        conn.close()
+        
+        
 
 def organize_project_info(project_info):
     '''
@@ -1177,7 +1227,8 @@ def generate_database(database, provenance_data_file, nabu = 'https://nabu.gsi.o
     tables = {'workflows': 'Workflows', 'parents': 'Parents', 
               'files': 'Files', 'files_qc': 'File_qc', 
               'libraries': 'Libraries', 'workflow_inputs': 'Workflow_Inputs',
-              'checksums': 'Checksums', 'samples':'Samples'}
+              'checksums': 'Checksums', 'samples':'Samples',
+              'workflow_status': 'Workflow_status'}
        
     columns = define_columns('waterzooi')
     
@@ -1215,7 +1266,10 @@ def generate_database(database, provenance_data_file, nabu = 'https://nabu.gsi.o
             # remove case from recorded md5sums. any remaining cases are not in production
             # and should be removed from the database
             project_info, recorded_md5sums = record_case_info(case_data, database, recorded_md5sums, project_info, file_qc, tables, columns)
+            # update workflow status
+            
  
+    
     # record project information in database
     if project_info:
         add_project_info(database, project_info, 'Projects', 'project_id', 'waterzooi')
