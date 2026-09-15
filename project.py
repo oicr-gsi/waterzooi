@@ -56,53 +56,53 @@ def get_cases(project_name, database):
 
 
 
-def extract_samples_libraries_per_case(project_name, database):
-    '''
-    (str, str) - > dict
+# def extract_samples_libraries_per_case(project_name, database):
+#     '''
+#     (str, str) - > dict
     
-    Returns a dictionary with samples sorted by tissue type and with libraries sorted by library type
+#     Returns a dictionary with samples sorted by tissue type and with libraries sorted by library type
         
-    Parameters
-    ----------
-    - project_name (str): Name of project of interest
-    - database (str): Path to the sqlite database
-    '''
+#     Parameters
+#     ----------
+#     - project_name (str): Name of project of interest
+#     - database (str): Path to the sqlite database
+#     '''
     
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT case_id, donor_id, tissue_type, tissue_origin, library_type, group_id, library FROM Libraries WHERE project_id = ?;", (project_name,)).fetchall()
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT case_id, donor_id, tissue_type, tissue_origin, library_type, group_id, library FROM Libraries WHERE project_id = ?;", (project_name,)).fetchall()
+#     conn.close()
 
-    D = {}
+#     D = {}
     
-    for i in data:
-        case = i['case_id']
-        donor = i['donor_id']
-        tissue_type = i['tissue_type']
-        library_type = i['library_type']
-        library = i['library']
+#     for i in data:
+#         case = i['case_id']
+#         donor = i['donor_id']
+#         tissue_type = i['tissue_type']
+#         library_type = i['library_type']
+#         library = i['library']
         
-        sample = '_'.join([donor, i['tissue_origin'] , tissue_type, library_type, i['group_id']])
-        if tissue_type == 'R':
-            tissue = 'normal'
-        else:
-            tissue = 'tumor'
+#         sample = '_'.join([donor, i['tissue_origin'] , tissue_type, library_type, i['group_id']])
+#         if tissue_type == 'R':
+#             tissue = 'normal'
+#         else:
+#             tissue = 'tumor'
         
-        if case not in D:
-            D[case] = {}
-        if 'samples' not in D[case]:
-            D[case]['samples'] = {}
-        if 'libraries' not in D[case]:
-            D[case]['libraries'] = {}
+#         if case not in D:
+#             D[case] = {}
+#         if 'samples' not in D[case]:
+#             D[case]['samples'] = {}
+#         if 'libraries' not in D[case]:
+#             D[case]['libraries'] = {}
         
-        if tissue not in D[case]['samples']:
-            D[case]['samples'][tissue] = set()
-        if library_type not in D[case]['libraries']:
-            D[case]['libraries'][library_type] = set()
+#         if tissue not in D[case]['samples']:
+#             D[case]['samples'][tissue] = set()
+#         if library_type not in D[case]['libraries']:
+#             D[case]['libraries'][library_type] = set()
             
-        D[case]['samples'][tissue].add(sample)
-        D[case]['libraries'][library_type].add(library)
+#         D[case]['samples'][tissue].add(sample)
+#         D[case]['libraries'][library_type].add(library)
         
-    return D            
+#     return D            
 
 
 
@@ -140,73 +140,73 @@ def get_last_sequencing(project_name, database):
     
 
 
-def get_case_analysis_status(analysis_database, project_name=None):
-    '''
-    (str, str) -> dict
+# def get_case_analysis_status(analysis_database, project_name=None):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary with the analysis status of each case in a project if
-    project name is specified or all projects otherwise.
-    If a case has multiple analysis templates, it will return the status of a complete
-    template if one exists
+#     Returns a dictionary with the analysis status of each case in a project if
+#     project name is specified or all projects otherwise.
+#     If a case has multiple analysis templates, it will return the status of a complete
+#     template if one exists
         
-    Parameters
-    ----------
-    - analysis_database (str): Path to the database storing the analysis data
-    - project_name (None str): Name of a specific project
-    '''
+#     Parameters
+#     ----------
+#     - analysis_database (str): Path to the database storing the analysis data
+#     - project_name (None str): Name of a specific project
+#     '''
     
-    conn = connect_to_db(analysis_database)
-    if project_name:
-        data = conn.execute("SELECT project_id, case_id, valid FROM templates WHERE project_id = ?", (project_name,)).fetchall()
-    else:
-        data = conn.execute("SELECT project_id, case_id, valid FROM templates").fetchall()
-    conn.close()
+#     conn = connect_to_db(analysis_database)
+#     if project_name:
+#         data = conn.execute("SELECT project_id, case_id, valid FROM templates WHERE project_id = ?", (project_name,)).fetchall()
+#     else:
+#         data = conn.execute("SELECT project_id, case_id, valid FROM templates").fetchall()
+#     conn.close()
     
-    D = {}
-    for i in data:
-        project = i['project_id']
-        case = i['case_id']
-        valid = i['valid']
-        if project not in D:
-            D[project] = {}
-        if case in D[project]:
-            D[project][case].append(int(valid))
-        else:
-            D[project][case] = [int(valid)]
+#     D = {}
+#     for i in data:
+#         project = i['project_id']
+#         case = i['case_id']
+#         valid = i['valid']
+#         if project not in D:
+#             D[project] = {}
+#         if case in D[project]:
+#             D[project][case].append(int(valid))
+#         else:
+#             D[project][case] = [int(valid)]
     
-    # return the status of the complete template if one exists
-    for project in D:
-        for case in D[project]:
-            D[project][case] = sorted(D[project][case])
-            D[project][case] = D[project][case][-1]
+#     # return the status of the complete template if one exists
+#     for project in D:
+#         for case in D[project]:
+#             D[project][case] = sorted(D[project][case])
+#             D[project][case] = D[project][case][-1]
         
-    return D
+#     return D
 
 
-def count_completed_cases(analysis_status):
-    '''
-    (dict) -> dict
+# def count_completed_cases(analysis_status):
+#     '''
+#     (dict) -> dict
     
-    Returns a dictionary with counts of cases with complete
-    and incomplete analysis for each project     
+#     Returns a dictionary with counts of cases with complete
+#     and incomplete analysis for each project     
        
-    Parameters
-    ----------
-    - analysis_status (dict): Dictionary with analysis status of each case
-                              for each project
-    '''
+#     Parameters
+#     ----------
+#     - analysis_status (dict): Dictionary with analysis status of each case
+#                               for each project
+#     '''
     
-    D = {}
+#     D = {}
     
-    for project in analysis_status:
-        # get the status of all cases
-        status = list(analysis_status[project].values())
-        complete = sum(status)
-        incomplete = len(status) - complete
+#     for project in analysis_status:
+#         # get the status of all cases
+#         status = list(analysis_status[project].values())
+#         complete = sum(status)
+#         incomplete = len(status) - complete
         
-        D[project] = {'complete': complete, 'incomplete': incomplete}
+#         D[project] = {'complete': complete, 'incomplete': incomplete}
     
-    return D
+#     return D
     
     
 def get_case_sequencing_status(database, project_name=None):

@@ -22,15 +22,13 @@
     <tr>
       <th>Project</th>
       <th>Pipeline</th>
-      <th>Sequencing status</th>
+      <th>Cases</th>
       <th>Analysis status</th>
       <th>Assays</th>
-      <th>Cases</th>
       <th>Samples</th>
       <th>Libraries</th>
-      <th>Active</th>
-
     </tr>     
+    
     {% for i in projects %}
       <tr>
         <td>
@@ -40,18 +38,7 @@
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['pipeline'] }}</a>
         </td>
         <td>
-          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">
-            {% if i['project_id'] in sequencing_counts %}
-              {% if sequencing_counts[i['project_id']]['complete'] %}
-                {{sequencing_counts[i['project_id']]['complete']}} <span style="font-size:16px;color:#70db70">&#10004;</span> 
-              {% endif %}
-              {% if sequencing_counts[i['project_id']]['incomplete'] %}
-                {{sequencing_counts[i['project_id']]['incomplete']}} <span style="font-size:16px;color:#ff3300;">&#10006;</span> 
-              {% endif %}
-            {% else %}
-              <span style="font-size:16px;color:#ff3300;">NA</span>
-            {% endif %}
-          </a>
+          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['cases'] }}</a>
         </td>
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">
@@ -71,20 +58,10 @@
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['assays'].split(',') | length }}</a>
         </td>
         <td>
-          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['cases'] }}</a>
-        </td>
-        <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['samples'] }}</a>
         </td>
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['library_types'] }}</a>
-        </td>
-        <td>
-          {% if i['active'] == 'true' %}
-            <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}"><span style="font-size:16px;color:#70db70">&#10004;</span></a>
-          {% else %}
-            <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}"><span style="font-size:16px;color:#ff3300;">&#10006;</span></a>
-          {% endif %}
         </td>
       </tr>
     {% endfor %}

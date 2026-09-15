@@ -14,11 +14,11 @@ import time
 import pandas as pd
 # import matplotlib
 # matplotlib.use('agg')
-from db_helper import connect_to_db
+from commons import connect_to_db
 
 
 from utilities import get_library_design, secret_key_generator, get_case_md5sums, \
-    extract_case_signoff, extract_nabu_signoff, list_signoff_deliverables, remove_cases_with_no_approval_signoff, \
+    remove_cases_with_no_approval_signoff, \
     remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff, \
     get_workflow_release_status, get_file_release_status, cbioportal_format, template_error_formatting, \
     case_error_formatting, moh_format    
@@ -36,9 +36,17 @@ from whole_genome import get_workflows_analysis_date, \
     create_cbioportal_json, get_workflow_names, list_template_workflows, \
     create_graph_edges, plot_graph, list_case_analysis_status, get_workflow_counts, \
     organize_analysis_workflows    
-from project import get_project_info, get_cases, get_last_sequencing, extract_samples_libraries_per_case, \
-    get_case_analysis_status, count_completed_cases, get_case_sequencing_status, count_complete_sequencing
+from project import get_project_info, get_cases, get_last_sequencing,  \
+    get_case_sequencing_status, count_complete_sequencing
 from sequencing import collect_sequence_info, get_platform_shortname
+
+
+from waterzooi_helper import get_project_level_deliverables, get_release_signoff, \
+    get_case_analysis_status, count_completed_cases, extract_samples_libraries_per_case
+
+
+
+
 
 import plotly.offline as pyo
 import plotly.graph_objs as go
@@ -51,12 +59,15 @@ app.secret_key = secret_key_generator(10)
 
 
 
-database = 'waterzooi_db_case.db'
+#database = 'waterzooi_db_case.db'
 workflow_db = 'workflows_case.db'
-analysis_db = 'analysis_review_case.db'
+#analysis_db = 'analysis_review_case.db'
 nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
 
-
+database = 'waterzooi_test_09092026.db'
+analysis_db = 'analysis_review_test_09102026.db'
+database = 'waterzooi_test_09092026.db'
+nabu_cache = 'nabu_cache.db'
 
 
 
@@ -181,20 +192,14 @@ def index():
     projects = get_project_info(database)
     projects = sorted([(i['project_id'], i) for i in projects])
     projects = [i[1] for i in projects]
-    
     # get analysis status of each case in each project
     analysis_status = get_case_analysis_status(analysis_db)
     # count complete and incomplete cases
     analysis_counts = count_completed_cases(analysis_status)  
-    # get the sequencing status of each case
-    sequencing_status = get_case_sequencing_status(database)
-    # count cases with complete and incomplete sequencing
-    sequencing_counts = count_complete_sequencing(sequencing_status)  
-      
+             
     return render_template('index.html',
                            projects=projects,
-                           analysis_counts=analysis_counts,
-                           sequencing_counts=sequencing_counts)
+                           analysis_counts=analysis_counts)
 
 
 @app.route('/<project_name>')
@@ -206,14 +211,8 @@ def project_page(project_name):
     cases = get_cases(project_name, database)
     # sort by case id
     cases = sorted(cases, key=lambda d: d['case_id']) 
-    # get signoffs
-    case_names = [d['case_id'] for d in cases]
-    signoffs = extract_nabu_signoff(case_names, nabu_key_file)
-    # list the release deliverables for each case
-    deliv = list_signoff_deliverables(signoffs)
-    
-    # get the species
-    species = ', '.join(sorted(list(set([i['species'] for i in cases]))))
+    # extract signoff from the nabu cache
+    signoffs = get_release_signoff(nabu_cache, project_name)
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
@@ -227,23 +226,19 @@ def project_page(project_name):
     analysis_status = get_case_analysis_status(analysis_db, project_name)
     # count complete and incomplete cases
     analysis_counts = count_completed_cases(analysis_status)      
-    # get the sequencing status of each case
-    sequencing_status = get_case_sequencing_status(database, project_name)
-    # count cases with complete and incomplete sequencing
-    sequencing_counts = count_complete_sequencing(sequencing_status)
     
-    return render_template('project.html', project=project, cases=cases,
-                           assays=assays, assay_names = assay_names,
+    
+    return render_template('project.html',
+                           project=project,
+                           cases=cases,
+                           assays=assays,
                            samples_libraries = samples_libraries,
-                           seq_date=seq_date, species=species, 
+                           seq_date=seq_date,
                            library_types = library_types,
                            library_names=library_names,
                            analysis_status=analysis_status,
                            analysis_counts=analysis_counts,
-                           sequencing_status=sequencing_status,
-                           sequencing_counts=sequencing_counts,
-                           signoffs=signoffs,
-                           deliv=deliv
+                           signoffs=signoffs
                            )
     
 
@@ -311,10 +306,24 @@ def analysis(project_name, assay):
     deliverables = identify_deliverables(project)
     # get the cases with analysis data for that project and assay
     case_data = get_cases_with_analysis(analysis_db, project_name, assay)
+    
+    
+    
+    #### disabled as it seems to create issues with nabu
+    
+    
+    
+    # list the deliverables 
+    
+    
     # get signoffs
     signoffs = extract_nabu_signoff(case_data, nabu_key_file)
     # list the release deliverables for each case
     deliv = list_signoff_deliverables(signoffs)
+    
+    #deliv = ''
+    
+    
     # check that analysis is up to date with the waterzooi database
     md5sums = get_case_md5sums(database, project_name)
     # keep only cases with up to date data between resources
@@ -337,8 +346,7 @@ def analysis(project_name, assay):
     errors = get_case_error_message(case_data)
     for i in errors:
         errors[i] = case_error_formatting(errors[i])
-    # get the sequencing status of each case
-    sequencing_status = get_case_sequencing_status(database, project_name)
+    
     # get the selected status of each workflows
     selected_workflows = get_selected_workflows(project_name, workflow_db, 'Workflows')    
     # get the review status of each case
@@ -406,7 +414,6 @@ def analysis(project_name, assay):
                            analysis_workflows=analysis_workflows,
                            workflow_counts=workflow_counts,
                            analysis_status=analysis_status,
-                           sequencing_status=sequencing_status,
                            errors=errors,
                            review_status=review_status,
                            deliverables=deliverables,
@@ -440,9 +447,6 @@ def case_analysis(project_name, assay, case_id):
     creation_dates = get_workflows_analysis_date(project_name, database)
     # get the most recent creation date for each template
     most_recent = most_recent_analysis_workflow(case_data, creation_dates)[case_id]
-    # get the sequencing status of the case
-    sequencing_status = get_case_sequencing_status(database, project_name)
-    sequencing_status = sequencing_status[project_name][case_id]
     # get the file count and amount data of each workflow in case
     workflow_counts = get_workflow_counts(case_id, database, 'Workflows')
     # get the samples corresponding to each worklow id
@@ -485,6 +489,10 @@ def case_analysis(project_name, assay, case_id):
     if request.method == 'POST':
         # get the list of checked workflows        
         selected_workflows = request.form.getlist('workflow')
+        
+        print(selected_workflows)
+        
+        
         workflows = list(workflow_names.keys())
         update_wf_selection(workflows, selected_workflows, selected, workflow_db, 'Workflows')
         return redirect(url_for('case_analysis', project_name=project_name, assay=assay.replace('/', '+:+'), case_id=case_id))
@@ -506,7 +514,6 @@ def case_analysis(project_name, assay, case_id):
                            selected=selected,
                            missing_workflows=missing_workflows,
                            child_to_parents=child_to_parents,
-                           sequencing_status=sequencing_status,
                            seq_inputs=seq_inputs,
                            deliverables=deliverables,
                            figures=figures,
