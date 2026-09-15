@@ -379,7 +379,7 @@ def update_nabu_cache(provenance_data_file, nabu_cache, nabu_key_file, nabu = 'h
     
     # create dict to store column names for each table {table: [column names]}
     fields = {'fileqc': {'names': ['project_id', 'case_id', 'fileid', 'filepath', 'username', 'qcstatus', 'ticket'],
-                         'types': ['VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)', 'TEXT', 'VARCHAR(128)', 'VARCHAR(128)']},
+                         'types': ['VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)', 'TEXT', 'VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(128)']},
               'signoff': {'names': ['case_id', 'release', 'release_approval', 'project_id'],
                           'types': ['VARCHAR(572)', 'TEXT', 'TEXT', 'VARCHAR(128)']}}
 
