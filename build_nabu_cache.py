@@ -236,7 +236,7 @@ def map_fileqc_to_cases(file_swids, fileqc):
         if fileid in file_swids:
             projects = file_swids[fileid]['project_id'].split(';')
             for project in projects:
-                L = [project, fileid, file_swids[fileid]['case_id'], fileqc[fileid]['filepath'],
+                L = [project, file_swids[fileid]['case_id'], fileid, fileqc[fileid]['filepath'],
                      fileqc[fileid]['username'], fileqc[fileid]['qcstatus'], fileqc[fileid]['ticket']]
                 data.append(L)   
         
@@ -398,13 +398,15 @@ def update_nabu_cache(provenance_data_file, nabu_cache, nabu_key_file, nabu = 'h
         fileqc = get_file_signoff(project, nabu_fileqc_endpoint)
         # organize data to add to cache
         data = map_fileqc_to_cases(file_swids, fileqc)
-        # open database to delete old entries and add new ones
-        conn = connect_to_db(nabu_cache)
-        # remove entries for project
-        delete_multiple_records([project], conn, nabu_cache, 'fileqc', 'project_id')
-        # add entries for project
-        insert_multiple_records(data, conn, nabu_cache, 'fileqc', fields['fileqc']['names'])
-        conn.close()
+        # check that files have info in the provenance reporter and in nabu
+        if data:
+            # open database to delete old entries and add new ones
+            conn = connect_to_db(nabu_cache)
+            # remove entries for project
+            delete_multiple_records([project], conn, nabu_cache, 'fileqc', 'project_id')
+            # add entries for project
+            insert_multiple_records(data, conn, nabu_cache, 'fileqc', fields['fileqc']['names'])
+            conn.close()
         
       
     # get the case signoff
