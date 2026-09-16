@@ -12,14 +12,6 @@
 
 
 {% block content %}
-  <div class="project_title">
-    {% if sequences %}
-      <span style="font-size:22px; font-style:normal;"> Displaying sequence information for <span id ="count"> {{ sequences|length }} </span> records</span>
-    {% else %}
-      <span style="font-size:22px; font-style:normal;"> No sequence information</span>
-    {% endif %}  
-  </div> 
-
   <div class="download-dropdown">
   <button class="download-dropbtn">Select Platform</button>
     <div class="download-dropdown-content">
@@ -55,7 +47,9 @@
         <th><div class="tooltip">File Prefix<span class="tooltiptext">The common prefix, followed by the sequencing read (R1, R2) and the file suffix .fastq.gz. The file prefix is formed is formed from: 1. Library Id, 2. Run date, 3. Instrument Id, 4. Sequencing Instrument Run, 5.
 Flow cell identifier, 6. Lane number, 7. Demultiplex barcodes</span></th>
         <th><div class="tooltip">Read Pairs<span class="tooltiptext">Number of read pairs. The number of reads is twice the number of read pairs</span></th>
+        <th>Released</th>
         <th>Workflow</th> 
+        <th>Workflow run</th>     
       </thead>     
 
       {% for i in sequences %}
@@ -105,7 +99,32 @@ Flow cell identifier, 6. Lane number, 7. Demultiplex barcodes</span></th>
           <td> {{i['platform']}} </td>
           <td> {{i['prefix']}} </td>        
           <td class='alnright'> {{i['read_count']}} </td>
+          <td>
+            {% if i['status']['qcstatus'] %}
+              <div class="tooltip">
+                <span style="font-size:16px;color:#70db70">&#10004;</span>
+                  <span class="tooltipsignoff">
+                    <ul style="list-style-type: none; padding: 0; margin: 0;"> 
+                      {% if i['status']['ticket'] %}
+                        {% for t in i['status']['ticket'] %}
+                          <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{t}}</a></li>   
+                        {% endfor %}
+                      {% endif %}
+                    </ul>
+                  </span>
+              </div>  
+            {% else %}
+              <div class="tooltip">
+                <span style="font-size:16px;color:#248f24;">?</span>
+              </div>
+            {% endif %}
+          </td>
           <td> {{i['workflow']}} </td>
+          <td>
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], case_id=i['case_id'] | format_identifier, wfrunid=i['wfrun_id'] | format_identifier) }}">
+              {{ i['wfrun_id'] | basename | shorten_workflow_id }}
+            </a>
+          </td> 
         </tr>
       {% endfor %}               
     </table>

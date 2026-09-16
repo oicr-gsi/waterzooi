@@ -36,13 +36,24 @@ from whole_genome import get_workflows_analysis_date, \
     create_cbioportal_json, get_workflow_names, list_template_workflows, \
     create_graph_edges, plot_graph, list_case_analysis_status, get_workflow_counts, \
     organize_analysis_workflows    
-from project import get_project_info, get_cases, get_last_sequencing,  \
+
+
+
+from project import get_cases, get_last_sequencing,  \
     get_case_sequencing_status, count_complete_sequencing
-from sequencing import collect_sequence_info, get_platform_shortname
 
 
-from waterzooi_helper import get_project_level_deliverables, get_release_signoff, \
-    get_case_analysis_status, count_completed_cases, extract_samples_libraries_per_case
+
+
+
+from sequencing import get_platform_shortname
+
+
+from waterzooi_helper import get_project_info, get_project_level_deliverables, \
+    get_release_signoff, get_case_analysis_status, count_completed_cases, \
+    extract_samples_libraries_per_case, collect_sequence_info, get_fileqc, \
+    merge_qc_status_workflow
+    
 
 
 
@@ -227,7 +238,6 @@ def project_page(project_name):
     # count complete and incomplete cases
     analysis_counts = count_completed_cases(analysis_status)      
     
-    
     return render_template('project.html',
                            project=project,
                            cases=cases,
@@ -249,6 +259,22 @@ def sequencing(project_name):
     project = get_project_info(database, project_name)[0]
     # get sequence file information
     sequences = collect_sequence_info(project_name, database)       
+    # get file qc for all files in project
+    fileqc = get_fileqc(nabu_cache, project_name)
+    # add release status of each workflow
+    for i in sequences:
+        i['status'] = merge_qc_status_workflow(i['file_swids'], fileqc)
+        
+        
+        
+        
+    
+    
+        
+    ## workflow view include case id and not assay
+    
+    
+    
     # get the assays
     assay_names = get_assays(database, project_name)
     assays = sorted(list(set(assay_names.split(','))))
@@ -289,7 +315,8 @@ def sequencing(project_name):
 
     else:
         return render_template('sequencing.html', project=project,
-                               sequences=sequences, assays=assays,
+                               sequences=sequences,
+                               assays=assays,
                                platform_names=platform_names
                                )
 
@@ -524,13 +551,11 @@ def case_analysis(project_name, assay, case_id):
 
 
 
-@app.route('/<project_name>/<assay>/<case_id>/<path:wfrunid>')
-def show_workflow(project_name, assay, case_id, wfrunid):
+@app.route('/<project_name>/<case_id>/<path:wfrunid>')
+def show_workflow(project_name, case_id, wfrunid):
     
-    assay = assay.replace('+:+', '/')
     case_id = case_id.replace('+:+', '/')
     wfrunid = wfrunid.replace('+:+', '/')
-    
     # get the release status of each workflow
     workflow_qc = get_workflow_release_status(database, case_id)
     # get the file release status
@@ -550,7 +575,6 @@ def show_workflow(project_name, assay, case_id, wfrunid):
     return render_template('workflow_info.html',
                        project=project,
                        case_id=case_id,
-                       assay=assay,
                        workflow_info=workflow_info,
                        workflow_id=wfrunid,
                        child_to_parents=child_to_parents,
