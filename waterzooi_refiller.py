@@ -13,11 +13,11 @@ import time
 import os
 import requests
 import sqlite3
-from db_helper import connect_to_db, define_columns, initiate_db, insert_multiple_records, \
-    delete_unique_record, delete_multiple_records
-from data_helper import load_data, clean_up_workflows, is_case_info_complete
-from commons import compute_md5, get_cases_md5sum, find_sequencing_attributes, \
-    get_donor_name, case_to_update    
+from data_helper import clean_up_workflows
+
+from commons import load_data, is_case_info_complete, compute_md5, get_cases_md5sum, find_sequencing_attributes, \
+    get_donor_name, case_to_update, connect_to_db, define_columns, initiate_db, insert_multiple_records, \
+    delete_unique_record, delete_multiple_records    
      
         
 
@@ -1259,7 +1259,16 @@ def generate_database(database, provenance_data_file, nabu = 'https://nabu.gsi.o
         if is_case_info_complete(case_data):
             processed += 1    
             # remove workflows that do not belong to the case
+            
+            
+            ### REVIEW - DO WE NEED TO REMOVE THESE WORKFLOWS
+            
+            
             case_data = clean_up_workflows(case_data)
+            
+            
+            
+            
             # collect file qc at the project level if not already recorded
             file_qc, visited_projects = get_project_file_qc(case_data, visited_projects, file_qc, nabu)
             # record case data, update the project level information

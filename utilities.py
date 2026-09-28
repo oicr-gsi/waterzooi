@@ -10,7 +10,7 @@ import time
 import string
 import random
 import requests
-from db_helper import connect_to_db
+from commons import connect_to_db
 
 
 
@@ -102,22 +102,22 @@ def get_donors(project_name, database):
 
 
 
-def secret_key_generator(size=10):
-    '''
-    (int)
+# def secret_key_generator(size=10):
+#     '''
+#     (int)
     
-    Returns a random string of length size with upper and lower case characters
-    and digit
+#     Returns a random string of length size with upper and lower case characters
+#     and digit
     
-    Parameters
-    ----------
-    - size (int): Length of the random string
-    '''
+#     Parameters
+#     ----------
+#     - size (int): Length of the random string
+#     '''
     
-    chars=string.ascii_uppercase + string.ascii_lowercase + string.digits
-    s = ''.join(random.choice(chars) for i in range(size))
+#     chars=string.ascii_uppercase + string.ascii_lowercase + string.digits
+#     s = ''.join(random.choice(chars) for i in range(size))
     
-    return s
+#     return s
     
     
 def get_case_md5sums(database, project_name):
@@ -146,115 +146,6 @@ def get_case_md5sums(database, project_name):
     return D
     
 
-
-
-def ticket_format(d):
-    '''
-    (dict) -> str
-    
-    '''
-    
-    
-    comment = d['comment']
-    if comment and comment.startswith('G') and '-' in comment:
-        comment = comment.split('-')
-        c = ['-'.join([comment[0], comment[i]]) for i in range(1, len(comment))]
-    else:
-        if comment:
-            c = [d['comment']]
-        else:
-            c = d['comment']
-    
-    return c
-    
-
-
-
-
-
-
-
-
-
-def extract_case_signoff(case_id, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case'):
-    '''
-    (str, str, str) -> dict
-    
-    Returns a list of signoffs for that case
-        
-    Parameters
-    ----------
-    - case_id (str): Case identifier
-    - nabu_key_file (str): File storing the nabu API key
-    - nabu (str): URL to access the case in Nabu
-    '''
-    
-    infile = open(nabu_key_file)
-    nabu_key = infile.read().rstrip()
-    infile.close()
-    
-    headers = {'accept': 'application/json',
-               'X-API-KEY': nabu_key,}
-    
-    D = {}
-    
-    response = requests.get(nabu + '/{0}/sign-off'.format(case_id), headers=headers)
-    if response.status_code == 200:
-        for d in response.json():
-            case_identifier = d['caseIdentifier']
-            assert case_id == case_identifier
-            # format jira ticket
-            ticket = ticket_format(d)
-            d['comment'] = ticket
-            if case_id not in D:
-                D[case_id] = {}
-            step = d['signoffStepName']
-            step = ' '.join(list(map(lambda x: x.lower().capitalize(), step.split('_'))))
-            if step in D[case_id]:
-                D[case_id][step].append(d)
-            else:
-                D[case_id][step] = [d]
-    return D
-
-    
-def extract_nabu_signoff(cases, nabu_key_file, nabu='https://nabu.gsi.oicr.on.ca/case/sign-off'):
-    '''
-    (list, str, str) -> dict
-    
-    Returns a dictionary of signoffs for each case in cases
-        
-    Parameters
-    ----------
-    - cases (list): List of case identifiers
-    - nabu_key_file (str): File storing the nabu API key
-    - nabu (str): URL to access the signoffs in Nabu
-    '''
-    
-    infile = open(nabu_key_file)
-    nabu_key = infile.read().rstrip()
-    infile.close()
-    
-    headers = {'accept': 'application/json',
-               'X-API-KEY': nabu_key,}
-    
-    D = {}
-    
-    response = requests.get(nabu, headers=headers)
-    if response.status_code == 200:
-        for d in response.json():
-            case_id = d['caseIdentifier']
-            if case_id in cases:
-                ticket = ticket_format(d)
-                d['comment'] = ticket
-                if case_id not in D:
-                    D[case_id] = {}
-                step = d['signoffStepName']
-                step = ' '.join(list(map(lambda x: x.lower().capitalize(), step.split('_'))))
-                if step in D[case_id]:
-                    D[case_id][step].append(d)
-                else:
-                    D[case_id][step] = [d]
-    return D
 
 
 def list_signoff_deliverables(signoffs):
@@ -492,41 +383,41 @@ def get_workflow_file_qc(database, case_id):
     return D    
     
     
-def get_workflow_release_status(database, case_id):
-    '''
-    (str, str) -> dict
+# def get_workflow_release_status(database, case_id):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary with the release status of each workflow id of a given case
-    The release status is derived from the file qc status in Nabu of the workflow output files
+#     Returns a dictionary with the release status of each workflow id of a given case
+#     The release status is derived from the file qc status in Nabu of the workflow output files
     
-    Parameters
-    ----------
-    - database (str): Path to the waterzooi sqlite database
-    - case_id (str): Case identifier
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the waterzooi sqlite database
+#     - case_id (str): Case identifier
+#     '''
 
-    # get the file qc status for each output file of every workflows
-    workflow_qc = get_workflow_file_qc(database, case_id)
+#     # get the file qc status for each output file of every workflows
+#     workflow_qc = get_workflow_file_qc(database, case_id)
     
-    D = {}    
+#     D = {}    
 
-    for workflow_id in workflow_qc:
-        if all(map(lambda x: x.isdigit(), workflow_qc[workflow_id])):
-            if all(map(lambda x: int(x), workflow_qc[workflow_id])):
-                D[workflow_id] = True
-            elif any(map(lambda x: int(x), workflow_qc[workflow_id])):
-                D[workflow_id] = True
-            elif all(map(lambda x: int(x), workflow_qc[workflow_id])) == False:
-                D[workflow_id] = False
-        elif '1' in workflow_qc[workflow_id]:
-            D[workflow_id] = True
-        elif len(list(set(workflow_qc[workflow_id]))) == 1:
-            D[workflow_id] = '?'
+#     for workflow_id in workflow_qc:
+#         if all(map(lambda x: x.isdigit(), workflow_qc[workflow_id])):
+#             if all(map(lambda x: int(x), workflow_qc[workflow_id])):
+#                 D[workflow_id] = True
+#             elif any(map(lambda x: int(x), workflow_qc[workflow_id])):
+#                 D[workflow_id] = True
+#             elif all(map(lambda x: int(x), workflow_qc[workflow_id])) == False:
+#                 D[workflow_id] = False
+#         elif '1' in workflow_qc[workflow_id]:
+#             D[workflow_id] = True
+#         elif len(list(set(workflow_qc[workflow_id]))) == 1:
+#             D[workflow_id] = '?'
         
         
        
         
-    return D    
+#     return D    
          
 
     

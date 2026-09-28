@@ -16,29 +16,29 @@ from project import *
 
 
 
-def get_workflows_analysis_date(project_name, database):
-    '''
-    (str, str) -> dict
+# def get_workflows_analysis_date(project_name, database):
+#     '''
+#     (str, str) -> dict
     
-    Returns the creation date of any file for each workflow id for the project of interest
+#     Returns the creation date of any file for each workflow id for the project of interest
        
-    Parameters
-    ----------
-    - project_name (str): Name of project of interest
-    - database (str): Path to the sqlite database
-    '''
+#     Parameters
+#     ----------
+#     - project_name (str): Name of project of interest
+#     - database (str): Path to the sqlite database
+#     '''
         
-    # connect to db
-    conn = connect_to_db(database)
-    # extract project info
-    data = conn.execute("SELECT DISTINCT creation_date, wfrun_id FROM Files WHERE project_id= ?;", (project_name,)).fetchall()
-    conn.close()
+#     # connect to db
+#     conn = connect_to_db(database)
+#     # extract project info
+#     data = conn.execute("SELECT DISTINCT creation_date, wfrun_id FROM Files WHERE project_id= ?;", (project_name,)).fetchall()
+#     conn.close()
     
-    D = {}
-    for i in data:
-        D[i['wfrun_id']] = i['creation_date']
+#     D = {}
+#     for i in data:
+#         D[i['wfrun_id']] = i['creation_date']
         
-    return D
+#     return D
 
 
 
@@ -684,41 +684,41 @@ def get_sequencing_input(database, case):
 
 
 
-def most_recent_analysis_workflow(case_data, creation_dates):
-    '''
-    (dict, dict) -> dict
+# def most_recent_analysis_workflow(case_data, creation_dates):
+#     '''
+#     (dict, dict) -> dict
     
-    Returns a dictionary with a list of the most recent workflow for each analysis template of each case
+#     Returns a dictionary with a list of the most recent workflow for each analysis template of each case
        
-    Parameters
-    ----------
-    - case_data (list): Dictionary with template information for each case
-    - creation_dates (dict): Dictionary with creation dates of each workflow
-    '''
+#     Parameters
+#     ----------
+#     - case_data (list): Dictionary with template information for each case
+#     - creation_dates (dict): Dictionary with creation dates of each workflow
+#     '''
         
-    D = {}
+#     D = {}
     
-    for case_id in case_data:
-        most_recent = []
-        for template in case_data[case_id]:
-            if template['template']:
-                L = []
-                for i in ['Analysis', 'Data']:
-                    for j in template['template'][i]:
-                        for d in template['template'][i][j]:
-                            workflow_id = d['workflow_id']
-                            L.append(creation_dates[workflow_id])
-                L.sort()
-                try:
-                    date = time.strftime('%Y-%m-%d', time.localtime(int(L[-1])))
-                except:
-                    date = 'NA'
-                most_recent.append(date)
-            else:
-                most_recent = 'NA'
-        D[case_id] = most_recent
+#     for case_id in case_data:
+#         most_recent = []
+#         for template in case_data[case_id]:
+#             if template['template']:
+#                 L = []
+#                 for i in ['Analysis', 'Data']:
+#                     for j in template['template'][i]:
+#                         for d in template['template'][i][j]:
+#                             workflow_id = d['workflow_id']
+#                             L.append(creation_dates[workflow_id])
+#                 L.sort()
+#                 try:
+#                     date = time.strftime('%Y-%m-%d', time.localtime(int(L[-1])))
+#                 except:
+#                     date = 'NA'
+#                 most_recent.append(date)
+#             else:
+#                 most_recent = 'NA'
+#         D[case_id] = most_recent
         
-    return D
+#     return D
 
 
 # def get_analysis_workflow_name(analysis):
@@ -844,25 +844,25 @@ def get_case_workflow_samples(database, case_id):
     
     
     
-def get_assays(database, project_name):
-    '''
-    (str, str) -> str
+# def get_assays(database, project_name):
+#     '''
+#     (str, str) -> str
     
-    Returns a comma-separated list of all assays for a given project 
+#     Returns a comma-separated list of all assays for a given project 
     
-    Parameters
-    ----------
-    - database (str): Path to the database
-    - project_name (str): Name of project of interest
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the database
+#     - project_name (str): Name of project of interest
+#     '''
     
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT assays FROM Projects WHERE project_id = ?;", (project_name,)).fetchall()     
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT assays FROM Projects WHERE project_id = ?;", (project_name,)).fetchall()     
+#     conn.close()
     
-    assays = ','.join([i['assays'] for i in data])
+#     assays = ','.join([i['assays'] for i in data])
     
-    return assays
+#     return assays
 
 
 def get_missing_workflows(case_data):
@@ -896,194 +896,194 @@ def get_missing_workflows(case_data):
  
     
     
-def get_case_parent_to_children_workflows(database, case):
-    '''
-    (dict, str) -> dict
+# def get_case_parent_to_children_workflows(database, case):
+#     '''
+#     (dict, str) -> dict
     
-    Returns a dictionary of parent to children workflows for a single case
+#     Returns a dictionary of parent to children workflows for a single case
     
-    Parameters
-    ----------
-    - database (str): Path to the database
-    - case (str): Name of case of interest
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the database
+#     - case (str): Name of case of interest
+#     '''
 
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT parents_id, children_id FROM Parents WHERE case_id = ?;", (case,)).fetchall()     
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT parents_id, children_id FROM Parents WHERE case_id = ?;", (case,)).fetchall()     
+#     conn.close()
     
-    parent_to_children = {}
-    for i in data:
-        parent = i['parents_id']
-        child = i['children_id']
-        if parent in parent_to_children:
-            parent_to_children[parent].append(child)
-        else:
-            parent_to_children[parent] = [child]
+#     parent_to_children = {}
+#     for i in data:
+#         parent = i['parents_id']
+#         child = i['children_id']
+#         if parent in parent_to_children:
+#             parent_to_children[parent].append(child)
+#         else:
+#             parent_to_children[parent] = [child]
     
-    return parent_to_children
+#     return parent_to_children
     
     
-def get_case_children_to_parents_workflows(parents_to_children):
-    '''
-    (dict) -> dict
+# def get_case_children_to_parents_workflows(parents_to_children):
+#     '''
+#     (dict) -> dict
     
-    Returns a dictionary of child to parent workflows for a single case
+#     Returns a dictionary of child to parent workflows for a single case
     
-    Parameters
-    - parents_to_children (dict): Dictionary of parents to children workflow
-                                  relationships for a single case
-    '''
+#     Parameters
+#     - parents_to_children (dict): Dictionary of parents to children workflow
+#                                   relationships for a single case
+#     '''
     
-    child_to_parents = {}
+#     child_to_parents = {}
     
-    for parent in parents_to_children:
-        for child in parents_to_children[parent]:
-            if child in child_to_parents:
-                child_to_parents[child].append(parent)
-            else:
-                child_to_parents[child] = [parent]
+#     for parent in parents_to_children:
+#         for child in parents_to_children[parent]:
+#             if child in child_to_parents:
+#                 child_to_parents[child].append(parent)
+#             else:
+#                 child_to_parents[child] = [parent]
     
-    return child_to_parents
+#     return child_to_parents
 
 
-def get_case_workflow_info(database, case):
-    '''
-    (str, str) -> dict
+# def get_case_workflow_info(database, case):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary of workflow name and workflow version for all workflows of a single case
+#     Returns a dictionary of workflow name and workflow version for all workflows of a single case
         
-    Parameters
-    ----------
-    - database (str): Path to the database
-    - case (str): Case of interest
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the database
+#     - case (str): Case of interest
+#     '''
     
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT wfrun_id, wf, wfv FROM Workflows WHERE case_id = ?;", (case,)).fetchall()     
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT wfrun_id, wf, wfv FROM Workflows WHERE case_id = ?;", (case,)).fetchall()     
+#     conn.close()
     
-    D = {}
-    for i in data:
-        workflow_id = i['wfrun_id']
-        workflow_name = i['wf']
-        version = i['wfv']
-        D[workflow_id] = [workflow_name, version] 
+#     D = {}
+#     for i in data:
+#         workflow_id = i['wfrun_id']
+#         workflow_name = i['wf']
+#         version = i['wfv']
+#         D[workflow_id] = [workflow_name, version] 
     
-    return  D
+#     return  D
     
 
-def get_workflow_output_files(database, wfrun_id):
-    '''
-    (str, str) ->
+# def get_workflow_output_files(database, wfrun_id):
+#     '''
+#     (str, str) ->
     
-    Returns a dictionary with the output files of workflow with wfrun_id grouped by sample 
+#     Returns a dictionary with the output files of workflow with wfrun_id grouped by sample 
     
-    Parameters
-    ----------
-    - database (str): Path to the database
-    - wfrun_id (str): Workflow run identifier
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the database
+#     - wfrun_id (str): Workflow run identifier
+#     '''
     
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT Files.file, Files.file_swid, Libraries.sample_id FROM Files JOIN \
-                        Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.wfrun_id = Files.wfrun_id \
-                        AND Files.limskey = Workflow_Inputs.limskey AND Files.limskey = Libraries.lims_id \
-                        AND Libraries.lims_id = Workflow_Inputs.limskey AND Files.wfrun_id = ?", (wfrun_id,)).fetchall()
-    conn.close()   
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT Files.file, Files.file_swid, Libraries.sample_id FROM Files JOIN \
+#                         Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.wfrun_id = Files.wfrun_id \
+#                         AND Files.limskey = Workflow_Inputs.limskey AND Files.limskey = Libraries.lims_id \
+#                         AND Libraries.lims_id = Workflow_Inputs.limskey AND Files.wfrun_id = ?", (wfrun_id,)).fetchall()
+#     conn.close()   
     
-    D = {}
+#     D = {}
     
-    for i in data:
-        sample = i['sample_id']
-        file = i['file']
-        if file in D:
-            D[file].append(sample)
-        else:
-            D[file] = [sample]
-        D[file] = sorted(list(set(D[file])))
+#     for i in data:
+#         sample = i['sample_id']
+#         file = i['file']
+#         if file in D:
+#             D[file].append(sample)
+#         else:
+#             D[file] = [sample]
+#         D[file] = sorted(list(set(D[file])))
             
-    # group samples sharing the same files
-    S = {}
-    for file in D:
-        sample = ';'.join(D[file])
-        if sample in S:
-            S[sample].append(file)
-        else:
-            S[sample] = [file]
+#     # group samples sharing the same files
+#     S = {}
+#     for file in D:
+#         sample = ';'.join(D[file])
+#         if sample in S:
+#             S[sample].append(file)
+#         else:
+#             S[sample] = [file]
        
-    return S
+#     return S
 
 
 
 
-def map_limskeys_to_workflow(database, wfrun_id):
-    '''
-    (str, str) -> list
+# def map_limskeys_to_workflow(database, wfrun_id):
+#     '''
+#     (str, str) -> list
 
-    Returns a list of limskeys matching workflow with identifier wfrun_id 
+#     Returns a list of limskeys matching workflow with identifier wfrun_id 
 
-    Parameters
-    ----------
-    - database (str): Path to the waterzooi
-    - wfrun_id (str): Workflow unique identifier
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the waterzooi
+#     - wfrun_id (str): Workflow unique identifier
+#     '''
 
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT Workflow_Inputs.limskey FROM Workflow_Inputs \
-                        WHERE Workflow_Inputs.wfrun_id = ?;", (wfrun_id,)).fetchall()
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT Workflow_Inputs.limskey FROM Workflow_Inputs \
+#                         WHERE Workflow_Inputs.wfrun_id = ?;", (wfrun_id,)).fetchall()
+#     conn.close()
     
-    limskeys = [i['limskey'] for i in data]
+#     limskeys = [i['limskey'] for i in data]
     
-    return limskeys
+#     return limskeys
 
 
-def get_input_sequences(database, case, wfrun_id):
-    '''
-    (str, str, str) -> dict
+# def get_input_sequences(database, case, wfrun_id):
+#     '''
+#     (str, str, str) -> dict
     
-    Returns a dictionary with input sequences  of worflow with identifier wfrun_id
+#     Returns a dictionary with input sequences  of worflow with identifier wfrun_id
     
-    Parameters
-    ----------
-    - database (str): Path to the waterzooi
-    - case (str): Case identifier
-    - wfrun_id (str): Workflow unique identifier
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the waterzooi
+#     - case (str): Case identifier
+#     - wfrun_id (str): Workflow unique identifier
+#     '''
     
-    # get the limskeys matching the workflow
-    limskeys = map_limskeys_to_workflow(database, wfrun_id)
+#     # get the limskeys matching the workflow
+#     limskeys = map_limskeys_to_workflow(database, wfrun_id)
 
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT Files.file_swid, Files.file, Files.limskey, Libraries.library, \
-                        Libraries.sample_id FROM Files JOIN Libraries JOIN Workflows \
-                        WHERE Files.wfrun_id = Workflows.wfrun_id AND Files.limskey = Libraries.lims_id \
-                        AND LOWER(Workflows.wf) IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
-                        'fileimport', 'import_fastq') AND Files.case_id = ?;", (case,)).fetchall()
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT Files.file_swid, Files.file, Files.limskey, Libraries.library, \
+#                         Libraries.sample_id FROM Files JOIN Libraries JOIN Workflows \
+#                         WHERE Files.wfrun_id = Workflows.wfrun_id AND Files.limskey = Libraries.lims_id \
+#                         AND LOWER(Workflows.wf) IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
+#                         'fileimport', 'import_fastq') AND Files.case_id = ?;", (case,)).fetchall()
+#     conn.close()
     
-    D = {}
+#     D = {}
     
-    for i in data:
-        sample = i['sample_id']
-        library = i['library']
-        limskey = i['limskey']
-        file_swid = i['file_swid']
-        file = i['file']
+#     for i in data:
+#         sample = i['sample_id']
+#         library = i['library']
+#         limskey = i['limskey']
+#         file_swid = i['file_swid']
+#         file = i['file']
         
-        # check that limskey match the limskeys of workflow wfrun_id
-        if limskey in limskeys:
-            if sample not in D:
-                D[sample] = [[sample, library, limskey, file_swid, file]]
-            else:
-                D[sample].append([sample, library, limskey, file_swid, file])
+#         # check that limskey match the limskeys of workflow wfrun_id
+#         if limskey in limskeys:
+#             if sample not in D:
+#                 D[sample] = [[sample, library, limskey, file_swid, file]]
+#             else:
+#                 D[sample].append([sample, library, limskey, file_swid, file])
     
-    # sort according to sample and sequences
-    for sample in D:
-        D[sample].sort(key=lambda x: (x[0], x[2], x[-1]))
+#     # sort according to sample and sequences
+#     for sample in D:
+#         D[sample].sort(key=lambda x: (x[0], x[2], x[-1]))
     
-    return D
+#     return D
 
 
 
@@ -1274,6 +1274,23 @@ def get_cbioportal_deliverables():
     
 #     return D
                     
+
+
+
+
+
+
+
+
+
+###### NEED TO MODIFY JSON ACCORDING TO NEW DARE SPECIFICATIONS
+###### EXPECTING {CASE: {DONOR: DONOR: , DATA : {WORKFLOW_NAME: {WORKFLOW_ID: [FILES]}}}}
+
+
+
+
+
+
 
 
 def create_analysis_json(case_data, selected_workflows, workflow_outputfiles, deliverables=None):

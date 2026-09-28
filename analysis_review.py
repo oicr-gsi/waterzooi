@@ -9,20 +9,20 @@ import json
 import argparse
 import os
 import itertools
-from collections import deque
-from generate_assays import generate_templates, list_qc_workflows, extract_assay_workflows, \
-    is_sequencing_workflow
-from db_helper import connect_to_db, define_columns, initiate_db, insert_multiple_records, \
+
+
+from commons import load_data, is_case_info_complete, get_cases_md5sum, find_sequencing_attributes, get_donor_name, \
+    compute_md5, case_to_update, connect_to_db, define_columns, initiate_db, insert_multiple_records, \
     delete_unique_record, delete_multiple_records
-from data_helper import load_data, clean_up_workflows, is_case_info_complete, is_signoff_complete, \
-    map_lims_to_tests, map_tests_to_samples, map_workflows_to_lims, complete_expected_workflows, \
-    identify_missing_workflows, map_samples_to_lims, sort_lims_by_samples, \
-    get_assay_expected_workflows, get_production_workflows, identify_workflows_with_missing_data, \
-    check_workflow_relationships, map_expected_production_workflows, is_data_complete, no_extra_data, \
-    identify_extra_workflows, reformat_pipeline_workflows, add_parent_workflows    
-from commons import get_cases_md5sum, find_sequencing_attributes, get_donor_name, \
-    compute_md5, case_to_update    
+        
+ 
+
+
+
     
+
+
+
 
 
 def collect_sample_workflows(case_data):
@@ -59,383 +59,6 @@ def collect_sample_workflows(case_data):
     return D
 
 
-    
-def group_anchor_by_sample_type(anchor_samples):
-    '''
-    (dict) -> dict
-    
-    Returns a dictionary of anchor workflow ids for each sample type
-        
-    Parameters
-    ----------
-    - anchor_samples (dict): Dictionary with anchor workflow ids and their corresponding samples 
-    '''
-    
-    D = {}
-    
-    for workflow in anchor_samples:
-        for sample_type in anchor_samples[workflow]:
-            if sample_type in D:
-                D[sample_type].append(workflow)
-            else:
-                D[sample_type] = [workflow]
-            D[sample_type] = list(set(D[sample_type]))
-    
-    return D
-
-
- 
-def group_anchor_workflows(anchor_samples):
-    '''
-    (dict) -> list
-    
-    Returns a list of tuples each containing a combination of anchor workflow ids
-      
-    Parameters
-    ----------
-    - anchor_samples (dict): Dictionary with anchor workflow ids and their corresponding samples 
-    '''
-
-    # group anchors bysample type
-    D = group_anchor_by_sample_type(anchor_samples)
-    # list all anchors according to the assay
-    L = [D[i] for i in D]
-    # find all combinations of anchors
-    C = list(itertools.product(*L))    
- 
-    return C
- 
-   
-def breadth_first_search(graph, start_node):
-    '''
-    (dict, str) -> list
-    
-    Returns a list of all the workflow ids connected found by traversing
-    the graph starting at start_node
-        
-    Parameters
-    ----------
-    - graph (dict): Adjency list of workflow relationships
-    - start_node (str): workflow_id used to start traversing the graph
-    '''
-    
-    visited = set()
-    queue = deque([start_node])
-    traversal_order = []
-
-    while queue:
-        node = queue.popleft() # Dequeue from the left
-        if node not in visited:
-            traversal_order.append(node)
-            visited.add(node)
-            # Enqueue unvisited neighbors
-            if node in graph:
-                for neighbor in graph[node]:
-                    if neighbor not in visited:
-                        queue.append(neighbor)
-    return traversal_order
- 
-
-def exclude_anchors(groups, focus_group):
-    '''
-    (list, tuple) -> list
-    
-    Returns a list of anchor workflow ids from each group in groups
-    that are not in the focus griup 
-        
-    Parameters
-    ----------
-    - groups (list): List of tuples, each containing a combination of anchor workflow ids
-    - focus_group (tuple): Tuple of anchor workflow ids     
-    '''
-    
-    L = []
-    for i in groups:
-        if i != focus_group:
-            for j in i:
-                L.append(j)
-    exclude = [i for i in L if i not in focus_group]
-    
-    return exclude
-    
-    
-def exclude_workflows(groups, focus_group, parent_to_children_workflows):
-    '''
-    (list, tuple, dict) -> list
-
-    Returns a list of anchor workflow ids in groups not present in the focus group
-    including their immediate downstream workflows 
-
-    Parameters
-    ----------
-    - groups (list): List of tuples, each containing a combination of anchor workflow ids
-    - focus_group (tuple): Tuple of anchor workflow ids     
-    - parent_to_children_workflows (dict): Dictionary with workflow ids and their immediate downstream workflows
-    '''
-
-    # exclude anchor workflows not in the focus group
-    anchors = exclude_anchors(groups, focus_group)
-    
-    # exclude anchor workflows and their immediate downstream workflows
-    excluded = []
-    
-    for i in parent_to_children_workflows:
-        if i in anchors:
-            excluded.append(i)
-            excluded.extend(parent_to_children_workflows[i])    
-    
-    excluded = list(set(excluded))
-    
-    return excluded
-
-
-
-def create_adjency_list(parent_to_children_workflows, excluded):
-    '''
-    (dict, list) -> dict    
-    
-    Returns a graph representation of the connected workflow ids without the excluded 
-    ids
-        
-    Parameters
-    ----------
-    - parent_to_children_workflows (dict): Dictionary with workflow ids and their immediate downstream workflows
-    - excluded (list): List of workflow ids to exclude from the adjency list 
-    '''
-    
-    # create a dict of parent to children, removing parents without defined children workflows
-    D = {}
-    
-    for i in parent_to_children_workflows:
-        if 'NA' not in parent_to_children_workflows[i] and i != 'NA':
-             if i not in excluded:
-                 children = []
-                 for j in parent_to_children_workflows[i]:
-                     if j not in excluded and j != 'NA':
-                         children.append(j)
-                 if children:
-                     D[i] = children
-    
-
-    return D
-
-
-
-
-def identify_fastq_workflows(workflow_info, fastq_workflows):
-    '''
-    (dict, list) -> list
-    
-    Returns a list of workflow ids of fastq-generating workflows
-        
-    Parameters
-    ----------
-    - workflow_info (dict): Dictionary with workflow names mapped to workflow ids
-    - fastq_workflows (list): List of fastq-generating workflow names
-    '''
-        
-    sequences = [i for i in workflow_info if workflow_info[i] in fastq_workflows]
-
-    return sequences
-
-
-
-def list_group_samples(group, workflows_to_samples):
-    '''
-    (tuple, dict) -> list
-    
-    Returns a list of samples for all anchor workflows of a given group
-        
-    Parameters
-    ----------
-    - group (tuple): List of anchor worfklow run ids for a given group within a case
-    - workflows_to_samples (dict): Dictionary mapping samples to workflow run ids
-    '''
-
-    # make a list of samples for the group of anchor workflows
-    group_samples = []
-    for workflow in group:
-        group_samples.extend(list(workflows_to_samples[workflow].keys()))
-    group_samples = set(group_samples)    
-    
-    return group_samples
-
-
-
-
-def remove_sequences(sequences, workflows_to_samples, group):
-    '''
-    (list, dict, tuple) -> dict
-    
-    Remove sequence workflows for which the samples are not samples of the group anchor workflows
-    
-    Parameters
-    ----------
-    - sequences (list): List of gastq-generating workflows (eg bcl2fastq) for a given case
-    - workflows_to_samples (dict): Dictionary mapping samples to workflow run ids
-    - group (tuple): List of anchor worfklow run ids for a given group within a case
-    '''
-    
-    # make a list of samples for the group of anchor workflows
-    group_samples = list_group_samples(group, workflows_to_samples)
-
-    # keep only sequences corresponding to samples that are in group_samples
-    to_remove = []
-    for workflow in sequences:
-        samples = list(workflows_to_samples[workflow].keys())
-        for i in samples:
-            if i not in group_samples:
-                to_remove.append(workflow)
-    for workflow in to_remove:
-        sequences.remove(workflow)
-        
-    return sequences
-     
-
-
-def exclude_additional_workflows(group, workflows_to_samples, parent_to_children_workflows):
-    '''
-    (tuple, dict, dict) -> list
-
-    Returns a list of workflow ids to exclude from the connected workflows
-    because they incluse samples that are not samples of any agroup anchor workflows
-        
-    Parameters
-    ----------
-    - group (list): List of anchor worfklow run ids for a given group within a case
-    - workflows_to_samples (dict): Dictionary mapping samples to workflow run ids
-    - parent_to_children_workflows (dict): Dictionary with workflow ids and their immediate downstream workflows
-    '''
-
-    # make a list of samples for the group of anchor workflows
-    group_samples = list_group_samples(group, workflows_to_samples)
-
-    # exclude workflows for which samples are not in the samples of the anchors of the group
-    excluded = []
-    
-    for workflow in parent_to_children_workflows:
-        if workflow != 'NA':
-            samples = list(workflows_to_samples[workflow].keys())
-            for i in samples:
-                if i not in group_samples:
-                    excluded.append(workflow)
-            for child in parent_to_children_workflows[workflow]:
-                if child != 'NA':
-                    samples = list(workflows_to_samples[child].keys())
-                    for i in samples:
-                        if i not in group_samples:
-                            excluded.append(child)
-
-    excluded = list(set(excluded))
-        
-    return excluded
-    
-
-   
-def find_related_workflows(groups, group, parent_to_children_workflows, workflow_info, fastq_workflows, workflows_to_samples):
-    '''
-    (list, tuple, dict, dict, list) -> list
-    
-    Returns a list of all connected workflows from top (fastq-generating workflows)
-    to the most downstream analysis workflows, traversing the call ready workflows
-    in group
-        
-    Parameters
-    ----------
-    - groups (list): List of tuples, each containing a combination of anchor workflow ids
-    - group (tuple): Tuple of anchor workflow ids     
-    - parent_to_children_workflows (dict): Dictionary with workflow ids and their immediate downstream workflows
-    - workflow_info (dict): Dictionary with workflow names mapped to workflow ids
-    - fastq_workflows (list): List of fastq-generating workflow names
-    - workflows_to_samples (dict): Dictionary mapping samples to workflow run ids
-    '''
-    
-    L = []
-    
-    # list al workflow ids of fastq-generating workflows
-    sequences = identify_fastq_workflows(workflow_info, fastq_workflows)
-
-    # remove sequence workflows for which samples are not samples of the group of anchor workflows
-    sequences = remove_sequences(sequences, workflows_to_samples, group)
-
-    # exclude anchor worfklows and their immediate downstream workflows
-    # that are not in group
-    excluded = exclude_workflows(groups, group, parent_to_children_workflows)
-    
-    # exclude all workflows for which samples are not samples of the group of anchor workflows
-    excluded.extend(exclude_additional_workflows(group, workflows_to_samples, parent_to_children_workflows))
-    
-    # create an adjency list of all the workflows without the excluded worfklows
-    matrix = create_adjency_list(parent_to_children_workflows, excluded)
-    # find all connected workflows starting at each sequence workflow
-    for workflow_id in sequences:
-        connected = breadth_first_search(matrix, workflow_id)
-        # check that anchor workflow in group are among the connected workflows    
-        keep = [i in connected for i in group]
-        if any(keep):
-            L.extend(connected)
-    
-    L = list(set(L))  
-    
-    return L
-    
-    
-
-def get_downstream_workflows(parent_workflows):
-    '''
-    (dict) -> dict
-    
-    Returns a dictionary with list of downstream workflow ids for each workflow id
-    
-    Parameters
-    ----------
-    - parent_workflows (dict): Dictionary with child-parents workflow relationship
-    '''
-    
-    D = {}
-        
-    for i in parent_workflows:
-        for j in parent_workflows[i]:
-            if j in D:
-                D[j].append(i)
-            else:
-                D[j] = [i]
-    return D
-    
-    
-
-def convert_assay_to_template(assay):
-    '''
-    (dict) -> dict
-
-    Returns a dictionary for collecting analysis data from a specific assay     
-    
-    Paramaters
-    ----------
-    - assay (dict): Dictionary with assay specifying expected anchors, samples and workflows
-    '''
-        
-    template = {}
-    
-    for i in assay:
-        template[i] = {}
-        if i == 'Samples':
-            for j in assay[i]:
-                template[i][j] = {}    
-                for k in assay[i][j]:
-                    template[i][j][k] = '' 
-                template[i][j]['sample'] = ''                 
-        elif i == 'Analysis':
-            for j in assay[i]:
-                template[i][j] = []
-        elif i == 'Data':
-            for j in assay[i]:
-                template[i][j] = []
-        
-    return template
-    
-    
-    
 def extract_workflow_information(case_data):
     '''
     (dict) -> dict
@@ -457,905 +80,7 @@ def extract_workflow_information(case_data):
     return D
         
  
-       
-def identify_sample_type(tissue_type, library_source, negate_tissue_type):
-    '''
-    (str, str, bool) -> str
     
-    Returns the sample type (eg NormalWG, TumourWT) based on the library source
-    and tissue origin
-        
-    Parameters
-    ----------
-    - tissue_type (str): The tissue type, indicating normal or tumor origin
-    - library_source (str): The code of the library
-    - negate_tissue_type (bool): True if the tissue type indicates a tumor origin
-    '''
-        
-    sample_name = ''
-    if tissue_type == 'R' and negate_tissue_type == False:
-        # normal sample
-        sample_name = 'Normal' + library_source 
-    elif tissue_type == 'R' and negate_tissue_type:
-        # tumour sample
-        sample_name = 'Tumour' + library_source
-    
-    if sample_name == '':
-        print(tissue_type, library_source, negate_tissue_type)
-    assert sample_name != ''
-      
-    
-    return sample_name
-
-
-
-def map_samples_to_workflows(samples_workflows):
-    '''
-    (dict) -> dict  
-    
-    Returns a dictionary with samples mapped to each workflow id in a case
-            
-    Parameters
-    ----------
-    - samples_workflows (dict): Dictionary with all the workflow ids of each sample in a case
-    '''
-    
-    D = {}
-    
-    for sample in samples_workflows:
-        tissue_type = samples_workflows[sample]['tissue_type']
-        library_type = samples_workflows[sample]['library_type']    
-        if tissue_type == 'R':
-            negate_tissue_type = False
-        else:
-            negate_tissue_type = True
-            tissue_type = 'R'       
-        for d in samples_workflows[sample]['workflows']:
-            workflow_id = d['wfrun_id']
-            if workflow_id not in D:
-                D[workflow_id] = {}
-            if sample not in D[workflow_id]:
-                D[workflow_id][sample] = {'library_type': library_type, 'tissue_type': tissue_type, 'negate_tissue_type': negate_tissue_type}
-            else:
-                assert D[workflow_id][sample]['library_type'] == library_type
-                assert D[workflow_id][sample]['tissue_type'] == tissue_type
-                assert D[workflow_id][sample]['negate_tissue_type'] == negate_tissue_type
-    
-    return D
-    
-
-
-def add_samples_to_template(connected_workflows, workflows_to_samples, template):
-    '''
-    (list, dict, dict) -> None
-    
-    Adds in place the samples information to the template
-       
-    Parameters
-    ----------
-    - connected_workflows (list): List of connected workflows for a group of call-ready workflows
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - template (dict): Dictionary with data to collect
-    '''
-    
-    for workflow_id in connected_workflows:
-        for sample in workflows_to_samples[workflow_id]:
-            library_type = workflows_to_samples[workflow_id][sample]['library_type']
-            tissue_type = workflows_to_samples[workflow_id][sample]['tissue_type']
-            negate_tissue_type = workflows_to_samples[workflow_id][sample]['negate_tissue_type']
-            sample_type = identify_sample_type(tissue_type, library_type, negate_tissue_type)
-            k = {'library_type': library_type,
-                 'tissue_type': tissue_type,
-                 'negate_tissue_type': negate_tissue_type,
-                 'sample': sample}
-                    
-            # replace undefined samples from single test assays
-            replace_undefined_samples(template, k)
-            
-            for i in k:
-                if bool(template['Samples'][sample_type][i]):
-                    assert template['Samples'][sample_type][i] == k[i]
-                else:
-                    template['Samples'][sample_type][i] = k[i]
-    
-    
-def replace_undefined_samples(template, d):
-    '''
-    (dict, dict) -> dict
-
-    Updates the template sample information with sample information
-    from the data when template samples are not defined (ie. from singe test assays)     
-
-    Parameters
-    ----------
-    - template (dict): Dictionary with data to collect
-    - d (dict): Dictionary with sample information
-    '''
-
-
-    samples = list(template['Samples'].keys())
-    if any(list(map(lambda x: '?' in x, samples))):
-        assert len(samples) == 1
-
-        tissue_type = d['tissue_type']        
-        negate_tissue_type = d['negate_tissue_type']
-    
-        if tissue_type == 'R' and negate_tissue_type == False:
-            # normal sample
-            sample = 'Normal' 
-        elif tissue_type == 'R' and negate_tissue_type:
-            # tumour sample
-            sample = 'Tumour'
-        
-        updated_sample = samples[0].replace('?', sample) 
-    
-        # update sample
-        template['Samples'][updated_sample] = template['Samples'].pop(samples[0])
-    
-        # update alignemnt section
-        alignments = [i for i in template['Data'] if i != 'Sequencing' and '?' in i]
-        assert len(alignments) == 1
-        alignment_sample = alignments[0]
-        updated_alignment_sample = alignment_sample.replace('?', sample)
-        template['Data'][updated_alignment_sample] = template['Data'].pop(alignment_sample)
-    
-    
-def add_samples_to_seq_template(sample_group, workflows_to_samples, workflow_info, template):
-    '''
-    (list, dict, dict, dict) -> None
-    
-    Adds in place the samples information to the template
-       
-    Parameters
-    ----------
-    - sample_group (list): List of samples
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - workflow_info (dict): Dictionary with workflow name
-    - template (dict): Dictionary with data to collect
-    '''
-    
-    for workflow_id in workflows_to_samples:
-        # add only the sequencing workflows
-        workflow_name = workflow_info[workflow_id]
-        if is_sequencing_workflow(workflow_name):
-            for sample in sample_group:
-                if sample in workflows_to_samples[workflow_id]:
-                    library_type = workflows_to_samples[workflow_id][sample]['library_type']
-                    tissue_type = workflows_to_samples[workflow_id][sample]['tissue_type']
-                    negate_tissue_type = workflows_to_samples[workflow_id][sample]['negate_tissue_type']
-                    sample_type = identify_sample_type(tissue_type, library_type, negate_tissue_type)
-                    k = {'library_type': library_type,
-                         'tissue_type': tissue_type,
-                         'negate_tissue_type': negate_tissue_type,
-                         'sample': sample}
-                
-                    # replace undefined samples from single test assays
-                    replace_undefined_samples(template, k)
-                            
-                    for i in k:
-                        if bool(template['Samples'][sample_type][i]):
-                            assert template['Samples'][sample_type][i] == k[i]
-                        else: 
-                            template['Samples'][sample_type][i] = k[i]
-
-
-def add_analysis_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, template):
-    '''
-    (list, dict, dict, dict, dict) -> None
-            
-    Adds in place the analysis information to the template
-       
-    Parameters
-    ----------
-    - connected_workflows (list): List of connected workflows for a group of call-ready workflows
-    - workflow_info (dict): Dictionary with workflow name mapped to worfklow id
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - child_to_parents_workflows (dict): Dictionary with parent worfklows mapped to worfklow ids
-    - template (dict): Dictionary with data to collect
-    '''
-        
-    for workflow_id in connected_workflows:
-        workflow_name = workflow_info[workflow_id]
-        samples = [{sample: workflows_to_samples[workflow_id][sample]} for sample in workflows_to_samples[workflow_id]]
-        inputs = child_to_parents_workflows[workflow_id]
-            
-        d = {'workflow_id': workflow_id,
-             'workflow_name': workflow_name,
-             'samples': samples,
-             'inputs': inputs}
-        
-        if workflow_name in template['Analysis']:
-            # do not record identical workflows
-            if d not in template['Analysis'][workflow_name]:
-                template['Analysis'][workflow_name].append(d)
-        
-
-
-def add_analysis_to_seq_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, template):
-    '''
-    (list, dict, dict, dict, dict) -> None
-            
-    Adds in place the analysis information to the template
-       
-    Parameters
-    ----------
-    - connected_workflows (list): List of connected workflows for a group of call-ready workflows
-    - workflow_info (dict): Dictionary with workflow name mapped to worfklow id
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - child_to_parents_workflows (dict): Dictionary with parent worfklows mapped to worfklow ids
-    - template (dict): Dictionary with data to collect
-    '''
-        
-    for workflow_id in connected_workflows:
-        workflow_name = workflow_info[workflow_id]
-        samples = [{sample: workflows_to_samples[workflow_id][sample]} for sample in workflows_to_samples[workflow_id]]
-        inputs = child_to_parents_workflows[workflow_id]
-            
-        d = {'workflow_id': workflow_id,
-             'workflow_name': workflow_name,
-             'samples': samples,
-             'inputs': inputs}
-        
-        if workflow_name in template['Analysis']:
-            # do not record identical workflows
-            if d not in template['Analysis'][workflow_name]:
-                template['Analysis'][workflow_name].append(d)
-
-
-   
-    
-def add_data_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows, template): 
-    '''
-    (dict, dict, dict, dict) -> None
-    
-    Adds in place the sequencing and alignment data to the template
-    
-    Parameters
-    ----------
-    - connected_workflows (list): List of connected workflows for a group of call-ready workflows
-    - workflow_info (dict): Dictionary with workflow name mapped to worfklow id
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - child_to_parents_workflows (dict): Dictionary with parent worfklows mapped to worfklow ids
-    - fastq_workflows (list): List of fastq-generating workflow names
-    - data_workflows (list): List of lane level alignment workflows
-    - template (dict): Dictionary with data to collect
-    '''
-        
-    for workflow_id in connected_workflows:
-        workflow_name = workflow_info[workflow_id]
-        samples = [{sample: workflows_to_samples[workflow_id][sample]} for sample in workflows_to_samples[workflow_id]]
-        inputs = child_to_parents_workflows[workflow_id]
-        
-        d = {'workflow_id': workflow_id,
-             'workflow_name': workflow_name,
-             'samples': samples,
-             'inputs': inputs}
-        
-        if workflow_name.lower() in fastq_workflows:
-            if d not in template['Data']['Sequencing']:
-                template['Data']['Sequencing'].append(d)
-                
-        if workflow_name.lower() in data_workflows:
-            for k in samples:
-                for sample in k:
-                    library_type = k[sample]['library_type']
-                    tissue_type = k[sample]['tissue_type']
-                    negate_tissue_type = k[sample]['negate_tissue_type']
-                    sample_type = identify_sample_type(tissue_type, library_type, negate_tissue_type)
-                    sample_type = sample_type + 'align'       
-            
-                    if d not in template['Data'][sample_type]:
-                        template['Data'][sample_type].append(d)
-            
-
-
-def add_data_to_seq_template(sample_group, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows, template): 
-    '''
-    (list, dict, dict, dict, list, list, dict) -> None
-    
-    Adds in place the sequencing and alignment data to the template
-    
-    Parameters
-    ----------
-    - sample_group (list): List of samples
-    - workflow_info (dict): Dictionary with workflow name mapped to worfklow id
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - child_to_parents_workflows (dict): Dictionary with parent worfklows mapped to worfklow ids
-    - fastq_workflows (list): List of fastq-generating workflow names
-    - data_workflows (list): List of lane level alignment workflows
-    - template (dict): Dictionary with data to collect
-    '''
-        
-    for workflow_id in workflows_to_samples:
-        workflow_name = workflow_info[workflow_id]
-        
-        samples = [{i: workflows_to_samples[workflow_id][i]} for i in workflows_to_samples[workflow_id] if i in sample_group]
-        inputs = child_to_parents_workflows[workflow_id]
-        
-        if samples:
-            d = {'workflow_id': workflow_id,
-                 'workflow_name': workflow_name,
-                 'samples': samples,
-                 'inputs': inputs}
-        
-            if workflow_name.lower() in fastq_workflows:
-                if d not in template['Data']['Sequencing']:
-                    template['Data']['Sequencing'].append(d)
-                
-            if workflow_name.lower() in data_workflows:
-                for k in samples:
-                    for sample in k:
-                        library_type = k[sample]['library_type']
-                        tissue_type = k[sample]['tissue_type']
-                        negate_tissue_type = k[sample]['negate_tissue_type']
-                        sample_type = identify_sample_type(tissue_type, library_type, negate_tissue_type)
-                        sample_type = sample_type + 'align'       
-            
-                        if d not in template['Data'][sample_type]:
-                            template['Data'][sample_type].append(d)
-
-
-    
-def add_anchors_to_template(connected_workflows, workflow_info, workflows_to_samples, template):
-    '''
-    (dict, dict, dict) -> None
-            
-    Adds in place the anchor workflow information to the template
-       
-    Parameters
-    ----------
-    - connected_workflows (list): List of connected workflows for a group of call-ready workflows
-    - workflow_info (dict): Dictionary with workflow name mapped to worfklow id
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - template (dict): Dictionary with data to collect
-    '''
-        
-    for workflow_id in connected_workflows:
-        workflow_name = workflow_info[workflow_id]
-        if 'bammergepreprocessing' in workflow_name.lower() or 'star_call_ready' in workflow_name.lower():
-            for sample in workflows_to_samples[workflow_id]:
-                library_type = workflows_to_samples[workflow_id][sample]['library_type']
-                tissue_type = workflows_to_samples[workflow_id][sample]['tissue_type']
-                negate_tissue_type = workflows_to_samples[workflow_id][sample]['negate_tissue_type']    
-                sample_type = identify_sample_type(tissue_type, library_type, negate_tissue_type)
-                if sample_type not in template['Anchors']:
-                    template['Anchors'][sample_type] = []
-                if workflow_id not in template['Anchors'][sample_type]:
-                    template['Anchors'][sample_type].append(workflow_id)
-        
-
-def fill_group_template(assay, connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows):
-    '''
-    (dict, list, dict, dict, dict, list, list) -> list
-    
-    Returns a list of templates with analysis data for each block
-    
-    Parameters
-    ----------
-    - assay (dict): Dictionary with assay information
-    - connected_workflows (list): List of connected workflows for a group of call-ready workflows
-    - workflow_info (dict): Dictionary with workflow name mapped to worfklow id
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - child_to_parents_workflows (dict): Dictionary with parent worfklows mapped to worfklow ids
-    - fastq_workflows (list): List of fastq-generating workflow names
-    - data_workflows (list): List of lane level alignment workflows
-    '''
-
-    # create template from the assay
-    template = convert_assay_to_template(assay)
-    # add samples section to template
-    add_samples_to_template(connected_workflows, workflows_to_samples, template)
-    # add the analysis section
-    add_analysis_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, template)    
-    # add alignment data
-    add_data_to_template(connected_workflows, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows, template)    
-    # add anchor workflows
-    add_anchors_to_template(connected_workflows, workflow_info, workflows_to_samples, template)
-    
-    return template
-
-
-
-def group_samples(case_data, workflows_to_samples):
-    '''
-    (dict) -> list
-    
-    Returns all possible groups of samples according to the sample types
-        
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with case information
-    '''
-    
-    D = {}
-    # group samples accoring to sample type
-    for d in case_data['sample_info']:
-        sample = d['sampleId']
-        library_design = d['libraryDesign']
-        tissue_type = d['tissueType']
-        
-        if tissue_type == 'R':
-            sample_type = 'Normal' + library_design
-        else:
-            sample_type = 'Tumour' + library_design
-        
-        if sample_type not in D:
-            D[sample_type] = []
-        if sample not in D[sample_type]:
-            D[sample_type].append(sample)
-        
-        
-    # list all samples
-    L = [D[i] for i in D]
-    # find all combinations of samples
-    C = list(itertools.product(*L))    
- 
-    return C
-    
-    
-    
-    
-    
-   
-def fill_seq_template(sample_group, assay, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows):
-    '''
-    (list, dict, dict, dict, dict, list, list) -> list
-    
-    Returns a list of templates with analysis data for each block
-    
-    Parameters
-    ----------
-    - sample_group (list): List of samples 
-    - assay (dict): Dictionary with assay information
-    - workflow_info (dict): Dictionary with workflow name mapped to worfklow id
-    - workflows_to_samples (dict): Dictionary with samples mapped to each workflow id in a case
-    - child_to_parents_workflows (dict): Dictionary with parent worfklows mapped to worfklow ids
-    - fastq_workflows (list): List of fastq-generating workflow names
-    - data_workflows (list): List of lane level alignment workflows
-    '''
-
-    # create template from the assay
-    template = convert_assay_to_template(assay)
-    # remove anchor and analysis workflows
-    template['Anchors'] = {}
-    template['Analysis'] = {}
-    # add samples section to template
-    add_samples_to_seq_template(sample_group, workflows_to_samples, workflow_info, template)
-    # add sequencing and alignment data
-    add_data_to_seq_template(sample_group, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows, template) 
-    
-    return template
-
-
-# def evaluate_template_samples(template, assay):
-#     '''
-#     (dict, dict) -> (bool, str)
-    
-#     Returns a boolean indicating if the template has missing samples, 
-#     and the corresponding error message
-    
-#     Parameters
-#     ----------
-#     - template (dict): Dictionary collecting data for the given assay
-#     - assay (dict): Dictionary with assay information
-#     '''
-    
-#     complete = True
-#     error = ''
-    
-#     # evaluate expected samples
-#     for i in template['Samples']:
-#         for j in template['Samples'][i]:
-#             if template['Samples'][i][j] == '':
-#                 complete = False
-#             if j != 'sample':
-#                 if template['Samples'][i][j] != assay['Samples'][i][j]:
-#                     complete = False
-    
-#     if complete == False:
-#         error = 'missing samples'
-
-#     return complete, error
-
-
-# def evaluate_template_raw_data(template):
-#     '''
-#     (dict) -> (bool, str)
-    
-#     Returns a boolean indicating if the raw data (sequences and alignments)
-#     is mmissing from the template, and the corresponding error message
-    
-#     Parameters
-#     ----------
-#     - template (dict): Dictionary collecting data for the given assay
-#     '''
-    
-#     complete = True
-#     error = ''
-
-#     # evaluate sequencing and alignments
-#     for i in template['Data']:
-#         if len(template['Data'][i]) == 0:
-#             complete = False
-#     if complete == False:
-#         error = 'missing raw data'        
-
-#     return complete, error
-
-
-
-def evaluate_template_raw_data(template, case_data):
-    '''
-    (dict, dict) -> (bool, str)
-    
-    Returns a boolean indicating if the raw data (sequences and alignments)
-    is mmissing from the template, and the corresponding error message
-    
-    Parameters
-    ----------
-    - template (dict): Dictionary collecting data for the given assay
-    - case_data (dict): Dictionary with case information
-    '''
-    
-    complete = True
-    error = ''
-
-    # map workflow ids to lims ids
-    lims = map_workflow_to_lims(case_data)
-    # get sequencing status for each lims ids
-    seq_status = get_sequencing_status(case_data)
-     
-    # get sequencing status for workflows in template
-    workflows = []
-    if template['Data']['Sequencing']:
-        for d in template['Data']['Sequencing']:
-            workflows.append(d['workflow_id'])
-        L = []
-        for i in workflows:
-            for j in lims[i]:
-                L.append(seq_status[j])
-        if all(L) == False:
-            error = 'incomplete sequencing'
-            complete = False
-    else:
-        error = 'missing raw data'
-        complete = False
-    
-    return complete, error
-
-
-
-
-def get_samples_for_analysis_evaluation(template):
-    '''
-    (dict) -> list
-
-    Returns a list with sample information in the same format as the
-    sample inputs in the analysis workflow template      
-    
-    Parameters
-    ----------
-    - template (dict): Dictionary with case data for a given assay
-    '''
-    
-    L = []
-    
-    if template['Samples']:
-        for i in template['Samples']:
-            if 'sample' in template['Samples'][i] and \
-                'tissue_type' in template['Samples'][i] and \
-                'negate_tissue_type' in template['Samples'][i] and \
-                'library_type' in template['Samples'][i]:
-                    sample = template['Samples'][i]['sample']
-                    tissue_type = template['Samples'][i]['tissue_type']
-                    negate_tissue_type = template['Samples'][i]['negate_tissue_type']
-                    library_type = template['Samples'][i]['library_type']
-                    d = {sample: {"library_type": library_type,
-                                  "tissue_type": tissue_type,
-                                  "negate_tissue_type": negate_tissue_type}}
-                    L.append(d)
-            else:
-                return []
-    else:
-        return []
-    
-    return L
-    
-    
-
-def evaluate_missing_analyses(template, assay):
-    '''
-    (dict, dict) -> (bool, list)
-    
-    Returns a boolean indicating if expected analyses workflows are missing
-    from the template, and the corresponding error message
-    
-    Parameters
-    ----------
-    - template (dict): Dictionary collecting data for the given assay
-    - assay (dict): Dictionary with assay information
-    '''
-
-    complete = True
-    error = ''
-    # evaluate analyses
-    # check if each expected workflow has data
-    missing = []
-    for workflow in template['Analysis']:
-        if len(template['Analysis'][workflow]) == 0:
-            complete = False
-            missing.append(workflow)
-        # check if workflow has all information
-        for d in template['Analysis'][workflow]:
-            for j in ['workflow_id', 'workflow_name', 'samples', 'inputs']:
-                if j not in d or bool(d[j]) == False:
-                    complete = False
-                    missing.append(workflow)
-            
-    for workflow in assay['Analysis']:
-        if workflow not in template['Analysis']:
-            complete = False
-            missing.append(workflow)
-    
-    if complete == False:
-        missing = sorted(list(set(missing)))
-        error = 'missing {0} workflows ({1})'.format(len(missing), ':'.join(missing))
-        
-    return complete, error
-
-
-
-def evaluate_sample_analyses(template, assay):
-    '''
-    (dict, dict) -> (bool, list)
-    
-    Returns a boolean indicating if expected analyses workflows are missing
-    from the template, and the corresponding error message
-    
-    Parameters
-    ----------
-    - template (dict): Dictionary collecting data for the given assay
-    - assay (dict): Dictionary with assay information
-    '''
-
-
-    samples = get_samples_for_analysis_evaluation(template)
-
-    complete = True
-    error = ''
-    # evaluate analyses
-    # check if each expected workflow has data
-    missing = []
-    for workflow in template['Analysis']:
-        # check if workflow has all information
-        for d in template['Analysis'][workflow]:
-            if 'samples' in d:
-                for k in d['samples']:
-                    if k not in samples:
-                        complete = False
-                        missing.append(workflow)
-            
-    if complete == False:
-        missing = sorted(list(set(missing)))
-        error = '{0} workflows have missing samples ({1})'.format(len(missing), ':'.join(missing))
-    
-    return complete, error
-
-
-
-def evaluate_extra_analyses(template, assay):
-    '''
-    (dict, dict) -> (bool, str)
-    
-    Returns a boolean indicating if there are multiple instances of the expected
-    analysis workflows, and the corresponding error message
-    
-    Parameters
-    ----------
-    - template (dict): Dictionary collecting data for the given assay
-    - assay (dict): Dictionary with assay information
-    '''
-
-    complete = True
-    error = []
-
-    # check if each expected workflow has a single record
-    # skip call ready workflow because they may have a record each sample
-
-    for workflow in template['Analysis']:
-        
-        # skipp bwamem and star lane level which can have multiple workflows
-        if workflow.lower() not in ['bwamem', 'bwamem2', 'star_lane_level']:
-            samples = {}
-            extra = 0
-            for d in template['Analysis'][workflow]:
-                workflow_id = d['workflow_id']
-                for k in d['samples']:
-                    for sample in k:
-                        if sample not in samples:
-                            samples[sample] = []
-                        samples[sample].append(workflow_id)
-                        samples[sample] = list(set(samples[sample]))        
-            for sample in samples:
-                if len(samples[sample]) > 1:
-                    extra += len(samples[sample]) - 1
-        
-            if extra:
-                err = '{0}: {1} extra interations'.format(workflow, extra)
-                error.append(err)
-                complete = False
-    
-    error = ';'.join(error)
-    
-    return complete, error
-
-
-def evaluate_assay(template, assay, case_data, evaluate_analysis = True):
-    '''
-    (dict, dict, dict, bool) -> (bool, str)
-    
-    Returns a boolean indicating if the template holds all the expected data, 
-    and the error message if template is incomplete
-    
-    Parameters
-    ----------
-    - template (dict): Dictionary collecting data for the given assay
-    - assay (dict): Dictionary with assay information
-    - case_data (dict): Dictionary with case information
-    - evaluate_analysis (bool): Evaluate analysis data if True
-    '''
-    
-    # records the completeness and error messages for the different template sections 
-    complete = []
-    error = []
-    
-    # # evaluate samples
-    # cpl, err = evaluate_template_samples(template, assay)    
-    # complete.append(cpl)
-    # error.append(err)
-    
-    # evalute sequencing
-    # evaluate sequencing
-    cpl, err = evaluate_template_raw_data(template, case_data)    
-    complete.append(cpl)
-    error.append(err)
-
-    if evaluate_analysis:
-        # evaluate missing analyses workflows
-        cpl, err = evaluate_missing_analyses(template, assay)
-        complete.append(cpl)
-        error.append(err)
-    
-        # evaluate missing samples in analysis workflows
-        cpl, err = evaluate_sample_analyses(template, assay)
-        complete.append(cpl)
-        error.append(err)
-        
-        # # evaluate extra workflow occurences
-        # cpl, err = evaluate_extra_analyses(template, assay)
-        # complete.append(cpl)
-        # error.append(err)
-        
-    # evaluate all sections
-    while '' in error:
-        error.remove('')
-    error = ';'.join(error)
-    complete = all(complete)
-    
-    return complete, error
-    
-
-
-def map_workflow_to_lims(case_data):
-    '''
-    (dict) -> dict
-
-    Returns a dictionary with lims ids mapped to each workflow id
-
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with case information    
-    '''
-    
-    D = {}
-    
-    for d in case_data['workflow_runs']:
-        workflow_id = d['wfrunid']
-        lims = d['limsIds'].split(',')
-        if workflow_id not in D:
-            D[workflow_id] = lims
-        else:
-            D[workflow_id].extend(lims)
-        D[workflow_id] = list(set(D[workflow_id]))    
-    
-    return D
-
-
-def get_sequencing_status(case_data):
-    '''
-    (dict) -> dict
-    
-    Returns a dictionary with sequencing status of each lims id
-        
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with case information    
-    '''
-    
-    D = {}
-    
-    for d in json.loads(case_data['case_info']['sequencing']):
-        complete = d['complete']
-        for j in d['limsIds']:
-            limsid = j['id']
-            D[limsid] = complete
-            
-    return D
-        
-
-    
-def extract_anchor_samples(assay):
-    '''
-    (dict) -> dict
-    
-    Returns a dictionary with expected sample information for each anchor workflow
-    
-    Parameters
-    ----------
-    - assay (dict): Dictionary with assay information
-    '''    
-        
-    D = {}
-    
-    for sample in assay['Anchors']:
-        workflow = assay['Anchors'][sample]['workflows']
-        if workflow not in D:
-            D[workflow] = {}
-        D[workflow][sample] = assay['Samples'][sample]    
-    
-    return D
-    
-    
-    
-def get_anchor_samples(samples_workflows, anchor_workflows):
-    '''
-    (dict, dict) -> dict
-    
-    Returns a dictionary with samples for each anchor workflow
-    
-    Parameters
-    ----------
-    - samples_workflows (dict): Dictionary with workflow information for each sample of a case 
-    - anchor_workflows (dict): Dictionary with expected sample information for each anchor workflow
-    '''
-    
-    D = {}
-
-    for sample in samples_workflows:
-        tissue_type = samples_workflows[sample]['tissue_type']
-        library_type = samples_workflows[sample]['library_type']
-        for i in samples_workflows[sample]['workflows']:
-            workflow_name = i['workflow']
-            workflow_id = i['wfrun_id']
-            if workflow_name in anchor_workflows:
-                # find the sample name
-                for j in anchor_workflows[workflow_name]:
-                    if library_type == anchor_workflows[workflow_name][j]['library_type']:
-                        if (tissue_type == anchor_workflows[workflow_name][j]['tissue_type'] and \
-                            anchor_workflows[workflow_name][j]['negate_tissue_type'] == False) or \
-                            (tissue_type != anchor_workflows[workflow_name][j]['tissue_type'] and \
-                             anchor_workflows[workflow_name][j]['negate_tissue_type']):
-                                # normal sample
-                                sample_name = j
-                                if  workflow_id not in D:
-                                    D[workflow_id] = {}
-                                if sample_name not in D[workflow_id]:
-                                    D[workflow_id][sample_name] = []
-                                D[workflow_id][sample_name].append(sample)
-            
-    return D                
-                
- 
 def collect_workflow_relationships(case_data):
     '''
     (dict) -> dict
@@ -1400,397 +125,765 @@ def collect_workflow_relationships(case_data):
     return D
 
 
-def is_moh_case(case_data):
+def is_signoff_complete(case_data):
     '''
-    (dict) -> bool    
-    
-    Returns True if any of the projects associated with the case are MOH
+    (dict) -> bool
+
+    Returns True if signoff is complete for all the lims Ids that pass QC
     
     Parameters
     ----------
-    - case_data (str): Dictionary with case information
+    - case_data (dict): Dictionary with case information from production
     '''
+
+    
+    # evaluate all lims ids --> signoff is indicated by complete sequencing status   
+    seq = json.loads(case_data['case_info']['sequencing'])
+    # evaluate only lims ids for sequencing
+    complete = []
+    for i in seq:
+        if i['type'] == 'FULL_DEPTH_SEQUENCING':
+            complete.append(i['complete'])
+    
+    return all(complete)        
+
+
+def map_lims_to_tests(case_data):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with all sequencing lims ids passing QC for
+    each tests in the case. 
+    Assumption: sign off is complete (ie. sequencing status complete for all limds)
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with case information from production
+    '''
+    
+    D = {}
+        
+    seq = json.loads(case_data['case_info']['sequencing'])
+    # evaluate only lims ids for sequencing
+    for i in seq:
+        if i['type'] == 'FULL_DEPTH_SEQUENCING':
+            # assumes signoff is complete
+            assert i['complete']
+            test = i['test']
+            for j in i['limsIds']:
+                if j['qcFailed'] == False:
+                    limsid = j['id']
+                    if test not in D:
+                        D[test] = [limsid]
+                    else:
+                        D[test].append(limsid)
+                        D[test].sort()
+    return D
+
+
+def map_tests_to_samples(case_data, tests):
+    '''
+    (dict, dict) -> dict
+
+    Returns a dictionary matching all samples for each test
+    Assumption: sign off is complete (ie. sequencing status complete for all limds)
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with case information from production
+    - tests (dict): Dictionary with lims ids for each tests
+    '''
+
+    D = {}
+
+    for test in tests:
+        # find the sample corresponding to each lims id
+        for i in case_data['sample_info']:
+            limsid = i['limsId']
+            sampleid = i['sampleId']
+            if limsid in tests[test]:
+                if test not in D:
+                    D[test] = [sampleid]
+                else:
+                    D[test].append(sampleid)
+                D[test] = sorted(list(set(D[test]))) 
+
+    return D
+
+
+
+def map_workflows_to_lims(case_data):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with lims ids for each workflow in a case
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with case information from production
+    '''
+        
+    D = {}
+        
+    for d in case_data['workflow_runs']:
+        wfrunid = d['wfrunid']
+        limsids = d['limsIds'].split(',')
+        if wfrunid not in D:
+            D[wfrunid] = limsids
+        else:
+            D[wfrunid].extend(limsids)
+        D[wfrunid] = list(set(D[wfrunid]))
+
+    return D
+
+
+
+
+def map_expected_workflows_to_runid(workflow_info, case_workflows):
+    '''
+    (dict, list) -> bool
+    
+    Returns a dictionary with the workflow run ids, if they exist, for each expected
+    workflow from the assay of a case
+        
+    Parameters
+    ----------
+    - workflow_info (dict): Dictionary mapping worfklow run ids to workflow names
+    - case_workflows (list): List of expected workflows from the assay
+    '''
+    
+    
+    sequencing_workflows = ['casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq']
+    gridss_workflows = ['gridss_matched', 'gridss'] 
+      
+    # map the workflow run ids of production workflows to the expected workflows
+    D = {}
+    for workflow in case_workflows:
+        # collect run ids of all expected workflows
+        D[workflow] = []
+        for wfrunid in workflow_info:
+            # sequencing workflows may be defined as bcl2fastq in the assay but the actual
+            # sequencing workflow may differ
+            # check if a run id exists for an alternative sequencing workflow
+            if workflow in sequencing_workflows:
+                for key in sequencing_workflows:
+                    if key == workflow_info[wfrunid]:
+                        if key not in D:
+                            D[key] = []
+                        D[key].append(wfrunid)
+            # gridss is labeled gridss_matched in the assay
+            # but the actual name may differ based on different naming schemes
+            # for research and clinical - check if a run id exists for any gridss workflow
+            elif workflow in gridss_workflows:
+                for key in gridss_workflows:
+                    if key == workflow_info[wfrunid]:
+                        if key not in D:
+                            D[key] = []
+                        D[key].append(wfrunid)
+            else:
+                if workflow_info[wfrunid] == workflow:
+                    D[workflow].append(wfrunid)
+        
+    # remove empty gridds_matched and bcl2fastq workflows if an alternative workflow was found
+    for i in sequencing_workflows:
+        if i != 'bcl2fastq' and i in D and len(D[i]) != 0 and len(D['bcl2fastq']) == 0:
+            if 'bcl2fastq' in D:
+                del D['bcl2fastq']
+    if 'gridss' in D and len(D['gridss']) != 0 and 'gridss_matched' in D and len(D['gridss_matched']) == 0:
+        del D['gridss_matched']
+            
+    return D
+
+
+
+def complete_expected_workflows(workflow_info, case_workflows):
+    '''
+    (dict, list) -> bool
+    
+    Returns True if all the expected workflows in case workflows have run in 
+    in production and have assigned workflow run ids
+    
+    
+    Parameters
+    ----------
+    - workflow_info (dict): Dictionary mapping worfklow run ids to workflow names
+    - case_workflows (list): List of expected workflows from the assay
+    '''
+
+    # map the workflow run ids of production workflows to the expected workflows
+    expected_workflows = map_expected_workflows_to_runid(workflow_info, case_workflows)
+
+    complete = True
+    for workflow in expected_workflows:
+        if len(expected_workflows[workflow]) == 0:
+            complete = False
+    
+    return complete
+
+
+def identify_missing_workflows(workflow_info, case_workflows):
+    '''
+    (dict, list) -> bool
+    
+    Returns True if all the expected workflows in case workflows have run in 
+    in production and have assigned workflow run ids
+        
+    Parameters
+    ----------
+    - workflow_info (dict): Dictionary mapping worfklow run ids to workflow names
+    - case_workflows (list): List of expected workflows from the assay
+    '''
+
+    # map the workflow run ids of production workflows to the expected workflows
+    expected_workflows = map_expected_workflows_to_runid(workflow_info, case_workflows)
+
+    missing = []
+    for workflow in expected_workflows:
+        if len(expected_workflows[workflow]) == 0:
+            missing.append(workflow)
+    
+    missing = list(set(missing))    
+    
+    return missing
+
+
+def list_library_qualif_lims(case_data):
+    '''
+    (dict) -> list
+    
+    Returns a list of lim Ids used for library qualification
+        
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with case information from production
+    '''
+
+    L = []
+       
+    seq = json.loads(case_data['case_info']['sequencing'])
+    
+    # evaluate only lims ids for sequencing
+    for i in seq:
+        if i['type'] == 'LIBRARY_QUALIFICATION':
+            for j in i['limsIds']:
+                L.append(j['id'])
+            
+    return L
+
+
+def map_samples_to_lims(case_data):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary with all lims id for each sample in a case    
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with case information from production
+    '''
+
+
+    # list lims used in library qualification
+    qualif = list_library_qualif_lims(case_data)
+    
+    D = {}
+        
+    for i in case_data['sample_info']:
+        sampleid = i['sampleId']
+        limsid = i['limsId']
+        # do not include lims for library qualification
+        if limsid not in qualif:
+            if sampleid not in D:
+                D[sampleid] = [limsid]
+            else:
+                D[sampleid].append(limsid)
+                D[sampleid].sort()
+            
+    return D
+
+
+def sort_lims_by_samples(tests_samples, samples_lims):
+    '''
+    (dict, dict) -> dict
+    
+    Returns a dictionary with lists of lims for each sample, if multiple samples
+    exist, for each test in a case
+        
+    Parameters
+    ----------
+    - test_samples (dict): Dictionart mapping tests with their samples
+    - samples_lims (dict): Dictionary mapping samples with their lims ids
+    '''
+    
+    D = {}
+    
+    for test in tests_samples:
+        for sample in tests_samples[test]:
+            limsids = samples_lims[sample]
+            if test not in D:
+                D[test] = [limsids]
+            else:
+                D[test].append(limsids)
+     
+    return D
+
+
+
+def map_assay_test_to_test_case(assay_test, case_tests):
+    '''
+    (str, dict) -> str
+    
+    Returns the test from the case json corresponding to the test from the assay pipeline
+    
+    Parameters
+    ----------
+    - assay_test (str): Name of the test in the pipeline json
+    - case_tests (dict): Dictionary with case tests from the case json
+    '''
+    
     
     L = []
     
-    for d in case_data['project_info']:
-        L.append('MOH Full Pipeline' in d['deliverables'])
+    test_type, library_type = assay_test.split(':')
     
-    return any(L)             
-
-
-# def get_moh_assay(assay_name):
-#     '''
-#     (str) -> dict
+    for test in case_tests:
+        if test_type == 'X':
+            if library_type != test:
+                print(library_type)
+                print(test)
+                print(assay_test)
+                print(case_tests)
+            
+            assert library_type == test
+            L.append(test)
+        else:
+            if test.startswith(test_type) and library_type in test:
+                L.append(test)
+    L = list(set(L))
     
-#     Returns a dictionary with the WGS or WGTS MOH assay 
-    
-#     Parameters
-#     ----------
-#     - assay_name (str): Name of the MOH assay
-#     '''
-        
-#     if 'WGTS' in assay_name:
-#         assays = {'Samples': {'TumourWT': {'library_type': 'WT',
-#                                             'tissue_type': 'R',
-#                                             'negate_tissue_type': True},
-#                                'TumourWG': {'library_type': 'WG',
-#                                             'tissue_type': 'R',
-#                                             'negate_tissue_type': True},
-#                                'NormalWG': {'library_type': 'WG',
-#                                             'tissue_type': 'R',
-#                                             'negate_tissue_type': False}},
-#                    'Data': {'Sequencing': {'workflows': ['bcl2fastq'], 'inputs': []},
-#                             'TumourWTalign': {'samples': ['TumourWT'],
-#                                               'inputs': [],
-#                                               'data': ['Sequencing'],
-#                                               'workflows': ['star_lane_level']},
-#                             'TumourWGalign': {'samples': ['TumourWG'],
-#                                               'inputs': [],
-#                                               'data': ['Sequencing'],
-#                                               'workflows': ['bwaMem']},
-#                             'NormalWGalign': {'samples': ['NormalWG'],
-#                                               'inputs': [],
-#                                               'data': ['Sequencing'],
-#                                               'workflows': ['bwaMem']}},
-#                    'Analysis':
-#                        {'mutect2_matched': {'samples': ['NormalWG', 'TumourWG'],
-#                                             'inputs': ['bamMergePreprocessing_by_sample']},
-#                        'variantEffectPredictor_matched': {'samples': ['NormalWG', 'TumourWG'],
-#                                                           'inputs': ['mutect2_matched']},
-#                        'delly_matched': {'samples': ['NormalWG', 'TumourWG'],
-#                                          'inputs': ['bamMergePreprocessing_by_sample']}, 
-#                        'gridss': {'samples': ['NormalWG', 'TumourWG'],
-#                                   'inputs': ['bamMergePreprocessing_by_sample']},
-#                        'purple': {'samples': ['NormalWG', 'TumourWG'],
-#                                   'inputs': ['mutect2_matched', 'bamMergePreprocessing_by_sample', 'gridss']},
-#                        'bamMergePreprocessing_by_sample': {'samples': ['NormalWG', 'TumourWG'],
-#                                                            'inputs': ['bwaMem']},
-#                        'bwaMem': {'samples': ['NormalWG', 'TumourWG'],
-#                                   'inputs': ['bcl2fastq']},
-#                        'rsem': {'samples': ['TumourWT'],
-#                                 'inputs': ['star_call_ready']},
-#                        'star_call_ready': {'samples': ['TumourWT'],
-#                                            'inputs': ['bcl2fastq']},
-#                        'starfusion': {'samples': ['TumourWT'],
-#                                       'inputs': ['star_call_ready']},
-#                        'arriba': {'samples': ['TumourWT'],
-#                                   'inputs': ['star_call_ready']},
-#                        'msisensor': {'samples': ['NormalWG', 'TumourWG'],
-#                                      'inputs': ['bamMergePreprocessing_by_sample']},
-#                        'star_lane_level': {'samples': ['TumourWT'],
-#                                            'inputs': ['bcl2fastq']},
-#                        'mavis': {'samples': ['TumourWT', 'NormalWG', 'TumourWG'],
-#                                  'inputs': ['bamMergePreprocessing_by_sample',
-#                                             'star_call_ready', 'starfusion',
-#                                             'arriba', 'delly_matched']},
-#                        'hrDetect': {'samples': ['NormalWG', 'TumourWG'],
-#                                     'inputs': ['purple', 'mutect2_matched']},
-#                        'haplotypeCaller': {'samples': ['NormalWG', 'TumourWG'],
-#                                            'inputs': ['bamMergePreprocessing_by_sample']}},
-#                    'Anchors': {'TumourWT': {'workflows': 'star_call_ready'},
-#                                'TumourWG': {'workflows': 'bamMergePreprocessing_by_sample'},
-#                                'NormalWG': {'workflows': 'bamMergePreprocessing_by_sample'}}}
-      
+    assert len(L) == 1
 
-#     elif 'WGS' in assay_name:
-#         assays = {'Samples': {'TumourWG': {'library_type': 'WG',
-#                                            'tissue_type': 'R',
-#                                            'negate_tissue_type': True},
-#                               'NormalWG': {'library_type': 'WG',
-#                                            'tissue_type': 'R',
-#                                            'negate_tissue_type': False}},
-                  
-#                   'Data': {'Sequencing': {'workflows': ['bcl2fastq'], 'inputs': []},
-#                            'TumourWGalign': {'samples': ['TumourWG'],
-#                                              'inputs': [],
-#                                              'data': ['Sequencing'],
-#                                              'workflows': ['bwaMem']},
-#                            'NormalWGalign': {'samples': ['NormalWG'],
-#                                              'inputs': [],
-#                                              'data': ['Sequencing'],
-#                                              'workflows': ['bwaMem']}},
-#                   'Analysis':
-#                       {'bwaMem': {'samples': ['NormalWG', 'TumourWG'],
-#                                  'inputs': ['bcl2fastq']},
-#                        'bamMergePreprocessing_by_sample': {'samples': ['NormalWG', 'TumourWG'],
-#                                                            'inputs': ['bwaMem']},
-#                        'mutect2_matched': {'samples': ['NormalWG', 'TumourWG'],
-#                                             'inputs': ['bamMergePreprocessing_by_sample']},
-#                        'variantEffectPredictor_matched': {'samples': ['NormalWG', 'TumourWG'],
-#                                                           'inputs': ['mutect2_matched']},
-#                        'delly_matched': {'samples': ['NormalWG', 'TumourWG'],
-#                                          'inputs': ['bamMergePreprocessing_by_sample']}, 
-#                        'gridss': {'samples': ['NormalWG', 'TumourWG'],
-#                                   'inputs': ['bamMergePreprocessing_by_sample']},
-#                        'purple': {'samples': ['NormalWG', 'TumourWG'],
-#                                   'inputs': ['mutect2_matched', 'bamMergePreprocessing_by_sample', 'gridss']},
-#                        'msisensor': {'samples': ['NormalWG', 'TumourWG'],
-#                                      'inputs': ['bamMergePreprocessing_by_sample']},
-#                        'mavis': {'samples': ['NormalWG', 'TumourWG'],
-#                                  'inputs': ['bwaMem', 'delly_matched']}},
-#                        'hrDetect': {'samples': ['NormalWG', 'TumourWG'],
-#                                     'inputs': ['purple', 'mutect2_matched']},
-#                        'haplotypeCaller': {'samples': ['NormalWG', 'TumourWG'],
-#                                            'inputs': ['bamMergePreprocessing_by_sample']},
-#                   'Anchors': {'TumourWG': {'workflows': 'bamMergePreprocessing_by_sample'},
-#                               'NormalWG': {'workflows': 'bamMergePreprocessing_by_sample'}}}
-
-#     return assays
-    
+    return L[0]
 
 
 
-def get_moh_assay(assay_name):
+
+def get_assay_expected_workflows(pipeline_workflows, tests_samples, samples_lims):
     '''
-    (str) -> dict
+    (dict, dict, dict) -> dict
     
-    Returns a dictionary with the WGS or WGTS MOH assay 
+    Returns a dictionary with expected workflows and corresponding lims according to the defined assays, pipeline
+    and case information
     
     Parameters
     ----------
-    - assay_name (str): Name of the MOH assay
+    - pipeline_workflows (dict): Dictionary with pipeline workflows
+    - tests_samples (dict): Dictionary with all the samples mapping each test
+    - samples_limns (dict): Dictionary with the lims mapping each assay 
+    '''
+       
+    workflows = {}
+
+    # loop over workflows in pipeline
+    for workflow in pipeline_workflows:
+        # get the expected tests for each workflow from the assay definition
+        level = pipeline_workflows[workflow]['level']
+        # collect the expected lims for each workflow depending on the case information
+        if level == 'lane':
+            # each lims id of each test should have a separate workflow run id
+            tests = pipeline_workflows[workflow]['tests'].split(',')
+            # collect the limsids for each test using case data
+            for test in tests:
+                # find the corresponding test in case data
+                case_test = map_assay_test_to_test_case(test, tests_samples)
+                # get the sample id - each test can have multiple samples
+                for sampleid in tests_samples[case_test]:
+                    # get the corresponding lims 
+                    limsids = samples_lims[sampleid]
+                    for lims in limsids:
+                        if workflow in workflows:
+                            workflows[workflow].append({'workflow': workflow,'test': [case_test], 'sampleid': sampleid, 'limsids': lims, 'parents': [], 'parent_workflows': []})
+                        else:
+                            workflows[workflow] = [{'workflow': workflow, 'test': [case_test], 'sampleid': sampleid, 'limsids': lims, 'parents': [], 'parent_workflows': []}]
+        
+        elif level == 'merge':
+            if ',' in pipeline_workflows[workflow]['tests']:
+                tests = pipeline_workflows[workflow]['tests'].split(',')  
+                # collect the limsids for each test using case data
+                for test in tests:
+                    # find the corresponding test in case data
+                    case_test = map_assay_test_to_test_case(test, tests_samples)
+                    # get the sample id - each test can have multiple samples
+                    for sampleid in tests_samples[case_test]:
+                        # get the corresponding lims 
+                        limsids = samples_lims[sampleid]
+                        # the workflow has all the lims
+                        limsids = ','.join(sorted(list(limsids)))
+                        if workflow in workflows:
+                            workflows[workflow].append({'workflow': workflow, 'test': [case_test], 'sampleid': sampleid, 'limsids': limsids, 'parents': [], 'parent_workflows': []})
+                        else:
+                            workflows[workflow] = [{'workflow': workflow, 'test': [case_test], 'sampleid': sampleid, 'limsids': limsids, 'parents': [], 'parent_workflows': []}]
+                
+            elif '|' in pipeline_workflows[workflow]['tests']:
+                tests = pipeline_workflows[workflow]['tests'].split('|')
+                # collect the limsids for each test using case data
+                # get the expected combinations of lims for each combination of test samples
+                L = []
+                S = []
+                
+                case_tests = []
+                
+                for test in tests:
+                    # find the corresponding test in case data
+                    case_test = map_assay_test_to_test_case(test, tests_samples)
+                    case_tests.append(case_test)
+                    
+                    l = []
+                    s = []
+                    # get the sample id - each test can have multiple samples
+                    for sampleid in tests_samples[case_test]:
+                        # get the corresponding lims 
+                        limsids = samples_lims[sampleid]
+                        l.append(limsids)
+                        s.append(sampleid)
+                    L.append(l)
+                    S.append(s)
+                
+                combined_lims = list(itertools.product(*L))
+                combined_samples = list(itertools.product(*S))
+                
+                
+                # merge and sort each set of lims for each set of combined tests 
+                for i in range(len(combined_lims)):
+                    merged_lims = []
+                    merged_samples = []
+                    for j in combined_lims[i]:
+                        merged_lims.extend(j)
+                    for k in combined_samples[i]:
+                        merged_samples.append(k)
+                    
+                    merged_lims = ','.join(sorted(merged_lims))
+                    merged_samples = ','.join(sorted(merged_samples))
+                               
+                    if workflow in workflows:
+                        workflows[workflow].append({'workflow': workflow, 'test': case_tests, 'sampleid': merged_samples, 'limsids': merged_lims, 'parents': [], 'parent_workflows': []})
+                    else:
+                        workflows[workflow] = [{'workflow': workflow, 'test': case_tests, 'sampleid': merged_samples, 'limsids': merged_lims, 'parents': [], 'parent_workflows': []}]
+           
+    return workflows        
+
+
+
+def get_production_workflows(samples_workflows, workflow_lims):
+    '''
+    (dict, dict) -> dict
+    
+    Returns a dictionary mapping each workflow run id, their lims and sample to each workflow
+    
+    Parameters
+    ----------
+    - samples_workflows (dict): Dictionary mapping all lims for each sample
+    - workflow_lims (dict): Dictionary mapping the lims to each workflow
+    '''        
+        
+    # reorganize data: {workflow: {{'wfrunid': ,'limsids':, 'samples':}}}    
+        
+    D = {}
+    
+    for wfrunid in workflow_lims:
+        lims = ','.join(sorted(workflow_lims[wfrunid]))
+        samples = []
+        names = []
+        for sample in samples_workflows:
+            for d in samples_workflows[sample]['workflows']:
+                if d['wfrun_id'] == wfrunid:
+                    samples.append(sample)
+                    names.append(d['workflow'])
+                    break
+        names = list(set(names)) 
+        assert len(names) == 1
+        name = names[0]
+        samples = ','.join(sorted(samples))
+        if name not in D:
+            D[name] = {}
+        D[name][wfrunid] = {'limsids': lims, 'samples': samples}
+            
+    return D        
+
+
+
+def is_incomplete_workflow_run(d):
+    '''
+    (dict) -> bool
+    
+    Returns True is any key in d is missing values (expect parents)
+        
+    Parameters
+    ----------
+    - d (dict): Dictionary with workflow run id information in case_analysis
+    '''
+    
+    # exclude parents 
+    vals = [d[i] for i in d.keys() if i != 'parents']
+    return any(map(lambda x: x is None or len(x) == 0, vals))
+
+
+
+
+def identify_workflows_with_missing_data(cases_analysis, expected_workflow_lims):
+    '''
+    (dict, dict) -> list
+
+    Returns a list of workflows with missing data
+            
+    Parameters
+    ----------
+    - cases_analysis (dict): Dictionary with case production data
+    - expected_workflow_lims (dict): Dictionary with expected workflow and lims from assay and case info
+    '''
+
+    missing = [workflow for workflow in cases_analysis if workflow not in expected_workflow_lims]
+        
+    # check if there are missing iterations
+    for workflow in cases_analysis:
+        if workflow in expected_workflow_lims:
+            if len(cases_analysis[workflow]) < len(expected_workflow_lims[workflow]):
+                missing.append(workflow)
+                
+    # check that all workflows have been identified
+    for workflow in cases_analysis:
+        for d in cases_analysis[workflow]:
+            # analysis is incomplete if any workflow in assay has missing information
+            if is_incomplete_workflow_run(d):
+                missing.append(workflow)
+                       
+    missing = list(set(missing))
+
+    return missing                    
+
+
+def find_production_workflow(production_workflows, d):
+    '''
+    (dict, dict) -> dict    
+    
+    Returns a dictionary with prodcution data mapping the expected data for a specific workflow
+                
+    Parameters
+    ----------
+    - production_workflows (dict): Dictionary with case data extracted from the provenance reporter
+    - d (dict): Dictionary with expected workflow information based on assay and case info
+    '''
+    
+    # for sequencing workflows, the assay may indicate bcl2fastq but the 
+    # sequencing workflows may be diferent if data is injected
+    sequencing_workflows = ['casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq']
+    
+    # gridss_matched is always indicated in the assays but the actual workflow
+    # could be gridss or gridss_matched (same workflow but different names in research and clinical)
+    gridss_workflows = ['gridss_matched', 'gridss']
+
+    data = {'workflow': None, 'limsids': None, 'wfrunid': None, 'tests': None, 'samples': None, 'parents': []}
+    workflow = d['workflow']
+    expected_lims = d['limsids']
+    expected_samples = d['sampleid']
+    test = d['test']
+    #  find the workflow in production with the expected limsids and samples
+    if workflow in sequencing_workflows:
+        # find the actual sequencing workflow as it may differ from assay
+        for key in sequencing_workflows:
+            if key in production_workflows:
+                for wfrunid in production_workflows[key]:
+                    limsids = production_workflows[key][wfrunid]['limsids']
+                    samples = production_workflows[key][wfrunid]['samples']
+                    if expected_samples == samples and expected_lims == limsids:
+                        ### check that only 1 wfrunids match the requirement
+                        assert data['wfrunid'] is None 
+                        # update data collector
+                        data['limsids'] = limsids
+                        data['samples'] = samples
+                        data['wfrunid'] = wfrunid
+                        data['tests'] = test
+                        data['workflow'] = key
+    elif workflow in gridss_workflows:
+        # find the gridss workflow as it may differ from assay
+        for key in gridss_workflows:
+            if key in production_workflows:
+                for wfrunid in production_workflows[key]:
+                    limsids = production_workflows[key][wfrunid]['limsids']
+                    samples = production_workflows[key][wfrunid]['samples']
+                    if expected_samples == samples and expected_lims == limsids:
+                        ### check that only 1 wfrunids match the requirement
+                        assert data['wfrunid'] is None 
+                        # update data collector
+                        data['limsids'] = limsids
+                        data['samples'] = samples
+                        data['wfrunid'] = wfrunid
+                        data['tests'] = test
+                        data['workflow'] = key
+    else:
+        if workflow in production_workflows:
+            for wfrunid in production_workflows[workflow]:
+                limsids = production_workflows[workflow][wfrunid]['limsids']
+                samples = production_workflows[workflow][wfrunid]['samples']
+                if expected_samples == samples and expected_lims == limsids:
+                    ### check that only 1 wfrunids match the requirement
+                    assert data['wfrunid'] is None 
+                    # update data collector
+                    data['limsids'] = limsids
+                    data['samples'] = samples
+                    data['wfrunid'] = wfrunid
+                    data['tests'] = test
+                    data['workflow'] = workflow
+     
+    return data         
+
+
+def map_expected_production_workflows(expected_workflow_lims, production_workflows):
+    '''
+    (dict, dict) -> dict    
+    
+    Returns a dictionary with prodcution data mapping the expected data from the assay ans case info
+    with the production data available for a case in the provenance reporter
+            
+    Parameters
+    ----------
+    - expected_workflow_lims (dict): Dictionary with expected workflow and lims from assay and case info
+    - production_workflows (dict): Dictionary with case data extracted from the provenance reporter
+    '''
+
+    D = {}
+        
+    for workflow in expected_workflow_lims:
+        D[workflow] = []
+        for d in expected_workflow_lims[workflow]:
+            data = find_production_workflow(production_workflows, d)
+            D[workflow].append(data)
+            
+    return D            
+
+
+
+def is_data_complete(cases_analysis, expected_workflow_lims):
+    '''
+    (dict, dict) -> bool    
+    
+    Returns True if each workflow in case_analysis has complete information
+        
+    Parameters
+    ----------
+    - cases_analysis (dict): Dictionary with case production data
+    - expected_workflow_lims (dict): Dictionary with expected workflow and lims from assay and case info
     '''
         
-    if 'WGTS' in assay_name:
-        assays = {'Samples': {'TumourWT': {'library_type': 'WT',
-                                            'tissue_type': 'R',
-                                            'negate_tissue_type': True},
-                               'TumourWG': {'library_type': 'WG',
-                                            'tissue_type': 'R',
-                                            'negate_tissue_type': True},
-                               'NormalWG': {'library_type': 'WG',
-                                            'tissue_type': 'R',
-                                            'negate_tissue_type': False}},
-                   'Data': {'Sequencing': {'workflows': ['bcl2fastq'], 'inputs': []},
-                            'TumourWTalign': {'samples': ['TumourWT'],
-                                              'inputs': [],
-                                              'data': ['Sequencing'],
-                                              'workflows': ['star_lane_level']},
-                            'TumourWGalign': {'samples': ['TumourWG'],
-                                              'inputs': [],
-                                              'data': ['Sequencing'],
-                                              'workflows': ['bwaMem']},
-                            'NormalWGalign': {'samples': ['NormalWG'],
-                                              'inputs': [],
-                                              'data': ['Sequencing'],
-                                              'workflows': ['bwaMem']}},
-                   'Analysis':
-                       {'mutect2_matched': {'samples': [], 'inputs': []},
-                       'variantEffectPredictor_matched': {'samples': [], 'inputs': []},
-                       'delly_matched': {'samples': [], 'inputs': []}, 
-                       'gridss': {'samples': [], 'inputs': []},
-                       'purple': {'samples': [], 'inputs': []},
-                       'bamMergePreprocessing_by_sample': {'samples': [], 'inputs': []},
-                       'bwaMem': {'samples': [], 'inputs': []},
-                       'rsem': {'samples': [], 'inputs': []},
-                       'star_call_ready': {'samples': [], 'inputs': []},
-                       'starfusion': {'samples': [], 'inputs': []},
-                       'arriba': {'samples': [], 'inputs': []},
-                       'msisensor': {'samples': [], 'inputs': []},
-                       'star_lane_level': {'samples': [], 'inputs': []},
-                       'mavis': {'samples': [], 'inputs': []},
-                       'hrDetect': {'samples': [], 'inputs': []},
-                       'haplotypeCaller': {'samples': [], 'inputs': []}},
-                   'Anchors': {'TumourWT': {'workflows': 'star_call_ready'},
-                               'TumourWG': {'workflows': 'bamMergePreprocessing_by_sample'},
-                               'NormalWG': {'workflows': 'bamMergePreprocessing_by_sample'}}}
-      
-
-    elif 'WGS' in assay_name:
-        assays = {'Samples': {'TumourWG': {'library_type': 'WG',
-                                           'tissue_type': 'R',
-                                           'negate_tissue_type': True},
-                              'NormalWG': {'library_type': 'WG',
-                                           'tissue_type': 'R',
-                                           'negate_tissue_type': False}},
-                  
-                  'Data': {'Sequencing': {'workflows': ['bcl2fastq'], 'inputs': []},
-                           'TumourWGalign': {'samples': ['TumourWG'],
-                                             'inputs': [],
-                                             'data': ['Sequencing'],
-                                             'workflows': ['bwaMem']},
-                           'NormalWGalign': {'samples': ['NormalWG'],
-                                             'inputs': [],
-                                             'data': ['Sequencing'],
-                                             'workflows': ['bwaMem']}},
-                  'Analysis':
-                      {'bwaMem': {'samples': [], 'inputs': []},
-                       'bamMergePreprocessing_by_sample': {'samples': [], 'inputs': []},
-                       'mutect2_matched': {'samples': [], 'inputs': []},
-                       'variantEffectPredictor_matched': {'samples': [], 'inputs': []},
-                       'delly_matched': {'samples': [], 'inputs': []}, 
-                       'gridss': {'samples': [], 'inputs': []},
-                       'purple': {'samples': [], 'inputs': []},
-                       'msisensor': {'samples': [], 'inputs': []},
-                       'mavis': {'samples': [], 'inputs': []},
-                       'hrDetect': {'samples': [], 'inputs': []},
-                       'haplotypeCaller': {'samples': [], 'inputs': []}},
-                  'Anchors': {'TumourWG': {'workflows': 'bamMergePreprocessing_by_sample'},
-                              'NormalWG': {'workflows': 'bamMergePreprocessing_by_sample'}}}
-
-    return assays
-
-
-
-
-    
-
-# def generate_cache(provenance_data_file, assay_config_file, pinery, database, table='templates'):
-#     '''
-#     (str, str, str, str, str, str) -> None 
-    
-#     Generates sqlite database with templates and review for all projects and cases in the
-#     provenance data file
-    
-#     Parameters
-#     ----------
-#     - provenance_data_file (str): Path to the file with production data extracted from Shesmu
-#     - assay_config_file (str): Path to the assay config file
-#     - pinery (str): URL to Pinery assay endpoint
-#     - database (str): Path to the sqlite database
-#     - table (str): Table in database storing the analysis data
-#     '''
-    
-    
-#     # define fastq generating workflows
-#     fastq_workflows = ['bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq']
-#     # define lane lavel workflows
-#     data_workflows = ['bwamem', 'bwamem2', 'star_lane_level', 'bwameth']
-    
-    
-#     # list QC workflows
-#     assay_configurations = extract_assay_workflows(assay_config_file)
-#     # make a list of QC workflows
-#     qc_workflows = list_qc_workflows(assay_configurations)
-      
-#     # create database if file doesn't exist
-#     if os.path.isfile(database) == False:
-#         initiate_db(database, 'analysis_review', ['templates'])
-#     print('initiated database')    
-    
-#     # collect the recorded md5sums of the donor data from the database
-#     recorded_md5sums = get_cases_md5sum(database, table = 'templates')
-#     print('pulled md5sums from database')
-    
-#     # load data from file
-#     provenance_data = load_data(provenance_data_file)
-#     print('loaded data')
-    
-#     # generate assays
-#     assays = generate_templates(assay_configurations, qc_workflows, pinery)
+    complete = True
         
-#     # track all cases in production
-#     P = []
-          
-#     for case_data in provenance_data:
-#         case_id = case_data['case']
-        
-#         print(case_id)
-        
-#         P.append(case_id)
-#         assay = {}
-#         # check that no information is missing
-#         if is_case_info_complete(case_data):
-#             # record all case templates
-#             L = []
-#             # remove workflows that do not belong to the case
-#             case_data = clean_up_workflows(case_data)
-#             # compute the md5sum of the case info
-#             md5sum = compute_md5(case_data)
-#             # determine if case needs to be updated
-#             donor = get_donor_name(case_data)
-#             assay_name = case_data['assay']        
-            
-#             print(assay_name)
-            
-#             if case_to_update(recorded_md5sums, case_id, md5sum):
-#                 # open connection to database
-#                 conn = connect_to_db(database)
-#                 # delete case info from table
-#                 delete_unique_record(case_id, conn, database, 'templates', 'case_id')
-#                 conn.close()
-                                
-                            
-#                 ## temporary hack to use manually defined MOH assays
-#                 if is_moh_case(case_data):
-#                     assay = get_moh_assay(assay_name)
-#                 else:
-#                     if assay_name in assays:
-#                         assay = assays[assay_name]
-                     
-#                 if assay:
-#                     # get all the workflow information
-#                     workflow_info = extract_workflow_information(case_data)
-#                     # get the anchor workflows and their expected samples
-#                     anchor_workflows = extract_anchor_samples(assay)
-#                     # get workflows of all samples for the case
-#                     samples_workflows = collect_sample_workflows(case_data)
-#                     # map samples to each workflow
-#                     workflows_to_samples = map_samples_to_workflows(samples_workflows)
-#                     # find the children of each workflow
-#                     parent_to_children_workflows = collect_workflow_relationships(case_data)
-#                     # find the parents of each workflow
-#                     child_to_parents_workflows = get_downstream_workflows(parent_to_children_workflows)
-#                     anchor_samples = get_anchor_samples(samples_workflows, anchor_workflows)
-#                     # group anchor workflows
-#                     groups = group_anchor_workflows(anchor_samples)
-                    
-#                     for i in range(len(case_data['project_info'])):
-#                         deliverables = case_data['project_info'][i]['deliverables']
-#                         project_id = case_data['project_info'][i]['project']
-#                         # fill the templates for each group
-#                         templates = []
-#                         # check deliverables
-#                         if 'pipeline' in deliverables.lower():
-#                             for group in groups:
-#                                 connected = find_related_workflows(groups, group, parent_to_children_workflows, workflow_info, fastq_workflows, workflows_to_samples)
-#                                 # remove QC workflows
-#                                 connected = [i for i in connected if workflow_info[i] not in qc_workflows]
-#                                 template = fill_group_template(assay, connected, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows)
-#                                 templates.append(template)
-#                         else:
-#                             # make groups of samples
-#                             samples = group_samples(case_data, workflows_to_samples)
-#                             for sample_group in samples:
-#                                 # fill template with samples, sequence and alignments only
-#                                 template = fill_seq_template(sample_group, assay, workflow_info, workflows_to_samples, child_to_parents_workflows, fastq_workflows, data_workflows)
-#                                 templates.append(template)
-                                
-#                         # evaluate templates
-#                         for template in templates:
-#                             if 'pipeline' in deliverables.lower():
-#                                 valid, error = evaluate_assay(template, assay, case_data, True)
-#                             else:
-#                                 valid, error = evaluate_assay(template, assay, case_data, False)
-#                             L.append([case_id, donor, project_id, assay_name, json.dumps(template), str(int(valid)), error, md5sum])
-                                     
-#                 else:
-#                     for i in case_data['project_info']:
-#                         project_id = i['project']
-#                         L.append([case_id, donor, project_id, assay_name, json.dumps({}), str(0), 'no_assay', md5sum])
+    if cases_analysis.keys() != expected_workflow_lims.keys():
+        complete = False
     
-#             if L:
-#                 # connect to database
-#                 conn = connect_to_db(database)
-#                 # insert records
-#                 insert_multiple_records(L, conn, database, 'templates', define_columns('analysis_review')['templates']['names'])
-#                 # close database
-#                 conn.close()
+    for workflow in cases_analysis:
+        if len(cases_analysis[workflow]) < len(expected_workflow_lims[workflow]):
+            complete = False
+    
+    # check that all workflows have been identified
+    for workflow in cases_analysis:
+        for d in cases_analysis[workflow]:
+            # analysis is incomplete if any workflow in assay has missing information
+            if is_incomplete_workflow_run(d):
+                complete = False
                 
-                
+    return complete
+
+
+def no_extra_data(cases_analysis, expected_workflow_lims):
+    '''
+    (dict, dict) -> bool    
     
+    Returns True is each workflow in case_analysis have a single workflow run id
+    matching the lims requirements
+        
+    Parameters
+    ----------
+    - cases_analysis (dict): Dictionary with case production data
+    - expected_workflow_lims (dict): Dictionary with expected workflow and lims from assay and case info
+    '''
     
-#     # delete data for donors not in the provenance report
-#     if P:
-#         # make a list of cases in database that are not in production
-#         conn = connect_to_db(database)
-#         data = conn.execute('SELECT case_id FROM templates').fetchall()
-#         all_cases = [i['case_id'] for i in data]
-#         to_remove = [i for i in all_cases if i not in P]
-#         if to_remove:
-#             delete_multiple_records(to_remove, conn, database, 'templates', 'case_id')
-#         conn.close()
+    no_extra = True
+        
+    # check if there are extra workflows
+    for workflow in cases_analysis:
+        if len(cases_analysis[workflow]) > len(expected_workflow_lims[workflow]):
+            no_extra = False
+    
+    return no_extra
+
+
+def identify_extra_workflows(cases_analysis, expected_workflow_lims):
+    '''
+    (dict, dict) -> list    
+    
+    Returns a list of workflow with multiple run ids matching the lims requirements
+    
+    Parameters
+    ----------
+    - cases_analysis (dict): Dictionary with case production data
+    - expected_workflow_lims (dict): Dictionary with expected workflow and lims from assay and case info
+    '''
+    
+    extra = []
+       
+    # check if there are extra workflows
+    for workflow in cases_analysis:
+        if len(cases_analysis[workflow]) > len(expected_workflow_lims[workflow]):
+            extra.append(workflow)
+    
+    extra = list(set(extra))
+    
+    return extra
+
+
+def reformat_pipeline_workflows(L):
+    '''
+    (list) -> dict
+        
+    Returns a dictionary with all expected workflows in a pipeline
+    
+    Parameters
+    ----------
+    - L (list): List of expected workflows for a given pipeline from pipelines.json
+    '''
+    
+    D = {}
+        
+    for d in L:
+        workflow = d['workflows']
+        assert workflow not in D
+        D[workflow] = d
+    
+    return D
+
+
+def add_parent_workflows(case_analysis, parent_to_children_workflows):
+    '''
+    (dict, dict) -> dict
+    
+    Add the parent workflow run ids to each analysis workflow in case_analysis
+    
+    Parameters
+    ----------
+    - cases_analysis (dict): Dictionary with case production data
+    - parent_to_children_workflows (dict): Dictionary with parent-children workflow relationships
+    '''
+    
+    for workflow in case_analysis:
+        for d in case_analysis[workflow]:
+            wfrunid = d['wfrunid']
+            for parent in parent_to_children_workflows:
+                if wfrunid in parent_to_children_workflows[parent]:
+                    d['parents'].append(parent)
+            
+    return case_analysis    
+
+
 
 
 
@@ -1845,15 +938,20 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
     
     # make a list of problematic cases to explore later
     
-    exclude_cases = ['R5523_a141_GTNBP_0001_Bn_P',
-                     'R5526_a120_BDWGTS_0198_Ut_M',
-                     'R5526_a120_BIODIVA_0025_Om_M',
-                     'R5526_a120_BIODIVA_0149_Om_M',
-                     'R5526_a120_BIODIVA_0174_Ae_M',
-                     'R5526_a120_BIODIVA_0200_So_M',
-                     'R5526_a120_BIODIVA_0226_Ov_P',
-                     'R5526_a120_BIODIVA_0286_nn_M',
-                     'R5526_a120_BIODIVA_0392_Ov_P']
+    # exclude_cases = ['R5523_a141_GTNBP_0001_Bn_P',
+    #                  'R5526_a120_BDWGTS_0198_Ut_M',
+    #                  'R5526_a120_BIODIVA_0025_Om_M',
+    #                  'R5526_a120_BIODIVA_0149_Om_M',
+    #                  'R5526_a120_BIODIVA_0174_Ae_M',
+    #                  'R5526_a120_BIODIVA_0200_So_M',
+    #                  'R5526_a120_BIODIVA_0226_Ov_P',
+    #                  'R5526_a120_BIODIVA_0286_nn_M',
+    #                  'R5526_a120_BIODIVA_0392_Ov_P']
+    
+    exclude_cases = ['R5523_a141_GTNBP_0001_Bn_P']
+    
+    
+    
     
     # 'R5523_a141_GTNBP_0001_Bn_P': multiple workflow runs with same lims
     # 'R5526_a120_BDWGTS_0198_Ut_M': tests labeled WG in case data, normal ? tumor?

@@ -10,6 +10,30 @@ from commons import connect_to_db
 
 import json
 import os
+import time
+import string
+import random
+
+
+def secret_key_generator(size=10):
+    '''
+    (int)
+    
+    Returns a random string of length size with upper and lower case characters
+    and digit
+    
+    Parameters
+    ----------
+    - size (int): Length of the random string
+    '''
+    
+    chars=string.ascii_uppercase + string.ascii_lowercase + string.digits
+    s = ''.join(random.choice(chars) for i in range(size))
+    
+    return s
+
+
+
 
 
 def get_project_info(database, project_name=None):
@@ -93,9 +117,41 @@ def get_release_signoff(nabu_cache, project_name):
     return D
 
 
-def get_fileqc(nabu_cache, project_name):
+def get_case_release_signoff(nabu_cache, case_id, project_name):
     '''
-    (str, str) -> dict
+    (str, str, str) -> dict
+    
+    Returns a dictionary with the release and release approval signoff
+    for case_id in project
+    
+    Parameters
+    ----------
+    - nabu_cache (str): Path to the nabu cache 
+    -case_id (str): Case identifier
+    - project_name (str): Name of the project of interest
+    '''
+    
+    conn = connect_to_db(nabu_cache)
+    data = conn.execute("SELECT DISTINCT case_id, release, release_approval FROM signoff WHERE case_id = ? AND project_id = ?;", (case_id, project_name,)).fetchall()
+    conn.close()
+    
+    D = {}
+    
+    for i in data:
+        release = json.loads(i['release'])
+        approval = json.loads(i['release_approval'])
+        D[case_id] = {'release': release, 'release_approval': approval}
+        
+    return D
+
+
+
+
+
+
+def get_fileqc(nabu_cache, project_name, case_id = None):
+    '''
+    (str, str, str | None) -> dict
     
     Returns a dictionary with the file qc status for all files in project
     
@@ -103,10 +159,15 @@ def get_fileqc(nabu_cache, project_name):
     ----------
     - nabu_cache (str): Path to the nabu cache 
     - project_name (str): Name of the project of interest
+    - case_id (str | None): Optional case identifier
     '''
     
     conn = connect_to_db(nabu_cache)
-    data = conn.execute("SELECT DISTINCT case_id, fileid, username, qcstatus, ticket FROM fileqc WHERE project_id = ?;", (project_name,)).fetchall()
+    
+    if case_id:
+        data = conn.execute("SELECT DISTINCT case_id, fileid, username, qcstatus, ticket FROM fileqc WHERE case_id = ? AND project_id = ?;", (case_id, project_name,)).fetchall()
+    else:
+        data = conn.execute("SELECT DISTINCT case_id, fileid, username, qcstatus, ticket FROM fileqc WHERE project_id = ?;", (project_name,)).fetchall()
     conn.close()
     
     D = {}
@@ -367,7 +428,7 @@ def merge_qc_status_workflow(L, fileqc):
     for fileid in L:
         if fileid in fileqc:
             username.append(fileqc[fileid]['username'])
-            ticket.extend(fileqc[fileid]['ticket'])
+            ticket.append(fileqc[fileid]['ticket'])
             qcstatus.append(fileqc[fileid]['qcstatus'])
         else:
             username.append('NA')
@@ -379,7 +440,9 @@ def merge_qc_status_workflow(L, fileqc):
     while 'NA' in ticket:
         ticket.remove('NA')
     qcstatus = any(qcstatus)
-    
+    ticket = list(set(ticket))
+    username = list(set(username))
+        
     return {'username': username, 'ticket': ticket, 'qcstatus': qcstatus}
     
        
@@ -404,9 +467,1044 @@ def files_to_cases(database, project_name):
 
 
 
+def get_assays(database, project_name):
+    '''
+    (str, str) -> str
+    
+    Returns a comma-separated list of all assays for a given project 
+    
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - project_name (str): Name of project of interest
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT assays FROM Projects WHERE project_id = ?;", (project_name,)).fetchall()     
+    conn.close()
+    
+    assays = ','.join([i['assays'] for i in data])
+    
+    return assays
+
+
+def get_platform_shortname(project_name, database):
+    '''
+    (str, str) -> list
+    
+    Returns a dictionary with sequencing platform, shortname for all platforms 
+    for the project of interest
+    
+    Parameters
+    ----------
+    - project_name (str): Project of interest
+    - database (str): Path to the sqlite database
+    '''
+    
+    # get sequences    
+    conn = connect_to_db(database)
+    cmd = "SELECT DISTINCT Workflow_Inputs.platform FROM Workflow_Inputs WHERE \
+          Workflow_Inputs.project_id = ?;"
+    data = conn.execute(cmd, (project_name,)).fetchall()
+    conn.close()
+
+    D = {}
+    
+    for i in data:
+        instrument = ''
+        platform = i['platform']
+        if '_' in platform:
+            s = platform.split('_')
+        else:
+            s = platform.split()
+        for k in s:
+            if 'seq' in k.lower():
+                instrument = k
+                break
+        
+        D[platform] = instrument.lower()
+    
+    return D
+
+    
+def get_cases(project_name, database):
+    '''
+    (str, str) -> list
+    
+    Returns a list of dictionaries with case information
+    
+    Paramaters
+    -----------
+    - project_name (str): Project of interest
+    - database (str): Path to the sqlite database
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT case_id, assay, donor_id, ext_id, species, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
+    conn.close()
+    
+    data = [dict(i) for i in data]
+         
+    return data
+    
+    
+    
+def get_analysis_data(analysis_db, project_name, assay):
+    '''
+    (str, str, str) -> dict
+    
+    Returns a dictionary of cases with analysis data corresponding to project and assay
+    
+    Parameters
+    ----------
+    - analysis_db (str): Path to the database storing analysis data
+    - project_name (str): Name of the project of interest
+    - assay (str): Name of the assay
+    '''
+    
+    conn = connect_to_db(analysis_db)
+    data = conn.execute("SELECT case_id, donor_id, template, valid, error FROM templates WHERE \
+                        project_id = ? AND assay = ?;", (project_name,assay)).fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        case_id = i['case_id']
+        template = json.loads(i['template'])
+        valid = int(i['valid'])
+        donor = i['donor_id']
+        error = i['error']
+        
+        d = {'analysis': template, 'valid': valid, 'error': error, 'donor': donor}        
+        
+        assert case_id not in D
+        D[case_id] = d
+           
+    return D    
+    
+
+def get_case_analysis_data(analysis_db, case_id, project_name, assay):
+    '''
+    (str, str, str) -> dict
+    
+    Returns a dictionary of cases with analysis data corresponding to project and assay
+    
+    Parameters
+    ----------
+    - analysis_db (str): Path to the database storing analysis data
+    - project_name (str): Name of the project of interest
+    - assay (str): Name of the assay
+    '''
+    
+    conn = connect_to_db(analysis_db)
+    data = conn.execute("SELECT case_id, donor_id, template, valid, error FROM templates WHERE \
+                        case_id = ? AND project_id = ? AND assay = ?;", (case_id, project_name, assay)).fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        template = json.loads(i['template'])
+        valid = int(i['valid'])
+        donor = i['donor_id']
+        error = i['error']
+        
+        d = {'analysis': template, 'valid': valid, 'error': error, 'donor': donor}        
+        
+        assert case_id not in D
+        D[case_id] = d
+           
+    return D    
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+def get_analysis_samples(analysis_data):
+    '''
+    
+    
+    
+    '''
+    
+    
+    D = {}
+    
+    for case_id in analysis_data:
+        samples = []
+        if 'analysis' in analysis_data[case_id] and analysis_data[case_id]['analysis']:
+            for pipeline in analysis_data[case_id]['analysis']:
+                if analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                    for workflow in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                        for d in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
+                            if d['samples']:
+                                samples.extend(d['samples'].split(','))
+        samples = list(set(samples))            
+        D[case_id] = samples            
+                    
+    return D                    
+                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def get_analysis_workflows(analysis_data):
+    '''
+    
+    
+    
+    '''
+    
+    
+    D = {}
+    
+    for case_id in analysis_data:
+        workflows, workflow_runs = [], []
+        if 'analysis' in analysis_data[case_id] and analysis_data[case_id]['analysis']:
+            for pipeline in analysis_data[case_id]['analysis']:
+                if analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                    for workflow in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                        if analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
+                            workflows.append(workflow)                 
+                            for d in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
+                                if d['wfrunid']:
+                                    workflow_runs.append(d['wfrunid'])
+        workflows = list(set(workflows))            
+        workflow_runs = list(set(workflow_runs)) 
+        D[case_id] = {'workflows': workflows,
+                      'workflow_runs': workflow_runs}            
+                    
+    return D                    
+
+
+def map_analysis_workflows(analysis_data, case_id):
+    '''
+    
+    
+    
+    '''
+    
+    
+    D = {}
+    
+    if 'analysis' in analysis_data[case_id] and analysis_data[case_id]['analysis']:
+        for pipeline in analysis_data[case_id]['analysis']:
+            if analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                for workflow in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                    for d in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
+                        if d['wfrunid']:
+                            D[d['wfrunid']] = workflow
+                    
+    return D                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def error_formatting(error):
+    '''
+    
+    
+    
+    
+    '''
+    
+    if 'missing workflows' in error.lower():
+        message, workflows = error.split(':')
+        workflows = workflows.strip().split(',')
+    elif 'incomplete data' in error.lower():
+        message, workflows = error.split(':')
+        workflows = workflows.rstrip().replace('Workflows are missing ', '').split(',')
+    else:
+        message, workflows = error.split(':')
+        workflows = ''
+    
+    message = message.strip().replace('[', '').replace(']', '').lower()
+    
+    err = {'message': message, 'workflows': workflows}
+    
+    return err 
+
+
+def get_workflows_analysis_date(case_id, project_name, database):
+    '''
+    (str, str, str) -> dict
+    
+    Returns the creation date of any file for each workflow id for the case in project
+           
+    Parameters
+    ----------
+    - case_id (str): Case identifier
+    - project_name (str): Name of project of interest
+    - database (str): Path to the sqlite database
+    '''
+        
+    # connect to db
+    conn = connect_to_db(database)
+    # extract project info
+    data = conn.execute("SELECT DISTINCT creation_date, wfrun_id FROM Files WHERE case_id = ? AND  project_id= ?;", (case_id, project_name,)).fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        D[i['wfrun_id']] = i['creation_date']
+        
+    return D
+
+
+
+def most_recent_analysis_workflow(analysis_data, case_id, creation_dates):
+    '''
+    (dict, dict) -> str
+    
+    Returns the most recent workflow creation in the analysis data of the case in project
+           
+    Parameters
+    ----------
+    - case_data (list): Dictionary with template information for each case
+    - creation_dates (dict): Dictionary with creation dates of each workflow
+    '''
+        
+    # get the workflow ids of all workflows
+    workflows =  get_analysis_workflows(analysis_data)
+    workflow_runs = workflows[case_id]['workflow_runs']
+    
+    L = sorted([creation_dates[wfrunid] for wfrunid in workflow_runs])
+    
+    try:
+        most_recent = time.strftime('%Y-%m-%d', time.localtime(int(L[-1])))
+    except:
+        most_recent = 'NA'
+        
+    return most_recent
+        
+    
+    
+def map_workflows_to_fileids(case_id, project_name, database, wfrunid = None):
+    '''
+    (str, str, str, str | None) -> dict
+    
+    Returns a dictionary mapping each workflow run id of a case and project 
+    to its output file swids
+    
+    Parameters
+    ----------
+    - case_id (str): Case identifier
+    - project_name (str): Name of the project of interest
+    - database (str): Path to the waterzooi database
+    - wfrunid (str | None): Workflow run id
+    '''    
+        
+    
+    # connect to db
+    conn = connect_to_db(database)
+    if wfrunid:
+        data = conn.execute("SELECT DISTINCT file_swid, wfrun_id FROM Files WHERE wfrun_id = ? AND case_id = ? AND  project_id= ?;", (wfrunid, case_id, project_name,)).fetchall()
+    else:
+        data = conn.execute("SELECT DISTINCT file_swid, wfrun_id FROM Files WHERE case_id = ? AND  project_id= ?;", (case_id, project_name,)).fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        if i['wfrun_id'] in D:
+            D[i['wfrun_id']].append(i['file_swid'])
+        else:
+            D[i['wfrun_id']] = [i['file_swid']]
+        
+    return D
+
+    
+def organize_data(analysis_data, case_id):
+    '''
+    (dict, str) -> list
+
+    '''
+    
+    # store the data as a list of dictionary for easier sorting and display
+    data = []
+    
+    # map the workflow run ids to the workflow names
+    analysis_workflows = {}
+    
+    # get the paren-children workflow relationships
+    parents = {}
+    
+    
+    
+    if 'analysis' in analysis_data[case_id] and analysis_data[case_id]['analysis']:
+        for pipeline in analysis_data[case_id]['analysis']:
+            if analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                for workflow in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                    for d in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
+                        if d['wfrunid']:
+                            data.append(d)
+                            analysis_workflows[d['wfrunid']] = workflow
+                            if d['parents']:
+                                for k in d['parents']:
+                                    if k in parents:
+                                        parents[k].append(d['wfrunid'])
+                                    else:
+                                        parents[k] = [d['wfrunid']]
+
+    return data, analysis_workflows, parents
+    
+    
+    
+    
+    
+    
+def get_workflow_release_status(database, case_id):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary with the release status of each workflow id of a given case
+    The release status is derived from the file qc status in Nabu of the workflow output files
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi sqlite database
+    - case_id (str): Case identifier
+    '''
+
+    # get the file qc status for each output file of every workflows
+    workflow_qc = get_workflow_file_qc(database, case_id)
+    
+    D = {}    
+
+    for workflow_id in workflow_qc:
+        if all(map(lambda x: x.isdigit(), workflow_qc[workflow_id])):
+            if all(map(lambda x: int(x), workflow_qc[workflow_id])):
+                D[workflow_id] = True
+            elif any(map(lambda x: int(x), workflow_qc[workflow_id])):
+                D[workflow_id] = True
+            elif all(map(lambda x: int(x), workflow_qc[workflow_id])) == False:
+                D[workflow_id] = False
+        elif '1' in workflow_qc[workflow_id]:
+            D[workflow_id] = True
+        elif len(list(set(workflow_qc[workflow_id]))) == 1:
+            D[workflow_id] = '?'
+        
+         
+    return D        
+    
+
+
+def get_case_assay(database, project_id, case_id):
+    '''
+    
+    
+    
+    '''
+    
+    # connect to db
+    conn = connect_to_db(database)
+    # extract project info
+    data = conn.execute("SELECT DISTINCT assay FROM Samples WHERE case_id = ? AND  project_id= ?;", (case_id, project_id,)).fetchall()
+    conn.close()
+    
+    assert len(data) == 1
+    
+    assay = data[0]['assay']
+    
+          
+    return assay
+
+
+def get_case_parent_to_children_workflows(database, case):
+    '''
+    (dict, str) -> dict
+    
+    Returns a dictionary of parent to children workflows for a single case
+    
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - case (str): Name of case of interest
+    '''
+
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT parents_id, children_id FROM Parents WHERE case_id = ?;", (case,)).fetchall()     
+    conn.close()
+    
+    parent_to_children = {}
+    for i in data:
+        parent = i['parents_id']
+        child = i['children_id']
+        if parent in parent_to_children:
+            parent_to_children[parent].append(child)
+        else:
+            parent_to_children[parent] = [child]
+    
+    return parent_to_children
+
+    
+
+def get_case_children_to_parents_workflows(parents_to_children):
+    '''
+    (dict) -> dict
+    
+    Returns a dictionary of child to parent workflows for a single case
+    
+    Parameters
+    - parents_to_children (dict): Dictionary of parents to children workflow
+                                  relationships for a single case
+    '''
+    
+    child_to_parents = {}
+    
+    for parent in parents_to_children:
+        for child in parents_to_children[parent]:
+            if child in child_to_parents:
+                child_to_parents[child].append(parent)
+            else:
+                child_to_parents[child] = [parent]
+    
+    return child_to_parents
+    
+
+
+def get_workflow_output_files(database, wfrun_id):
+    '''
+    (str, str) -> dict, dict
+    
+    Returns a dictionary with the output files of workflow with wfrun_id grouped by sample 
+    and a dictionary with file paths mapped to file swids
+    
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - wfrun_id (str): Workflow run identifier
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT Files.file, Files.file_swid, Libraries.sample_id FROM Files JOIN \
+                        Workflow_Inputs JOIN Libraries WHERE Workflow_Inputs.wfrun_id = Files.wfrun_id \
+                        AND Files.limskey = Workflow_Inputs.limskey AND Files.limskey = Libraries.lims_id \
+                        AND Libraries.lims_id = Workflow_Inputs.limskey AND Files.wfrun_id = ?", (wfrun_id,)).fetchall()
+    conn.close()   
+    
+    D = {}
+    F = {}
+    
+    for i in data:
+        sample = i['sample_id']
+        file = i['file']
+        fileswid = i['file_swid']
+        if file in D:
+            D[file].append(sample)
+        else:
+            D[file] = [sample]
+        D[file] = sorted(list(set(D[file])))
+        
+        F[file] = fileswid
+         
+        
+    # group samples sharing the same files
+    S = {}
+    for file in D:
+        sample = ';'.join(D[file])
+        if sample in S:
+            S[sample].append(file)
+        else:
+            S[sample] = [file]
+       
+    return S, F
+
+    
+    
+    # for i in data:
+    #     sample = i['sample_id']
+    #     file = i['file']
+    #     if file in D:
+    #         D[file].append(sample)
+    #     else:
+    #         D[file] = [sample]
+    #     D[file] = sorted(list(set(D[file])))
+            
+    # # group samples sharing the same files
+    # S = {}
+    # for file in D:
+    #     sample = ';'.join(D[file])
+    #     if sample in S:
+    #         S[sample].append(file)
+    #     else:
+    #         S[sample] = [file]
+       
+    # return S
+
+
+def get_case_workflow_info(database, case):
+    '''
+    (str, str) -> dict
+    
+    Returns a dictionary of workflow name and workflow version for all workflows of a single case
+        
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - case (str): Case of interest
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT wfrun_id, wf, wfv FROM Workflows WHERE case_id = ?;", (case,)).fetchall()     
+    conn.close()
+    
+    D = {}
+    for i in data:
+        workflow_id = i['wfrun_id']
+        workflow_name = i['wf']
+        version = i['wfv']
+        D[workflow_id] = [workflow_name, version] 
+    
+    return  D
+
+
+
+def map_limskeys_to_workflow(database, wfrun_id):
+    '''
+    (str, str) -> list
+
+    Returns a list of limskeys matching workflow with identifier wfrun_id 
+
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi
+    - wfrun_id (str): Workflow unique identifier
+    '''
+
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT Workflow_Inputs.limskey FROM Workflow_Inputs \
+                        WHERE Workflow_Inputs.wfrun_id = ?;", (wfrun_id,)).fetchall()
+    conn.close()
+    
+    limskeys = [i['limskey'] for i in data]
+    
+    return limskeys
+
+
+
+
+def get_input_sequences(database, case_id, wfrun_id):
+    '''
+    (str, str, str) -> dict
+    
+    Returns a dictionary with input sequences  of worflow with identifier wfrun_id
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi
+    - case_id (str): Case identifier
+    - wfrun_id (str): Workflow unique identifier
+    '''
+    
+    # get the limskeys matching the workflow
+    limskeys = map_limskeys_to_workflow(database, wfrun_id)
+
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT Files.file_swid, Files.file, Files.limskey, Libraries.library, \
+                        Libraries.sample_id FROM Files JOIN Libraries JOIN Workflows \
+                        WHERE Files.wfrun_id = Workflows.wfrun_id AND Files.limskey = Libraries.lims_id \
+                        AND LOWER(Workflows.wf) IN ('casava', 'bcl2fastq', 'fileimportforanalysis', \
+                        'fileimport', 'import_fastq') AND Files.case_id = ?;", (case_id,)).fetchall()
+    conn.close()
+    
+    D = {}
+    
+    for i in data:
+        sample = i['sample_id']
+        library = i['library']
+        limskey = i['limskey']
+        file_swid = i['file_swid']
+        file = i['file']
+        
+        # check that limskey match the limskeys of workflow wfrun_id
+        if limskey in limskeys:
+            if sample not in D:
+                D[sample] = [[sample, library, limskey, file_swid, file]]
+            else:
+                D[sample].append([sample, library, limskey, file_swid, file])
+    
+    # sort according to sample and sequences
+    for sample in D:
+        D[sample].sort(key=lambda x: (x[0], x[2], x[-1]))
+    
+    return D
+
+
+def add_workflow_qc_status(sequences, fileqc):
+    '''
+    (dict, dict) -> list
+    
+    Returns a list of dictionary with information of pairs of fastqs
+    adding the release status of each pair at the workflow level
+        
+    Parameters
+    ----------
+    - sequences (list): List of sequence information for pairs of fastqs
+    - filwqc (dict): Dictionary with file qc (ie release status) for each file
+    '''
+    
+    # add qc status at the workflow level for each pair of fastqs in sequences
+    for i in sequences:
+        i['status'] = merge_qc_status_workflow(i['file_swids'], fileqc)
+    
+    return sequences
+
+
+def get_sequences_to_download(sequences, platform_names, platforms):
+    '''
+    (list, dict, list) -> list
+    
+    Returns a dictionary with sequencing information for specific platforms
+    
+    Parameters
+    ----------
+    - sequences (list): List of sequence information for pairs of fastqs
+    - platform_names (dict): Dictionary with the generic name of the sequencing platforms
+    - plarforms (list): List of user-selected sequencing platforms
+    '''
+        
+    L = []
+    for i in sequences:
+        d = {'Case': i['case_id'],
+             'Donor': i['donor'],
+             'DonorID': i['sample'],
+             'SampleID': i['group_id'],
+             'Sample': i['sample_id'],
+             'Description': i['group_description'],
+             'Library': i['library'],
+             'Library Type': i['library_type'],
+             'Tissue Origin': i['tissue_origin'],
+             'Tissue Type': i['tissue_type'],
+             'File Prefix': i['prefix']}
+       
+        if i['status']['qcstatus']:
+            d['Released'] = 'YES'
+            if i['status']['ticket']:
+                d['Tickets'] = ';'.join(sorted(i['status']['ticket']))
+        else:
+            d['Released'] = 'NO'
+            d['ticket'] = 'NA'
+             
+
+        # download all information if platforms are not selected
+        if platforms:
+            # check that platform is selected
+            if platform_names[i['platform']] in platforms:
+                L.append(d)    
+        else:
+            L.append(d)
+                
+    return L
+    
+
+
+
+def get_data_release_approval_signoff(signoffs, case_id):
+    '''
+    (dict, str) -> dict
+    
+    Returns a dictionary with True if Data release is complete for case_id and False otherwise
+    
+    Parameters
+    ----------
+    - signoffs (dict): Dictionary with case signoff extracted from the nabu cache
+    - case_id (str): Case identifier
+    '''
+         
+    if case_id in signoffs and 'release_approval' in signoffs[case_id] and \
+      'Data Release' in signoffs[case_id]['release_approval'] and \
+      signoffs[case_id]['release_approval']['Data Release']['qcpassed']:
+        data_release = True
+    else:
+        data_release = False         
+            
+    return {case_id: data_release}    
+
+
+def get_data_release_signoff(signoffs, project_deliverables, case_id, data):
+    '''
+    
+    
+    '''
+    
+    # collect data release deliverables and deliverable release signoffs
+    if data == 'all':
+        data_release_deliverables = [i for i in project_deliverables if 'pipeline' in i.lower()
+                                     or 'fastq' in i.lower() or 'cbioportal' in i.lower()]
+    elif data == 'cbioportal':
+        data_release_deliverables = [i for i in project_deliverables if 'cbioportal' in i.lower()]
+        
+    elif data == 'pipeline':
+        data_release_deliverables = [i for i in project_deliverables if 'pipeline' in i.lower()
+                                     or 'fastq' in i.lower()]
+        
+    D = {}
+    if case_id in signoffs:
+        if 'release' in signoffs[case_id]:
+            for i in signoffs[case_id]['release']:
+                for j in signoffs[case_id]['release'][i]:
+                    if j in data_release_deliverables:
+                        assert j not in D
+                        D[j] = signoffs[case_id]['release'][i][j]['qcpassed']
+    # add deliverables not in release signoffs
+    for i in data_release_deliverables:
+        if i not in D:
+            D[i] = False
+        
+    return {case_id: all(D.values())}
+
+
+
+
+def get_output_files(database, project_id, case_id):
+    '''
+    (str, str, str) -> dict
+    
+    Returns a dictionary with the matching file paths and file swids
+    
+    Parameters
+    ----------
+    - database (str): Path to the database
+    - wfrun_id (str): Workflow run identifier
+    '''
+    
+    conn = connect_to_db(database)
+    data = conn.execute("SELECT DISTINCT file, file_swid FROM Files WHERE project_id = ? and case_id = ?;", (project_id, case_id)).fetchall()
+    conn.close()   
+    
+    D = {}
+    
+    for i in data:
+        file = i['file']
+        fileswid = i['file_swid']
+        assert fileswid not in D
+        D[fileswid] = file
+        
+    return D
+
+
+
+
+def get_workflow_outputs(database, project_name, case_id = None):
+    '''
+    (str, str, str | None) -> dict
+    
+    Returns a dictionary mapping each workflow run id to its output files for
+    all cases in a project or for a single case 
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi database
+    - project_name (str): Name of the project of interest
+    - case_id (str | None): Case identifier
+    '''    
+        
+    
+    # connect to db
+    conn = connect_to_db(database)
+    if case_id:
+        data = conn.execute("SELECT DISTINCT case_id, file, wfrun_id FROM Files WHERE case_id = ? AND  project_id= ?;", (case_id, project_name,)).fetchall()
+    else:
+        data = conn.execute("SELECT DISTINCT case_id, file, wfrun_id FROM Files WHERE project_id= ?;", (project_name,)).fetchall()
+    conn.close()
+    
+    D = {}
+    for i in data:
+        if i['case_id'] not in D:
+            D[i['case_id']] = {}
+        if i['wfrun_id'] in D[i['case_id']]:
+            D[i['case_id']][i['wfrun_id']].append(i['file'])
+        else:
+            D[i['case_id']][i['wfrun_id']] = [i['file']]
+        
+    return D
+
+
+
+
+def prepare_analysis_json(analysis_data, workflow_outputs):
+    '''
+    (dict, dict) -> dict
+    
+    Returns a dictionary matching all the files to each workflow run id of the assay workflows
+    Precondition: Data has passed validation and analysis_data contains all the required
+    pipeline data
+    
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with analysis data for a given assay 
+    - workflow_outputs (dict): Dictionary with all the files for each workfflow run id
+    '''
+        
+    D = {}
+        
+    for case_id in analysis_data:
+        for pipeline in analysis_data[case_id]['analysis']:
+            for workflow in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                for d in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
+                    wfrunid = d['wfrunid']
+                    # get the file paths    
+                    files = workflow_outputs[case_id][wfrunid]
+                    if case_id not in D:
+                        D[case_id] = {}
+                    if workflow not in D[case_id]:
+                        D[case_id][workflow] = {}
+                    D[case_id][workflow][wfrunid] = files
+    
+    return D
+    
+    
+   
+def prepare_cbioportal_json(analysis_data, workflow_outputs):
+    '''
+    (dict, dict) -> dict
+    
+    Returns a dictionary with required output files for the cbioportal importer
+    Precondition: Data has passed validation and analysis_data contains all the required
+    pipeline data
+    
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with analysis data for a given assay 
+    - workflow_outputs (dict): Dictionary with all the files for each workfflow run id
+    '''
+    
+    D = {}  
+    
+    for case_id in analysis_data:
+        donor = analysis_data[case_id]['donor']
+        for pipeline in analysis_data[case_id]['analysis']:
+            for workflow in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+                if any(['varianteffectpredictor' in workflow.lower(), 'rsem' in workflow.lower(),
+                        'mavis' in workflow.lower(), 'purple' in workflow.lower(),
+                        'sequenza' in workflow.lower()]):
+                    for d in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
+                        tumor_sample, file = '', ''
+                        wfrunid = d['wfrunid']
+                        # get the file paths    
+                        files = workflow_outputs[case_id][wfrunid]
+                        # get the samples
+                        samples = d['samples'].split(',')
+                        for i in range(len(d['tests'])):
+                            if 'tumour' in d['tests'][i].lower():
+                                break
+                        tumor_sample = samples[i]
+                        assert 'Ly' not in tumor_sample
+                    
+                        if donor not in D:
+                            D[donor] = {}
+                        if tumor_sample not in D[donor]:
+                            D[donor][tumor_sample] = {}
+                        
+                        if 'varianteffectpredictor' in workflow.lower():
+                            for file in files:
+                                if 'mutect2.filtered.maf.gz' in file:
+                                    D[donor][tumor_sample][workflow] = file    
+                                    break
+                        elif 'rsem' in workflow.lower():
+                            for file in files:
+                                if '.genes.results' in file:
+                                    D[donor][tumor_sample][workflow] = file    
+                                    break
+                        elif 'mavis' in workflow.lower():
+                            for file in files:
+                                if '.mavis_summary.tab' in file:
+                                    D[donor][tumor_sample][workflow] = file    
+                                    break
+                        elif 'purple' in workflow.lower():
+                            D[donor][tumor_sample][workflow] = {}
+                            for file in files:
+                                if '.purple.cnv.somatic.tsv' in file:
+                                    D[donor][tumor_sample][workflow]['cnv'] = file
+                                elif '.purple.purity.tsv' in file:
+                                    D[donor][tumor_sample][workflow]['purity'] = file
+                        elif 'sequenza' in workflow.lower():
+                            for file in files:
+                                if 'results.sequenza.zip' in file:
+                                    D[donor][tumor_sample][workflow] = file
+                                    break
+
+    # remove samples and donors without data                    
+    for donor in D:
+        to_remove = [sample for sample in D[donor] if len(D[donor][sample]) == 0]
+        for i in to_remove:
+            del D[donor][i]
+    to_remove = [donor for donor in D if len(D[donor]) == 0]
+    for i in to_remove:
+        del D[i]
+                
+    return D
+    
+    
+def count_cases(analysis_data, data_release_approval, data_release, pipeline_signoff, cbio_signoff):
+    
+    '''
+    
+    
+    
+    
+    
+    '''
+    
+    complete = len([case_id for case_id in analysis_data if analysis_data[case_id]['valid']])
+    incomplete = len(analysis_data) - complete
+    
+    # count complete cases with release approval and data release signed off
+    complete_signedoff = len([case_id for case_id in analysis_data if analysis_data[case_id]['valid'] 
+                          and data_release_approval[case_id] and data_release[case_id]])
+            
+    complete_to_release = len([case_id for case_id in analysis_data if analysis_data[case_id]['valid']
+                           and data_release_approval[case_id] and data_release[case_id] == False])
+                              
+    pipeline_to_release = len([case_id for case_id in analysis_data if analysis_data[case_id]['valid']
+                           and data_release_approval[case_id] and pipeline_signoff[case_id] == False])
+                          
+    cbio_to_release = len([case_id for case_id in analysis_data if analysis_data[case_id]['valid']
+                           and data_release_approval[case_id] and cbio_signoff[case_id] == False])
+                          
+    
+    return complete, incomplete, complete_signedoff, complete_to_release, pipeline_to_release, cbio_to_release
+    
+    
+    
     
     
     

@@ -90,9 +90,17 @@
     <th>Library types:</th>
     <td>{{ project['library_types'] }}</td>
   </tr>
+  <tr>
+    <th>Download:</th>
+    <td>
+      <button id="download_button" style="margin-top:2px;margin-left:0px">
+        <a href="{{url_for('download_cases_table', project_name=project['project_id'])}}">
+          Case table
+        </a>
+      </button>
+    </td>
+  </tr>
 </table>
-
-<button id="download_button" style="margin-top:20px;margin-left:50px"><a href="{{url_for('download_cases_table', project_name=project['project_id'])}}">Download case table</a></button>
 
 <table id="project_table" style="margin-top:35px; margin-left:50px">
     <tr>

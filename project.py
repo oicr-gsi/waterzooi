@@ -9,50 +9,50 @@ Created on Sun Aug 13 21:11:22 2023
 from utilities import connect_to_db, convert_epoch_time
 
 
-def get_project_info(database, project_name=None):
-    '''
-    (str, str | None) -> list
+# def get_project_info(database, project_name=None):
+#     '''
+#     (str, str | None) -> list
     
-    Returns a list with project information extracted from database for all projects 
-    of for a single project if project_name is defined 
+#     Returns a list with project information extracted from database for all projects 
+#     of for a single project if project_name is defined 
     
-    Parameters
-    ----------
-    - database (str): Path to the sqlite database
-    - project_name (None | str): Project of interest
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the sqlite database
+#     - project_name (None | str): Project of interest
+#     '''
     
-    # connect to db
-    conn = connect_to_db(database)
-    if project_name:
-        # extract project info
-        project = conn.execute('SELECT * FROM Projects WHERE project_id=?', (project_name,)).fetchall()
-    else:
-        project = conn.execute('SELECT * FROM Projects').fetchall()
-    conn.close()
+#     # connect to db
+#     conn = connect_to_db(database)
+#     if project_name:
+#         # extract project info
+#         project = conn.execute('SELECT * FROM Projects WHERE project_id=?', (project_name,)).fetchall()
+#     else:
+#         project = conn.execute('SELECT * FROM Projects').fetchall()
+#     conn.close()
     
-    return project
+#     return project
 
 
-def get_cases(project_name, database):
-    '''
-    (str, str) -> list
+# def get_cases(project_name, database):
+#     '''
+#     (str, str) -> list
     
-    Returns a list of dictionaries with case information
+#     Returns a list of dictionaries with case information
     
-    Paramaters
-    -----------
-    - project_name (str): Project of interest
-    - database (str): Path to the sqlite database
-    '''
+#     Paramaters
+#     -----------
+#     - project_name (str): Project of interest
+#     - database (str): Path to the sqlite database
+#     '''
     
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT case_id, assay, donor_id, ext_id, species, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
-    conn.close()
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT case_id, assay, donor_id, ext_id, species, miso FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
+#     conn.close()
     
-    data = [dict(i) for i in data]
+#     data = [dict(i) for i in data]
          
-    return data
+#     return data
 
 
 
