@@ -193,8 +193,20 @@
             </td>
           {% endif %}
                 
+
+        
+
+
         
         </tr>
+          <td colspan="{{table_cols}}">
+          {{ plot_html | safe }}                  
+          </td>
+        </tr>
+
+
+
+
       </table>  
         
           
@@ -277,9 +289,7 @@
             
         </table>  
 
-          
-        <p style="font-size:16px;"> Workflow relationships </p>
-          {{ plot_html | safe }}                  
+        
 
       {% endif %}
       

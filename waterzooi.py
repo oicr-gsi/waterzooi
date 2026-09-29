@@ -32,7 +32,7 @@ from whole_genome import get_selected_workflows, update_wf_selection, get_cases_
     get_workflow_outputfiles, get_pipeline_deliverables,\
     create_case_analysis_json, get_review_status, identify_deliverables, \
     create_cbioportal_json, get_workflow_names, list_template_workflows, \
-    create_graph_edges, plot_graph, list_case_analysis_status, get_workflow_counts, \
+    create_graph_edges, list_case_analysis_status, get_workflow_counts, \
     organize_analysis_workflows    
 
 
@@ -480,7 +480,14 @@ def case_analysis(project_name, assay, case_id):
     # create the html plot
     plot_html = pyo.plot(fig, output_type='div', include_plotlyjs='cdn')
    
-    
+    # determine the number of columns in summary table
+    table_cols = 7
+    if 'fastq' in project['deliverables'].lower() or 'pipeline' in project['deliverables'].lower():
+        table_cols += 1
+    if 'cbioportal' in project['deliverables'].lower():
+        table_cols += 1
+       
+   
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
         
@@ -555,7 +562,8 @@ def case_analysis(project_name, assay, case_id):
                            data_release=data_release,
                            cbio_signoff=cbio_signoff,
                            pipeline_signoff=pipeline_signoff,
-                           plot_html=plot_html
+                           plot_html=plot_html,
+                           table_cols=table_cols
                            )
                            
                            

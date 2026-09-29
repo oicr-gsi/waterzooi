@@ -1974,96 +1974,96 @@ def create_graph_edges(workflow_ids, parent_to_children):
     return edges
 
 
-def plot_graph(edges, workflow_names):
-    '''
-    (list, dict) -> plotly.graph_objs._figure.Figure
+# def plot_graph(edges, workflow_names):
+#     '''
+#     (list, dict) -> plotly.graph_objs._figure.Figure
        
-    Returns  plotly figure of a graph showing the relationships among workflows
+#     Returns  plotly figure of a graph showing the relationships among workflows
     
-    Parameters
-    ----------
-    - edges (list): List of connected pairs of workflow ids
-    - workflow_names (dict): Dictionary mapping workflow identifiers to their name
-    '''
+#     Parameters
+#     ----------
+#     - edges (list): List of connected pairs of workflow ids
+#     - workflow_names (dict): Dictionary mapping workflow identifiers to their name
+#     '''
     
-    # create the graph of workflow relationships
-    G = nx.Graph()
-    G.add_edges_from(edges)
+#     # create the graph of workflow relationships
+#     G = nx.Graph()
+#     G.add_edges_from(edges)
     
-    # add a graph layout and get positions
-    pos = nx.spring_layout(G)
+#     # add a graph layout and get positions
+#     pos = nx.spring_layout(G)
     
-    # get edge positions
-    edge_x = []
-    edge_y = []
-    for edge in G.edges():
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
+#     # get edge positions
+#     edge_x = []
+#     edge_y = []
+#     for edge in G.edges():
+#         x0, y0 = pos[edge[0]]
+#         x1, y1 = pos[edge[1]]
+#         edge_x.extend([x0, x1, None])
+#         edge_y.extend([y0, y1, None])
 
-    # get node positions
-    node_x = []
-    node_y = []
-    for node in G.nodes():
-        x, y = pos[node]
-        node_x.append(x)
-        node_y.append(y)
+#     # get node positions
+#     node_x = []
+#     node_y = []
+#     for node in G.nodes():
+#         x, y = pos[node]
+#         node_x.append(x)
+#         node_y.append(y)
 
-    # plot the edges
-    edge_trace = go.Scatter(
-        x=edge_x, y=edge_y,
-        line=dict(width=0.5, color='#888'),
-        hoverinfo='none',
-        mode='lines')
+#     # plot the edges
+#     edge_trace = go.Scatter(
+#         x=edge_x, y=edge_y,
+#         line=dict(width=0.5, color='#888'),
+#         hoverinfo='none',
+#         mode='lines')
     
-    # plot the nodes
-    node_trace = go.Scatter(
-    x=node_x, y=node_y,
-    mode='markers',
-    hoverinfo='text',
-    marker=dict(
-        showscale=True,
-        # colorscale options
-        #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
-        #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
-        #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-        colorscale='Viridis',
-        reversescale=True,
-        color=[],
-        size=10,
-        colorbar=dict(
-            thickness=15,
-            title=dict(
-              text='Node Connections',
-              side='right'
-            ),
-            xanchor='left',
-        ),
-        line_width=2))
+#     # plot the nodes
+#     node_trace = go.Scatter(
+#     x=node_x, y=node_y,
+#     mode='markers',
+#     hoverinfo='text',
+#     marker=dict(
+#         showscale=True,
+#         # colorscale options
+#         #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+#         #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+#         #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+#         colorscale='Viridis',
+#         reversescale=True,
+#         color=[],
+#         size=10,
+#         colorbar=dict(
+#             thickness=15,
+#             title=dict(
+#               text='Node Connections',
+#               side='right'
+#             ),
+#             xanchor='left',
+#         ),
+#         line_width=2))
     
     
-    # color the nodes based on the number of connection
-    node_adjacencies = [len(list(G.neighbors(node))) for node in G.nodes()]
-    node_trace.marker.color = node_adjacencies
+#     # color the nodes based on the number of connection
+#     node_adjacencies = [len(list(G.neighbors(node))) for node in G.nodes()]
+#     node_trace.marker.color = node_adjacencies
     
-    # to change the size of the marker based on the number of connection
-    #node_trace.marker.size = node_adjacencies
+#     # to change the size of the marker based on the number of connection
+#     #node_trace.marker.size = node_adjacencies
     
-    # label the nodes with the workflow names
-    node_text = [str(node) for node in G.nodes()]
-    node_text = [workflow_names[i] for i in node_text]
-    node_trace.text = node_text
+#     # label the nodes with the workflow names
+#     node_text = [str(node) for node in G.nodes()]
+#     node_text = [workflow_names[i] for i in node_text]
+#     node_trace.text = node_text
     
-    # generate figure
-    fig = go.Figure(data=[edge_trace, node_trace],
-                 layout=go.Layout(
-                    title='Workflow connections',
-                    showlegend=False,
-                    hovermode='closest',
-                    margin=dict(b=20,l=5,r=5,t=40),
-                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
-                    )
-    return fig
+#     # generate figure
+#     fig = go.Figure(data=[edge_trace, node_trace],
+#                  layout=go.Layout(
+#                     title='Workflow connections',
+#                     showlegend=False,
+#                     hovermode='closest',
+#                     margin=dict(b=20,l=5,r=5,t=40),
+#                     xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+#                     yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+#                     )
+#     return fig
 

@@ -1546,7 +1546,7 @@ def plot_graph(edges, workflow_names):
     # plot the edges
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
-        line=dict(width=0.5, color='#888'),
+        line=dict(width=1.5, color='#888'),
         hoverinfo='none',
         mode='lines')
     
@@ -1573,7 +1573,7 @@ def plot_graph(edges, workflow_names):
             ),
             xanchor='left',
         ),
-        line_width=2))
+        line_width=1.5))
     
     
     # color the nodes based on the number of connection
@@ -1588,16 +1588,47 @@ def plot_graph(edges, workflow_names):
     node_text = [workflow_names[i] for i in node_text]
     node_trace.text = node_text
     
-    # generate figure
+    # # generate figure
+    # fig = go.Figure(data=[edge_trace, node_trace],
+    #              layout=go.Layout(
+    #                 title='Workflow connections',
+    #                 showlegend=False,
+    #                 hovermode='closest',
+    #                 margin=dict(b=20,l=5,r=5,t=40),
+    #                 xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+    #                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+    #                 )
+    
+    
     fig = go.Figure(data=[edge_trace, node_trace],
                  layout=go.Layout(
                     title='Workflow connections',
                     showlegend=False,
                     hovermode='closest',
-                    margin=dict(b=20,l=5,r=5,t=40),
+                    #margin=dict(b=20,l=5,r=5,t=40),
+                    margin=dict(b=0,l=0,r=0,t=0),
+                    
+                    
                     xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    height=350,  
+                    width=1200,    
+                    autosize=True
                     )
+                    )
+    
+    
+    
+    # fig.update_layout(
+    #     title='Workflow connections',
+    # autosize=True,
+    # margin=dict(l=0, r=0, t=0, b=0), # Strip padding for small spaces
+    # height=300,  
+    # width=1200,       
+    # )
+    
+    
+    
     return fig
     
     
