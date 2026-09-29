@@ -52,12 +52,13 @@ from waterzooi_helper import secret_key_generator, get_project_info, \
     get_workflow_output_files, get_case_workflow_info,  get_input_sequences, \
     add_workflow_qc_status, get_sequences_to_download, get_data_release_signoff, \
     get_data_release_approval_signoff, get_output_files, get_workflow_outputs, \
-    prepare_analysis_json, prepare_cbioportal_json, count_cases
+    prepare_analysis_json, prepare_cbioportal_json, count_cases, plot_graph, \
+    plot_small_graph
         
 
 import plotly.offline as pyo
 import plotly.graph_objs as go
-
+import plotly.io as pio
 
 
 app = Flask(__name__)
@@ -596,7 +597,42 @@ def show_workflow(project_name, case_id, wfrunid):
         input_sequences = get_input_sequences(database, case_id, wfrunid)
     else:
         input_sequences = {}
-       
+    
+    # create the graph edges
+    case_workflows = {i: workflow_info[i][0] for i in workflow_info}    
+    workflow_runs = sorted(list(case_workflows.keys()))
+    
+    # make a list of parents, children including workflow of interest
+    workflow_runs = []
+    parent_runs = []
+    children_runs = []
+    if wfrunid in parent_to_children and parent_to_children[wfrunid] != ['NA']:
+        parent_runs.extend(parent_to_children[wfrunid])
+    if wfrunid in child_to_parents and child_to_parents[wfrunid] != ['NA']:
+        children_runs.extend(child_to_parents[wfrunid])
+    
+    workflow_runs.append(wfrunid)
+    workflow_runs.extend(parent_runs)
+    workflow_runs.extend(children_runs)
+    workflow_runs = list(set(workflow_runs))
+    
+    edges = create_graph_edges(workflow_runs, parent_to_children)
+    # create a figure
+    fig = plot_small_graph(edges, case_workflows, wfrunid, parent_runs, children_runs)
+    # create the html plot
+    
+    
+    
+    #plot_html = pyo.plot(fig, output_type='div', include_plotlyjs='cdn')
+
+
+    #graph_div = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
+    
+    
+    graph_div = pyo.plot(fig, auto_open=False, output_type='div', include_plotlyjs='cdn') 
+
+    
+    
     return render_template('workflow_info.html',
                        project=project,
                        case_id=case_id,
@@ -611,7 +647,8 @@ def show_workflow(project_name, case_id, wfrunid):
                        parent_to_children=parent_to_children,
                        outputfiles=outputfiles,
                        files_to_swids=files_to_swids,
-                       input_sequences=input_sequences
+                       input_sequences=input_sequences,
+                       graph_div=graph_div
                        )
 
 

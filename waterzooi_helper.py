@@ -13,6 +13,8 @@ import os
 import time
 import string
 import random
+import networkx as nx
+import plotly.graph_objects as go
 
 
 def secret_key_generator(size=10):
@@ -1505,6 +1507,223 @@ def count_cases(analysis_data, data_release_approval, data_release, pipeline_sig
     
     
     
+def plot_graph(edges, workflow_names):
+    '''
+    (list, dict) -> plotly.graph_objs._figure.Figure
+       
+    Returns  plotly figure of a graph showing the relationships among workflows
+    
+    Parameters
+    ----------
+    - edges (list): List of connected pairs of workflow ids
+    - workflow_names (dict): Dictionary mapping workflow identifiers to their name
+    '''
+    
+    # create the graph of workflow relationships
+    G = nx.Graph()
+    G.add_edges_from(edges)
+    
+    # add a graph layout and get positions
+    pos = nx.spring_layout(G)
+    
+    # get edge positions
+    edge_x = []
+    edge_y = []
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+
+    # get node positions
+    node_x = []
+    node_y = []
+    for node in G.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+
+    # plot the edges
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        hoverinfo='none',
+        mode='lines')
+    
+    # plot the nodes
+    node_trace = go.Scatter(
+    x=node_x, y=node_y,
+    mode='markers',
+    hoverinfo='text',
+    marker=dict(
+        showscale=True,
+        # colorscale options
+        #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+        #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+        #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+        colorscale='Viridis',
+        reversescale=True,
+        color=[],
+        size=10,
+        colorbar=dict(
+            thickness=15,
+            title=dict(
+              text='Node Connections',
+              side='right'
+            ),
+            xanchor='left',
+        ),
+        line_width=2))
     
     
+    # color the nodes based on the number of connection
+    node_adjacencies = [len(list(G.neighbors(node))) for node in G.nodes()]
+    node_trace.marker.color = node_adjacencies
+    
+    # to change the size of the marker based on the number of connection
+    #node_trace.marker.size = node_adjacencies
+    
+    # label the nodes with the workflow names
+    node_text = [str(node) for node in G.nodes()]
+    node_text = [workflow_names[i] for i in node_text]
+    node_trace.text = node_text
+    
+    # generate figure
+    fig = go.Figure(data=[edge_trace, node_trace],
+                 layout=go.Layout(
+                    title='Workflow connections',
+                    showlegend=False,
+                    hovermode='closest',
+                    margin=dict(b=20,l=5,r=5,t=40),
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+    return fig
+    
+    
+
+def plot_small_graph(edges, workflow_names, wfrunid, parents, children):
+    '''
+    (list, dict) -> plotly.graph_objs._figure.Figure
+       
+    Returns  plotly figure of a graph showing the relationships among workflows
+    
+    Parameters
+    ----------
+    - edges (list): List of connected pairs of workflow ids
+    - workflow_names (dict): Dictionary mapping workflow identifiers to their name
+    '''
+    
+    # create the graph of workflow relationships
+    G = nx.Graph()
+    G.add_edges_from(edges)
+    
+    # add a graph layout and get positions
+    pos = nx.spring_layout(G)
+    
+    # get edge positions
+    edge_x = []
+    edge_y = []
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+
+    # get node positions
+    node_x = []
+    node_y = []
+    for node in G.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+
+    # plot the edges
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.8, color='#888'),
+        hoverinfo='none',
+        mode='lines')
+    
+    # plot the nodes
+    node_trace = go.Scatter(
+    x=node_x, y=node_y,
+    mode='markers',
+    hoverinfo='text',
+    marker=dict(
+        showscale=False,
+        # colorscale options
+        #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
+        #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
+        #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
+        colorscale='Viridis',
+        reversescale=True,
+        color=[],
+        size=8,
+        colorbar=dict(
+            thickness=10,
+            title=dict(
+              text='Node Connections',
+              side='right'
+            ),
+            xanchor='left',
+        ),
+        line_width=1))
+    
+    
+    # color the nodes based on the number of connection
+    # node_adjacencies = [len(list(G.neighbors(node))) for node in G.nodes()]
+    # node_trace.marker.color = node_adjacencies
+    
+    node_colors = []
+    for node in G.nodes():
+        if str(node) == wfrunid:
+            node_colors.append('#ff6666')
+        elif str(node) in parents:
+            node_colors.append('#0073e6')
+        elif str(node) in children:
+            node_colors.append('#2eb82e')
+    node_trace.marker.color = node_colors
+    
+    
+    
+    # to change the size of the marker based on the number of connection
+    #node_trace.marker.size = node_adjacencies
+    
+    # label the nodes with the workflow names
+    node_text = [str(node) for node in G.nodes()]
+    node_text = [workflow_names[i] for i in node_text]
+    node_trace.text = node_text
+    
+    # generate figure
+    fig = go.Figure(data=[edge_trace, node_trace],
+                 layout=go.Layout(
+                    title=None,
+                    showlegend=False,
+                    hovermode='closest',
+                    margin=dict(b=20,l=5,r=5,t=40),
+                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+    
+    fig.update_layout(
+    autosize=True,
+    margin=dict(l=0, r=0, t=0, b=0), # Strip padding for small spaces
+    height=150,  
+    width=450,       
+    )
+    
+#     fig.update_layout(
+#     height=150,          # Force the height to match your HTML <div> element
+#     autosize=True,       # Allows it to dynamically fill the 100% width of the <td>
+#     margin=dict(l=10, r=10, t=10, b=10), # Minimize padding to prevent cropping
+# )
+    
+    
+    
+    
+    
+    return fig
+    
+
     
