@@ -77,6 +77,10 @@ analysis_db = 'analysis_review_test_09102026.db'
 database = 'waterzooi_test_09092026.db'
 nabu_cache = 'nabu_cache.db'
 
+workflow_deliv = 'workflow_deliverables.json'
+
+
+
 
 
 @app.template_filter()
@@ -342,51 +346,28 @@ def analysis(project_name, assay):
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
         
-        print('deliverable', deliverable)
-        
-        # get the workflow output files
-        #workflow_outputfiles = get_workflow_outputfiles(database, project_name)
-        # get deliverables
-        
+        # get the output files of each workflow for all cases 
+        outputs = get_workflow_outputs(database, project_name)
+        # keep only cases with complete data, data release appoval signoff and no release signoff
+        analyses, workflow_outputs = {}, {}
+        for case_id in analysis_data:
+            if analysis_data[case_id]['valid'] and data_release_approval[case_id] and pipeline_signoff[case_id] == False:
+                analyses[case_id] = analysis_data[case_id]
+                workflow_outputs[case_id] = outputs[case_id]
+    
         if deliverable == 'pipeline':
+            # get pipeline deliverables
+            infile = open(workflow_deliv)
+            workflow_deliverables = json.load(infile)
+            infile.close()
             
-            ### get pipeline deliverables
-            
-            
-            # pipeline_deliverables = get_pipeline_deliverables(deliverable)
-            # analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles, pipeline_deliverables)
-            
-            
-            
-            # get the output files of each workflow for all cases 
-            outputs = get_workflow_outputs(database, project_name)
-            # keep only cases with complete data, data release appoval signoff and no release signoff
-            analyses, workflow_outputs = {}, {}
-            for case_id in analysis_data:
-                if analysis_data[case_id]['valid'] and data_release_approval[case_id] and pipeline_signoff[case_id] == False:
-                    analyses[case_id] = analysis_data[case_id]
-                    workflow_outputs[case_id] = outputs[case_id]
-                    
             # organize data for download
-            downloadable_data = prepare_analysis_json(analyses, workflow_outputs)
+            downloadable_data = prepare_analysis_json(analyses, workflow_outputs, workflow_deliverables)
             
-        
-        
         else:
-            # get the output files of each workflow for all cases 
-            outputs = get_workflow_outputs(database, project_name)
-            # keep only cases with complete data, data release appoval signoff and no release signoff
-            analyses, workflow_outputs = {}, {}
-            for case_id in analysis_data:
-                if analysis_data[case_id]['valid'] and data_release_approval[case_id] and pipeline_signoff[case_id] == False:
-                    analyses[case_id] = analysis_data[case_id]
-                    workflow_outputs[case_id] = outputs[case_id]
-                    
             # organize data for download
             downloadable_data = prepare_analysis_json(analyses, workflow_outputs)
                 
-        
-            
         # send the json to outoutfile                    
         return Response(
             response=json.dumps(downloadable_data),
@@ -491,50 +472,27 @@ def case_analysis(project_name, assay, case_id):
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
         
-        print('deliverable', deliverable)
-        
-        # get the workflow output files
-        #workflow_outputfiles = get_workflow_outputfiles(database, project_name)
-        # get deliverables
-        
+        # get the output files of each workflow for the case 
+        workflow_outputfiles = get_workflow_outputs(database, project_name, case_id)
+        # keep only cases with complete data, data release appoval signoff and no release signoff
+        analyses, outputfiles = {}, {}
+        if analysis_data[case_id]['valid'] and data_release_approval[case_id] and pipeline_signoff[case_id] == False:
+            analyses[case_id] = analysis_data[case_id]
+            outputfiles[case_id] = workflow_outputfiles[case_id]
+                      
         if deliverable == 'pipeline':
+            # get pipeline deliverables
+            infile = open(workflow_deliv)
+            workflow_deliverables = json.load(infile)
+            infile.close()
             
-            ### get pipeline deliverables
-            
-            
-            # pipeline_deliverables = get_pipeline_deliverables(deliverable)
-            # analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles, pipeline_deliverables)
-            
-            # get the output files of each workflow for the case 
-            workflow_outputfiles = get_workflow_outputs(database, project_name, case_id)
-            # keep only cases with complete data, data release appoval signoff and no release signoff
-            analyses, outputfiles = {}, {}
-            if analysis_data[case_id]['valid'] and data_release_approval[case_id] and pipeline_signoff[case_id] == False:
-                analyses[case_id] = analysis_data[case_id]
-                outputfiles[case_id] = workflow_outputfiles[case_id]
-                       
             # organize data for download
-            downloadable_data = prepare_analysis_json(analyses, outputfiles)
+            downloadable_data = prepare_analysis_json(analyses, outputfiles, workflow_deliverables)
                 
         else:
-            
-            ### get pipeline deliverables
-            
-            
-            # pipeline_deliverables = get_pipeline_deliverables(deliverable)
-            # analysis_data = create_analysis_json(case_data, selected_workflows, workflow_outputfiles, pipeline_deliverables)
-            
-            # get the output files of each workflow for the case 
-            workflow_outputfiles = get_workflow_outputs(database, project_name, case_id)
-            # keep only cases with complete data, data release appoval signoff and no release signoff
-            analyses, outputfiles = {}, {}
-            if analysis_data[case_id]['valid'] and data_release_approval[case_id] and pipeline_signoff[case_id] == False:
-                analyses[case_id] = analysis_data[case_id]
-                outputfiles[case_id] = workflow_outputfiles[case_id]
-                       
             # organize data for download
             downloadable_data = prepare_analysis_json(analyses, outputfiles)
-            
+           
             
         # send the json to outoutfile                    
         return Response(

@@ -1361,10 +1361,33 @@ def get_workflow_outputs(database, project_name, case_id = None):
 
 
 
-
-def prepare_analysis_json(analysis_data, workflow_outputs):
+def get_files_to_release(files, files_extensions):
     '''
-    (dict, dict) -> dict
+    (list, list | None) -> list
+    
+    
+    
+    '''
+    
+    L = []
+    
+    for file in files:
+        if files_extensions:
+            for file_type in files_extensions:
+                if file_type in file:
+                    L.append(file)
+    L = list(set(L))
+    
+    return L    
+    
+    
+
+
+
+
+def prepare_analysis_json(analysis_data, workflow_outputs, workflow_deliverables):
+    '''
+    (dict, dict, dict | None) -> dict
     
     Returns a dictionary matching all the files to each workflow run id of the assay workflows
     Precondition: Data has passed validation and analysis_data contains all the required
@@ -1374,6 +1397,7 @@ def prepare_analysis_json(analysis_data, workflow_outputs):
     ----------
     - analysis_data (dict): Dictionary with analysis data for a given assay 
     - workflow_outputs (dict): Dictionary with all the files for each workfflow run id
+    - workflow_deliverables (dict | None): Dictionary with file outputs for workflows included in the pipeline deliverables
     '''
         
     D = {}
@@ -1385,11 +1409,23 @@ def prepare_analysis_json(analysis_data, workflow_outputs):
                     wfrunid = d['wfrunid']
                     # get the file paths    
                     files = workflow_outputs[case_id][wfrunid]
-                    if case_id not in D:
-                        D[case_id] = {}
-                    if workflow not in D[case_id]:
-                        D[case_id][workflow] = {}
-                    D[case_id][workflow][wfrunid] = files
+                    if workflow_deliverables:
+                        # check that workflow is included in pipeline deliverables
+                        if workflow in workflow_deliverables:
+                            # get only the files that should included in the release
+                            outputs = get_files_to_release(files, workflow_deliverables[workflow])
+                            if outputs:
+                                if case_id not in D:
+                                    D[case_id] = {}
+                                if workflow not in D[case_id]:
+                                    D[case_id][workflow] = {}
+                                D[case_id][workflow][wfrunid] = outputs
+                    else:
+                        if case_id not in D:
+                            D[case_id] = {}
+                        if workflow not in D[case_id]:
+                            D[case_id][workflow] = {}
+                        D[case_id][workflow][wfrunid] = files
     
     return D
     
