@@ -507,24 +507,8 @@ def get_assay_expected_workflows(pipeline_workflows, tests_samples, samples_lims
                             workflows[workflow] = [{'workflow': workflow, 'test': [case_test], 'sampleid': sampleid, 'limsids': lims, 'parents': [], 'parent_workflows': []}]
         
         elif level == 'merge':
-            if ',' in pipeline_workflows[workflow]['tests']:
-                tests = pipeline_workflows[workflow]['tests'].split(',')  
-                # collect the limsids for each test using case data
-                for test in tests:
-                    # find the corresponding test in case data
-                    case_test = map_assay_test_to_test_case(test, tests_samples)
-                    # get the sample id - each test can have multiple samples
-                    for sampleid in tests_samples[case_test]:
-                        # get the corresponding lims 
-                        limsids = samples_lims[sampleid]
-                        # the workflow has all the lims
-                        limsids = ','.join(sorted(list(limsids)))
-                        if workflow in workflows:
-                            workflows[workflow].append({'workflow': workflow, 'test': [case_test], 'sampleid': sampleid, 'limsids': limsids, 'parents': [], 'parent_workflows': []})
-                        else:
-                            workflows[workflow] = [{'workflow': workflow, 'test': [case_test], 'sampleid': sampleid, 'limsids': limsids, 'parents': [], 'parent_workflows': []}]
-                
-            elif '|' in pipeline_workflows[workflow]['tests']:
+            
+            if '|' in pipeline_workflows[workflow]['tests']:
                 tests = pipeline_workflows[workflow]['tests'].split('|')
                 # collect the limsids for each test using case data
                 # get the expected combinations of lims for each combination of test samples
@@ -570,6 +554,25 @@ def get_assay_expected_workflows(pipeline_workflows, tests_samples, samples_lims
                     else:
                         workflows[workflow] = [{'workflow': workflow, 'test': case_tests, 'sampleid': merged_samples, 'limsids': merged_lims, 'parents': [], 'parent_workflows': []}]
            
+            if ',' in pipeline_workflows[workflow]['tests'] or \
+            (',' not in pipeline_workflows[workflow]['tests'] and '|' not in pipeline_workflows[workflow]['tests']):
+                tests = pipeline_workflows[workflow]['tests'].split(',')  
+                # collect the limsids for each test using case data
+                for test in tests:
+                    # find the corresponding test in case data
+                    case_test = map_assay_test_to_test_case(test, tests_samples)
+                    # get the sample id - each test can have multiple samples
+                    for sampleid in tests_samples[case_test]:
+                        # get the corresponding lims 
+                        limsids = samples_lims[sampleid]
+                        # the workflow has all the lims
+                        limsids = ','.join(sorted(list(limsids)))
+                        if workflow in workflows:
+                            workflows[workflow].append({'workflow': workflow, 'test': [case_test], 'sampleid': sampleid, 'limsids': limsids, 'parents': [], 'parent_workflows': []})
+                        else:
+                            workflows[workflow] = [{'workflow': workflow, 'test': [case_test], 'sampleid': sampleid, 'limsids': limsids, 'parents': [], 'parent_workflows': []}]
+                
+            
     return workflows        
 
 
