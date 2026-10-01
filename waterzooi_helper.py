@@ -892,39 +892,39 @@ def organize_data(analysis_data, case_id):
     
     
     
-def get_workflow_release_status(database, case_id):
-    '''
-    (str, str) -> dict
+# def get_workflow_release_status(database, case_id):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary with the release status of each workflow id of a given case
-    The release status is derived from the file qc status in Nabu of the workflow output files
+#     Returns a dictionary with the release status of each workflow id of a given case
+#     The release status is derived from the file qc status in Nabu of the workflow output files
     
-    Parameters
-    ----------
-    - database (str): Path to the waterzooi sqlite database
-    - case_id (str): Case identifier
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the waterzooi sqlite database
+#     - case_id (str): Case identifier
+#     '''
 
-    # get the file qc status for each output file of every workflows
-    workflow_qc = get_workflow_file_qc(database, case_id)
+#     # get the file qc status for each output file of every workflows
+#     workflow_qc = get_workflow_file_qc(database, case_id)
     
-    D = {}    
+#     D = {}    
 
-    for workflow_id in workflow_qc:
-        if all(map(lambda x: x.isdigit(), workflow_qc[workflow_id])):
-            if all(map(lambda x: int(x), workflow_qc[workflow_id])):
-                D[workflow_id] = True
-            elif any(map(lambda x: int(x), workflow_qc[workflow_id])):
-                D[workflow_id] = True
-            elif all(map(lambda x: int(x), workflow_qc[workflow_id])) == False:
-                D[workflow_id] = False
-        elif '1' in workflow_qc[workflow_id]:
-            D[workflow_id] = True
-        elif len(list(set(workflow_qc[workflow_id]))) == 1:
-            D[workflow_id] = '?'
+#     for workflow_id in workflow_qc:
+#         if all(map(lambda x: x.isdigit(), workflow_qc[workflow_id])):
+#             if all(map(lambda x: int(x), workflow_qc[workflow_id])):
+#                 D[workflow_id] = True
+#             elif any(map(lambda x: int(x), workflow_qc[workflow_id])):
+#                 D[workflow_id] = True
+#             elif all(map(lambda x: int(x), workflow_qc[workflow_id])) == False:
+#                 D[workflow_id] = False
+#         elif '1' in workflow_qc[workflow_id]:
+#             D[workflow_id] = True
+#         elif len(list(set(workflow_qc[workflow_id]))) == 1:
+#             D[workflow_id] = '?'
         
          
-    return D        
+#     return D        
     
 
 
@@ -1385,7 +1385,7 @@ def get_files_to_release(files, files_extensions):
 
 
 
-def prepare_analysis_json(analysis_data, workflow_outputs, workflow_deliverables):
+def prepare_analysis_json(analysis_data, workflow_outputs, workflow_deliverables = None):
     '''
     (dict, dict, dict | None) -> dict
     
@@ -1426,6 +1426,7 @@ def prepare_analysis_json(analysis_data, workflow_outputs, workflow_deliverables
                         if workflow not in D[case_id]:
                             D[case_id][workflow] = {}
                         D[case_id][workflow][wfrunid] = files
+    
     
     return D
     
@@ -1792,5 +1793,59 @@ def plot_small_graph(edges, workflow_names, wfrunid, parents, children):
     
     return fig
     
+
+
+
+def convert_epoch_time(epoch):
+    '''
+    (str) -> str
+    
+    Returns epoch time in readable format
+    
+    Parameters
+    ----------
+    - epoch (str)
+    '''
+    
+    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(epoch)))
+
+
+
+
+def get_last_sequencing(project_name, database):
+    '''
+    (str, str) -> str
+    
+    Returns the date of the last sequencing for the project of interest
+    
+    Paramaters
+    ----------
+    - project_name (str): Project of interest
+    - database (str): Path to the sqlite database
+    '''
+    
+    conn = connect_to_db(database)
+    sequencing = conn.execute("SELECT DISTINCT Files.creation_date FROM Files JOIN Workflows \
+                              WHERE Files.project_id = '{0}' AND Workflows.project_id = '{0}' \
+                              AND Workflows.wfrun_id = Files.wfrun_id AND LOWER(Workflows.wf) in \
+                              ('casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq');".format(project_name)).fetchall()
+    conn.close()
+    
+    # get the most recent creation date of fastq generating workflows
+    if sequencing:
+        seq_dates = sorted([i['creation_date'] for i in sequencing])
+        most_recent = seq_dates[-1]
+    else:
+        most_recent = 'NA'
+        
+    try:
+        most_recent = convert_epoch_time(most_recent)    
+        return most_recent
+    except:
+        return most_recent
+
+
+
+
 
     

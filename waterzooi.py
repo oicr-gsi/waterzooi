@@ -17,12 +17,13 @@ import pandas as pd
 from commons import connect_to_db
 
 
+
 from utilities import get_library_design, get_case_md5sums, \
     remove_cases_with_no_approval_signoff, \
     remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff, \
     get_file_release_status, cbioportal_format, template_error_formatting, \
     case_error_formatting, moh_format    
-from whole_genome import get_selected_workflows, update_wf_selection, get_cases_with_analysis,\
+from whole_genome import update_wf_selection, get_cases_with_analysis,\
     get_case_analysis_samples, count_case_analysis_workflows,\
     get_analysis_workflow_name, get_case_workflow_samples, \
     get_missing_workflows, \
@@ -37,7 +38,7 @@ from whole_genome import get_selected_workflows, update_wf_selection, get_cases_
 
 
 
-from project import  get_last_sequencing, get_case_sequencing_status
+from project import  get_case_sequencing_status
 
 
 from waterzooi_helper import secret_key_generator, get_project_info, \
@@ -47,13 +48,13 @@ from waterzooi_helper import secret_key_generator, get_project_info, \
     get_analysis_data, get_analysis_samples, get_analysis_workflows, error_formatting, \
     get_case_analysis_data, get_case_release_signoff, get_workflows_analysis_date, \
     most_recent_analysis_workflow, map_workflows_to_fileids, map_analysis_workflows, \
-    organize_data, get_workflow_release_status, get_case_assay, \
+    organize_data, get_case_assay, \
     get_case_parent_to_children_workflows, get_case_children_to_parents_workflows, \
     get_workflow_output_files, get_case_workflow_info,  get_input_sequences, \
     add_workflow_qc_status, get_sequences_to_download, get_data_release_signoff, \
     get_data_release_approval_signoff, get_output_files, get_workflow_outputs, \
     prepare_analysis_json, prepare_cbioportal_json, count_cases, plot_graph, \
-    plot_small_graph
+    plot_small_graph, get_last_sequencing
         
 
 import plotly.offline as pyo
@@ -73,7 +74,12 @@ workflow_db = 'workflows_case.db'
 nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
 
 database = 'waterzooi_test_09092026.db'
-analysis_db = 'analysis_review_test_09102026.db'
+#analysis_db = 'analysis_review_test_09102026.db'
+
+analysis_db = 'analysis_review_test_09302026.db'
+
+
+
 database = 'waterzooi_test_09092026.db'
 nabu_cache = 'nabu_cache.db'
 
@@ -493,14 +499,20 @@ def case_analysis(project_name, assay, case_id):
             # organize data for download
             downloadable_data = prepare_analysis_json(analyses, outputfiles)
            
+        # convert en-dash to hyphen in file name
+        if "\u2013" in case_id:
+            case_name = case_id.replace("\u2013", '-')
+        else:
+            case_name = case_id
+           
             
         # send the json to outoutfile                    
         return Response(
             response=json.dumps(downloadable_data),
             mimetype="application/json",
             status=200,
-            headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.json".format(case_id, project_name, assay.replace(' ', '_'))})
-    
+            headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.json".format(case_name, project_name, assay.replace(' ', '_'))})
+        
     
     return render_template('case_assay.html',
                            project=project,
