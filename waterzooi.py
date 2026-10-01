@@ -12,33 +12,6 @@ from flask import Flask, render_template, request, url_for, flash, redirect, Res
 from werkzeug.exceptions import abort
 import time
 import pandas as pd
-# import matplotlib
-# matplotlib.use('agg')
-from commons import connect_to_db
-
-
-
-from utilities import get_library_design, get_case_md5sums, \
-    remove_cases_with_no_approval_signoff, \
-    remove_cases_with_competed_cbioportal_release, remove_workflows_with_deliverable_signoff, \
-    get_file_release_status, cbioportal_format, template_error_formatting, \
-    case_error_formatting, moh_format    
-from whole_genome import update_wf_selection, get_cases_with_analysis,\
-    get_case_analysis_samples, count_case_analysis_workflows,\
-    get_analysis_workflow_name, get_case_workflow_samples, \
-    get_missing_workflows, \
-    delete_cases_with_distinct_checksums,\
-    map_donors_to_cases, list_assay_analysis_workflows, \
-    get_sequencing_input, get_case_error_message, create_analysis_json, \
-    get_workflow_outputfiles, get_pipeline_deliverables,\
-    create_case_analysis_json, get_review_status, identify_deliverables, \
-    create_cbioportal_json, get_workflow_names, list_template_workflows, \
-    create_graph_edges, list_case_analysis_status, get_workflow_counts, \
-    organize_analysis_workflows    
-
-
-
-from project import  get_case_sequencing_status
 
 
 from waterzooi_helper import secret_key_generator, get_project_info, \
@@ -48,13 +21,13 @@ from waterzooi_helper import secret_key_generator, get_project_info, \
     get_analysis_data, get_analysis_samples, get_analysis_workflows, error_formatting, \
     get_case_analysis_data, get_case_release_signoff, get_workflows_analysis_date, \
     most_recent_analysis_workflow, map_workflows_to_fileids, map_analysis_workflows, \
-    organize_data, get_case_assay, \
-    get_case_parent_to_children_workflows, get_case_children_to_parents_workflows, \
-    get_workflow_output_files, get_case_workflow_info,  get_input_sequences, \
-    add_workflow_qc_status, get_sequences_to_download, get_data_release_signoff, \
-    get_data_release_approval_signoff, get_output_files, get_workflow_outputs, \
-    prepare_analysis_json, prepare_cbioportal_json, count_cases, plot_graph, \
-    plot_small_graph, get_last_sequencing
+    organize_data, get_case_assay, get_case_parent_to_children_workflows, \
+    get_case_children_to_parents_workflows, get_workflow_output_files, get_case_workflow_info, \
+    get_input_sequences, add_workflow_qc_status, get_sequences_to_download, \
+    get_data_release_signoff, get_data_release_approval_signoff, get_output_files, \
+    get_workflow_outputs, prepare_analysis_json, prepare_cbioportal_json, count_cases, \
+    plot_graph, plot_small_graph, get_last_sequencing, rename_case_id, create_graph_edges, \
+    get_library_design    
         
 
 import plotly.offline as pyo
@@ -73,7 +46,12 @@ workflow_db = 'workflows_case.db'
 #analysis_db = 'analysis_review_case.db'
 nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
 
-database = 'waterzooi_test_09092026.db'
+#database = 'waterzooi_test_09092026.db'
+
+database = 'waterzooi_test_10012026.db'
+
+
+
 #analysis_db = 'analysis_review_test_09102026.db'
 
 analysis_db = 'analysis_review_test_09302026.db'
@@ -477,7 +455,7 @@ def case_analysis(project_name, assay, case_id):
    
     if request.method == 'POST':
         deliverable = request.form.get('deliverable')
-        
+                        
         # get the output files of each workflow for the case 
         workflow_outputfiles = get_workflow_outputs(database, project_name, case_id)
         # keep only cases with complete data, data release appoval signoff and no release signoff
@@ -491,21 +469,15 @@ def case_analysis(project_name, assay, case_id):
             infile = open(workflow_deliv)
             workflow_deliverables = json.load(infile)
             infile.close()
-            
             # organize data for download
             downloadable_data = prepare_analysis_json(analyses, outputfiles, workflow_deliverables)
-                
         else:
             # organize data for download
             downloadable_data = prepare_analysis_json(analyses, outputfiles)
            
-        # convert en-dash to hyphen in file name
-        if "\u2013" in case_id:
-            case_name = case_id.replace("\u2013", '-')
-        else:
-            case_name = case_id
-           
-            
+        # replace en dash in file name
+        case_name = rename_case_id(case_id)
+                   
         # send the json to outoutfile                    
         return Response(
             response=json.dumps(downloadable_data),
@@ -598,18 +570,7 @@ def show_workflow(project_name, case_id, wfrunid):
     # create a figure
     fig = plot_small_graph(edges, case_workflows, wfrunid, parent_runs, children_runs)
     # create the html plot
-    
-    
-    
-    #plot_html = pyo.plot(fig, output_type='div', include_plotlyjs='cdn')
-
-
-    #graph_div = pio.to_html(fig, full_html=False, include_plotlyjs='cdn')
-    
-    
     graph_div = pyo.plot(fig, auto_open=False, output_type='div', include_plotlyjs='cdn') 
-
-    
     
     return render_template('workflow_info.html',
                        project=project,
@@ -707,12 +668,15 @@ def download_analysis_data(project_name, case_id, assay):
     # organize data for download
     downloadable_data = prepare_analysis_json(analysis_data, workflow_outputs)
     
+    # replace en dash in file name
+    case_name = rename_case_id(case_id)    
+    
     # send the json to outoutfile                    
     return Response(
         response=json.dumps(downloadable_data),
         mimetype="application/json",
         status=200,
-        headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.json".format(case_id, project_name, assay.replace(' ', '_'))})
+        headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.json".format(case_name, project_name, assay.replace(' ', '_'))})
 
 
 @app.route('/download_cbioportal/<project_name>/<case_id>/<assay>')
@@ -731,12 +695,15 @@ def download_cbioportal_data(project_name, case_id, assay):
     # organize data for cbioportal importer
     downloadable_data = prepare_cbioportal_json(analysis_data, workflow_outputs)
             
+    # replace en dash in file name
+    case_name = rename_case_id(case_id)   
+    
     # send the json to outoutfile                    
     return Response(
         response=json.dumps(downloadable_data),
         mimetype="application/json",
         status=200,
-        headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.cbioportal.json".format(case_id, project_name, assay)})
+        headers={"Content-disposition": "attachment; filename={0}.{1}.{2}.cbioportal.json".format(case_name, project_name, assay)})
 
 
 

@@ -6,7 +6,7 @@ Created on Sun Aug 13 21:11:22 2023
 """
 
 
-from utilities import connect_to_db, convert_epoch_time
+from utilities import connect_to_db
 
 
 # def get_project_info(database, project_name=None):
@@ -106,37 +106,37 @@ from utilities import connect_to_db, convert_epoch_time
 
 
 
-def get_last_sequencing(project_name, database):
-    '''
-    (str, str) -> str
+# def get_last_sequencing(project_name, database):
+#     '''
+#     (str, str) -> str
     
-    Returns the date of the last sequencing for the project of interest
+#     Returns the date of the last sequencing for the project of interest
     
-    Paramaters
-    ----------
-    - project_name (str): Project of interest
-    - database (str): Path to the sqlite database
-    '''
+#     Paramaters
+#     ----------
+#     - project_name (str): Project of interest
+#     - database (str): Path to the sqlite database
+#     '''
     
-    conn = connect_to_db(database)
-    sequencing = conn.execute("SELECT DISTINCT Files.creation_date FROM Files JOIN Workflows \
-                              WHERE Files.project_id = '{0}' AND Workflows.project_id = '{0}' \
-                              AND Workflows.wfrun_id = Files.wfrun_id AND LOWER(Workflows.wf) in \
-                              ('casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq');".format(project_name)).fetchall()
-    conn.close()
+#     conn = connect_to_db(database)
+#     sequencing = conn.execute("SELECT DISTINCT Files.creation_date FROM Files JOIN Workflows \
+#                               WHERE Files.project_id = '{0}' AND Workflows.project_id = '{0}' \
+#                               AND Workflows.wfrun_id = Files.wfrun_id AND LOWER(Workflows.wf) in \
+#                               ('casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq');".format(project_name)).fetchall()
+#     conn.close()
     
-    # get the most recent creation date of fastq generating workflows
-    if sequencing:
-        seq_dates = sorted([i['creation_date'] for i in sequencing])
-        most_recent = seq_dates[-1]
-    else:
-        most_recent = 'NA'
+#     # get the most recent creation date of fastq generating workflows
+#     if sequencing:
+#         seq_dates = sorted([i['creation_date'] for i in sequencing])
+#         most_recent = seq_dates[-1]
+#     else:
+#         most_recent = 'NA'
         
-    try:
-        most_recent = convert_epoch_time(most_recent)    
-        return most_recent
-    except:
-        return most_recent
+#     try:
+#         most_recent = convert_epoch_time(most_recent)    
+#         return most_recent
+#     except:
+#         return most_recent
     
 
 
@@ -209,37 +209,37 @@ def get_last_sequencing(project_name, database):
 #     return D
     
     
-def get_case_sequencing_status(database, project_name=None):
-    '''
-    (str, str) -> dict
+# def get_case_sequencing_status(database, project_name=None):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary with the sequencing status of each case in a project if
-    project name is specified or all projects otherwise.
+#     Returns a dictionary with the sequencing status of each case in a project if
+#     project name is specified or all projects otherwise.
             
-    Parameters
-    ----------
-    - database (str): Path to the waterzooi database
-    - project_name (None str): Name of a specific project
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the waterzooi database
+#     - project_name (None str): Name of a specific project
+#     '''
     
-    conn = connect_to_db(database)
-    if project_name:
-        data = conn.execute("SELECT project_id, case_id, sequencing_status FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
-    else:
-        data = conn.execute("SELECT project_id, case_id, sequencing_status FROM Samples").fetchall()
-    conn.close()
+#     conn = connect_to_db(database)
+#     if project_name:
+#         data = conn.execute("SELECT project_id, case_id, sequencing_status FROM Samples WHERE project_id = ?", (project_name,)).fetchall()
+#     else:
+#         data = conn.execute("SELECT project_id, case_id, sequencing_status FROM Samples").fetchall()
+#     conn.close()
     
-    D = {}
-    for i in data:
-        project = i['project_id']
-        case = i['case_id']
-        sequencing_status = i['sequencing_status']
-        if project not in D:
-            D[project] = {}
-        assert case not in D[project]
-        D[project][case] = int(sequencing_status)
+#     D = {}
+#     for i in data:
+#         project = i['project_id']
+#         case = i['case_id']
+#         sequencing_status = i['sequencing_status']
+#         if project not in D:
+#             D[project] = {}
+#         assert case not in D[project]
+#         D[project][case] = int(sequencing_status)
         
-    return D
+#     return D
 
 
 

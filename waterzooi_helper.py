@@ -1867,3 +1867,53 @@ def rename_case_id(case_id):
     return case_name
 
     
+
+def create_graph_edges(workflow_ids, parent_to_children):
+    '''
+    (list, dict) -> list
+    
+    Returns a list of tuples, each with 2 workflow identifiers when there is a connection
+    (ie parent to child) between these 2 workflows
+
+    Parameters
+    ----------
+    - workflow_ids (list): List of all the workflow ids of a template of a case
+    - parent_to_children (dict): Dictionary with parent to children workflow relationships 
+    '''
+
+    edges = []
+        
+    for i in workflow_ids:
+        for j in workflow_ids:
+            if i != j and (i in parent_to_children or j in parent_to_children):
+                if i in parent_to_children:
+                    if j in parent_to_children[i]:
+                        edges.append((i, j))
+                else:
+                    if i in parent_to_children[j]:
+                        edges.append((j, i))
+    return edges
+
+
+def get_library_design(library_source):
+    '''
+    (str) -> str
+    
+    Returns the description of library_source as defined in MISO
+    
+    Parameters
+    ----------
+    - library_source (str): Code of the library source as defined in MISO
+    '''
+
+    library_design = {'WT': 'Whole Transcriptome', 'WG': 'Whole Genome', 'TS': 'Targeted Sequencing',
+                      'TR': 'Total RNA', 'SW': 'Shallow Whole Genome', 'SM': 'smRNA', 'SC': 'Single Cell',
+                      'NN': 'Unknown', 'MR': 'mRNA', 'EX': 'Exome', 'CT': 'ctDNA', 'CM': 'cfMEDIP',
+                      'CH': 'ChIP-Seq', 'BS': 'Bisulphite Sequencing', 'AS': 'ATAC-Seq'}
+
+    if library_source in library_design:
+        return library_design[library_source]
+    else:
+        return None
+
+

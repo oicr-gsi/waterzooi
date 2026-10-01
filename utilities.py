@@ -42,41 +42,41 @@ def remove_non_analysis_workflows(L):
 
 
 
-def convert_epoch_time(epoch):
-    '''
-    (str) -> str
+# def convert_epoch_time(epoch):
+#     '''
+#     (str) -> str
     
-    Returns epoch time in readable format
+#     Returns epoch time in readable format
     
-    Parameters
-    ----------
-    - epoch (str)
-    '''
+#     Parameters
+#     ----------
+#     - epoch (str)
+#     '''
     
-    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(epoch)))
+#     return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(int(epoch)))
 
 
 
-def get_library_design(library_source):
-    '''
-    (str) -> str
+# def get_library_design(library_source):
+#     '''
+#     (str) -> str
     
-    Returns the description of library_source as defined in MISO
+#     Returns the description of library_source as defined in MISO
     
-    Parameters
-    ----------
-    - library_source (str): Code of the library source as defined in MISO
-    '''
+#     Parameters
+#     ----------
+#     - library_source (str): Code of the library source as defined in MISO
+#     '''
 
-    library_design = {'WT': 'Whole Transcriptome', 'WG': 'Whole Genome', 'TS': 'Targeted Sequencing',
-                      'TR': 'Total RNA', 'SW': 'Shallow Whole Genome', 'SM': 'smRNA', 'SC': 'Single Cell',
-                      'NN': 'Unknown', 'MR': 'mRNA', 'EX': 'Exome', 'CT': 'ctDNA', 'CM': 'cfMEDIP',
-                      'CH': 'ChIP-Seq', 'BS': 'Bisulphite Sequencing', 'AS': 'ATAC-Seq'}
+#     library_design = {'WT': 'Whole Transcriptome', 'WG': 'Whole Genome', 'TS': 'Targeted Sequencing',
+#                       'TR': 'Total RNA', 'SW': 'Shallow Whole Genome', 'SM': 'smRNA', 'SC': 'Single Cell',
+#                       'NN': 'Unknown', 'MR': 'mRNA', 'EX': 'Exome', 'CT': 'ctDNA', 'CM': 'cfMEDIP',
+#                       'CH': 'ChIP-Seq', 'BS': 'Bisulphite Sequencing', 'AS': 'ATAC-Seq'}
 
-    if library_source in library_design:
-        return library_design[library_source]
-    else:
-        return None
+#     if library_source in library_design:
+#         return library_design[library_source]
+#     else:
+#         return None
 
 
 def get_donors(project_name, database):
@@ -120,30 +120,30 @@ def get_donors(project_name, database):
 #     return s
     
     
-def get_case_md5sums(database, project_name):
-    '''
-    (str, str) -> dict
+# def get_case_md5sums(database, project_name):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary with case, md5sums from the waterzooi database
+#     Returns a dictionary with case, md5sums from the waterzooi database
     
-    Parameters
-    ----------
-    - database (str): Path to the waterzooi sqlite database
-    - project_name (str): Name of the project of interest
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the waterzooi sqlite database
+#     - project_name (str): Name of the project of interest
+#     '''
     
-    # connect to db
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT case_id, md5 FROM Checksums WHERE project_id = ?;", (project_name,)).fetchall()
-    conn.close()
+#     # connect to db
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT case_id, md5 FROM Checksums WHERE project_id = ?;", (project_name,)).fetchall()
+#     conn.close()
     
-    D = {}
-    for i in data:
-        case = i['case_id']
-        md5sum = i['md5']
-        D[case] = md5sum
+#     D = {}
+#     for i in data:
+#         case = i['case_id']
+#         md5sum = i['md5']
+#         D[case] = md5sum
     
-    return D
+#     return D
     
 
 
@@ -171,187 +171,187 @@ def list_signoff_deliverables(signoffs):
     return D
     
 
-def remove_cases_with_no_approval_signoff(analysis_data, signoffs):
-    '''
-    (dict, dict) -> dict
+# def remove_cases_with_no_approval_signoff(analysis_data, signoffs):
+#     '''
+#     (dict, dict) -> dict
     
-    Returns a dictionary with analysis workflows for cases with release approval signoff
+#     Returns a dictionary with analysis workflows for cases with release approval signoff
        
-    Parameters
-    ----------
-    - analysis_data (dict): Dictionary with selected analysis workflows for each case 
-    - signoffs (dict): Case signoffs extracted from Nabu
-    '''
+#     Parameters
+#     ----------
+#     - analysis_data (dict): Dictionary with selected analysis workflows for each case 
+#     - signoffs (dict): Case signoffs extracted from Nabu
+#     '''
     
-    to_remove = []
-    for case_id in analysis_data:
-        if case_id not in signoffs:
-            to_remove.append(case_id)
-        else:
-            if 'Release Approval' not in signoffs[case_id]:
-                to_remove.append(case_id)
-            elif all([d['qcPassed'] for d in signoffs[case_id]['Release Approval']]) == False:
-                to_remove.append(case_id)
+#     to_remove = []
+#     for case_id in analysis_data:
+#         if case_id not in signoffs:
+#             to_remove.append(case_id)
+#         else:
+#             if 'Release Approval' not in signoffs[case_id]:
+#                 to_remove.append(case_id)
+#             elif all([d['qcPassed'] for d in signoffs[case_id]['Release Approval']]) == False:
+#                 to_remove.append(case_id)
     
-    to_remove = list(set(to_remove))
-    for case_id in to_remove:
-        del analysis_data[case_id]
+#     to_remove = list(set(to_remove))
+#     for case_id in to_remove:
+#         del analysis_data[case_id]
 
-    return analysis_data
+#     return analysis_data
 
 
 
     
-def remove_cases_with_competed_cbioportal_release(analysis_data, signoffs, deliverable):
-    '''
-    (dict, dict, str) -> list
+# def remove_cases_with_competed_cbioportal_release(analysis_data, signoffs, deliverable):
+#     '''
+#     (dict, dict, str) -> list
     
-    Returns a dictionary with analysis workflows for cases for which cbioportal signoff is not complete
+#     Returns a dictionary with analysis workflows for cases for which cbioportal signoff is not complete
         
-    Parameters
-    ----------
-    - analysis_data (dict): Dictionary with selected analysis workflows for each case 
-    - signoffs (dict): Case signoffs extracted from Nabu
-    - deliverable (str): Selected option in waterzooi
-    '''
+#     Parameters
+#     ----------
+#     - analysis_data (dict): Dictionary with selected analysis workflows for each case 
+#     - signoffs (dict): Case signoffs extracted from Nabu
+#     - deliverable (str): Selected option in waterzooi
+#     '''
     
-    to_remove = []
-    # remove cases for which release signoffs are complete    
-    for case_id in analysis_data:
-        if deliverable in ['sequenza', 'purple']:
-            if 'Release' in signoffs[case_id]:
-                for d in signoffs[case_id]['Release']:
-                    if 'cbioportal' in d['deliverable'].lower() and d['qcPassed']:
-                        # release complete 
-                        to_remove.append(case_id)
+#     to_remove = []
+#     # remove cases for which release signoffs are complete    
+#     for case_id in analysis_data:
+#         if deliverable in ['sequenza', 'purple']:
+#             if 'Release' in signoffs[case_id]:
+#                 for d in signoffs[case_id]['Release']:
+#                     if 'cbioportal' in d['deliverable'].lower() and d['qcPassed']:
+#                         # release complete 
+#                         to_remove.append(case_id)
 
-    to_remove = list(set(to_remove))
-    for case_id in to_remove:
-         del analysis_data[case_id]        
+#     to_remove = list(set(to_remove))
+#     for case_id in to_remove:
+#          del analysis_data[case_id]        
     
-    return analysis_data     
+#     return analysis_data     
 
 
 
-def remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverable, deliverable_type):
-    '''
-    (dict, dict, str, str) -> dict
+# def remove_workflows_with_deliverable_signoff(analysis_data, signoffs, deliverable, deliverable_type):
+#     '''
+#     (dict, dict, str, str) -> dict
     
-    Returns a dictionary with analysis workflows part of a deliverable that is not signed off for each case
+#     Returns a dictionary with analysis workflows part of a deliverable that is not signed off for each case
       
-    Parameters
-    ----------
-    - analysis_data (dict): Dictionary with selected analysis workflows for each case 
-    - signoffs (dict): Case signoffs extracted from Nabu
-    - deliverable (str): Selected option in waterzooi 
-    - deliverable_type: type of deliverable :pipeline or fastq
-    '''
+#     Parameters
+#     ----------
+#     - analysis_data (dict): Dictionary with selected analysis workflows for each case 
+#     - signoffs (dict): Case signoffs extracted from Nabu
+#     - deliverable (str): Selected option in waterzooi 
+#     - deliverable_type: type of deliverable :pipeline or fastq
+#     '''
     
-    fastq_workflows = ['bcl2fastq', 'casava', 'fileimport', 'fileimportforanalysis', 'import_fastq']
+#     fastq_workflows = ['bcl2fastq', 'casava', 'fileimport', 'fileimportforanalysis', 'import_fastq']
     
-    for case_id in analysis_data:
-        # remove workflows
-        remove_workflows = False
-        if deliverable in ['all', 'selected', 'standard', 'MOH_pipeline']:
-            if 'Release' in signoffs[case_id]:
-                for d in signoffs[case_id]['Release']:
-                    if deliverable_type in d['deliverable'].lower() and d['qcPassed']:
-                        remove_workflows = True
-                        break
-        if remove_workflows:
-            if deliverable_type == 'pipeline':
-                L = [i for i in analysis_data[case_id] if i.lower() not in fastq_workflows]
-            elif deliverable_type == 'fastq':
-                L = [i for i in analysis_data[case_id] if i.lower() in fastq_workflows]
-        else:
-            L = []
+#     for case_id in analysis_data:
+#         # remove workflows
+#         remove_workflows = False
+#         if deliverable in ['all', 'selected', 'standard', 'MOH_pipeline']:
+#             if 'Release' in signoffs[case_id]:
+#                 for d in signoffs[case_id]['Release']:
+#                     if deliverable_type in d['deliverable'].lower() and d['qcPassed']:
+#                         remove_workflows = True
+#                         break
+#         if remove_workflows:
+#             if deliverable_type == 'pipeline':
+#                 L = [i for i in analysis_data[case_id] if i.lower() not in fastq_workflows]
+#             elif deliverable_type == 'fastq':
+#                 L = [i for i in analysis_data[case_id] if i.lower() in fastq_workflows]
+#         else:
+#             L = []
         
-        if L:
-            for i in L:
-                del analysis_data[case_id][i]
+#         if L:
+#             for i in L:
+#                 del analysis_data[case_id][i]
    
-    remove_case = [case_id for case_id in analysis_data if len(analysis_data[case_id]) == 0]
-    if remove_case:
-        for case_id in remove_case:
-            del analysis_data[case_id]
+#     remove_case = [case_id for case_id in analysis_data if len(analysis_data[case_id]) == 0]
+#     if remove_case:
+#         for case_id in remove_case:
+#             del analysis_data[case_id]
    
-    return analysis_data                    
+#     return analysis_data                    
                         
 
 
-def cbioportal_format(analysis_data):
-    '''
-    (dict) -> dict
+# def cbioportal_format(analysis_data):
+#     '''
+#     (dict) -> dict
 
-    Returns a dictionary with cbioportal data keeping only donors and samples
-    and removing case identifiers     
+#     Returns a dictionary with cbioportal data keeping only donors and samples
+#     and removing case identifiers     
     
-    Parameters
-    ----------
-    - analysis_data (dict): Dictionary with cbioportal data for one or more cases
-    '''
+#     Parameters
+#     ----------
+#     - analysis_data (dict): Dictionary with cbioportal data for one or more cases
+#     '''
     
-    D = {}
+#     D = {}
     
-    for case_id in analysis_data:
-        for donor in analysis_data[case_id]:
-            for sample in analysis_data[case_id][donor]:
-                if donor not in D:
-                    D[donor] = {}
-                assert sample not in D[donor]
-                D[donor][sample] = analysis_data[case_id][donor][sample]
+#     for case_id in analysis_data:
+#         for donor in analysis_data[case_id]:
+#             for sample in analysis_data[case_id][donor]:
+#                 if donor not in D:
+#                     D[donor] = {}
+#                 assert sample not in D[donor]
+#                 D[donor][sample] = analysis_data[case_id][donor][sample]
     
-    return D
+#     return D
     
 
 
-def moh_format(analysis_data, donors):
-    '''
-    (dict, dict) -> dict
+# def moh_format(analysis_data, donors):
+#     '''
+#     (dict, dict) -> dict
     
-    Returns a dictionary with workflow information for a given block (ie, sample pair)
-    and anchor bmpp parent workflow
+#     Returns a dictionary with workflow information for a given block (ie, sample pair)
+#     and anchor bmpp parent workflow
     
-    Parameters
-    ----------
-    - analysis_data (dict): Dictionary with analysis workflow data for one or more cases
-    - donors (dict): Dictionary with donor id mapped to case id
-    '''
+#     Parameters
+#     ----------
+#     - analysis_data (dict): Dictionary with analysis workflow data for one or more cases
+#     - donors (dict): Dictionary with donor id mapped to case id
+#     '''
         
-    groups = {'purple': 'calls.copynumber',
-              'sequenza': 'calls.copynumber',
-              'varscan': 'calls.copynumber',
-              'gridss': 'calls.copynumber',
-              'rsem': 'calls.expression',
-              'bammergepreprocessing': 'alignments_WG.callready',  
-              'haplotypecaller': 'calls.germline.mutations',
-              'starfusion': 'calls.fusions',
-              'arriba': 'calls.fusions',
-              'mavis': 'calls.structuralvariants',
-              'delly': 'calls.structuralvariants',
-              'star_call_ready': 'alignments_WT.callready',
-              'varianteffectpredictor': 'calls.mutations',           
-              'msisensor': 'calls.msi',
-              'hrdetect': 'calls.hrd'}
+#     groups = {'purple': 'calls.copynumber',
+#               'sequenza': 'calls.copynumber',
+#               'varscan': 'calls.copynumber',
+#               'gridss': 'calls.copynumber',
+#               'rsem': 'calls.expression',
+#               'bammergepreprocessing': 'alignments_WG.callready',  
+#               'haplotypecaller': 'calls.germline.mutations',
+#               'starfusion': 'calls.fusions',
+#               'arriba': 'calls.fusions',
+#               'mavis': 'calls.structuralvariants',
+#               'delly': 'calls.structuralvariants',
+#               'star_call_ready': 'alignments_WT.callready',
+#               'varianteffectpredictor': 'calls.mutations',           
+#               'msisensor': 'calls.msi',
+#               'hrdetect': 'calls.hrd'}
               
                         
-    D = {}
+#     D = {}
     
-    for case_id in analysis_data:
-        # get the donor
-        donor = donors[case_id]
-        for workflow in analysis_data[case_id]:
-            name = workflow.split('_')[0].lower()
-            assert name in groups
-            group = groups[name]
-            for workflow_id in analysis_data[case_id][workflow]:
-                if donor not in D:
-                    D[donor] = {}
-                if group not in D[donor]:
-                    D[donor][group] = []
-                D[donor][group].extend(analysis_data[case_id][workflow][workflow_id])    
+#     for case_id in analysis_data:
+#         # get the donor
+#         donor = donors[case_id]
+#         for workflow in analysis_data[case_id]:
+#             name = workflow.split('_')[0].lower()
+#             assert name in groups
+#             group = groups[name]
+#             for workflow_id in analysis_data[case_id][workflow]:
+#                 if donor not in D:
+#                     D[donor] = {}
+#                 if group not in D[donor]:
+#                     D[donor][group] = []
+#                 D[donor][group].extend(analysis_data[case_id][workflow][workflow_id])    
                     
-    return D
+#     return D
     
 
 def get_workflow_file_qc(database, case_id):
@@ -421,91 +421,91 @@ def get_workflow_file_qc(database, case_id):
          
 
     
-def get_file_release_status(database, case_id):
-    '''
-    (str, str) -> dict
+# def get_file_release_status(database, case_id):
+#     '''
+#     (str, str) -> dict
     
-    Returns a dictionary with the release status of each file of a given case
-    The release status is derived from the file qc status in Nabu 
+#     Returns a dictionary with the release status of each file of a given case
+#     The release status is derived from the file qc status in Nabu 
     
-    Parameters
-    ----------
-    - database (str): Path to the waterzooi sqlite database
-    - case_id (str): Case identifier
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the waterzooi sqlite database
+#     - case_id (str): Case identifier
+#     '''
     
-    # connect to db
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT wfrun_id, filepath, username, ticket, qcstatus FROM File_qc WHERE case_id = ?;", (case_id,)).fetchall()
-    conn.close()
+#     # connect to db
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT wfrun_id, filepath, username, ticket, qcstatus FROM File_qc WHERE case_id = ?;", (case_id,)).fetchall()
+#     conn.close()
     
-    D = {}
+#     D = {}
 
-    for i in data:
-        assert i['filepath'] not in D
-        if i['qcstatus'] == '1':
-            D[i['filepath']] = True
-        elif i['qcstatus'] == '0':
-            D[i['filepath']] = False
-        else:
-            D[i['filepath']] = '?'
+#     for i in data:
+#         assert i['filepath'] not in D
+#         if i['qcstatus'] == '1':
+#             D[i['filepath']] = True
+#         elif i['qcstatus'] == '0':
+#             D[i['filepath']] = False
+#         else:
+#             D[i['filepath']] = '?'
 
-    return D    
+#     return D    
     
 
-def template_error_formatting(errors):
-    '''
-    (list) -> list
+# def template_error_formatting(errors):
+#     '''
+#     (list) -> list
     
-    Returns a list of error messages for each template of a single case formatted
-    to display a list of elements
+#     Returns a list of error messages for each template of a single case formatted
+#     to display a list of elements
         
-    Parameters
-    ----------
-    - errors (list): List with error messages for each template of a single case
-    '''
+#     Parameters
+#     ----------
+#     - errors (list): List with error messages for each template of a single case
+#     '''
     
-    for i in range(len(errors)):
-        # extract the list of workflows
-        if '(' in errors[i]:
-            wk = errors[i][errors[i].index('(')+1:errors[i].index(')')]
-            # replace workflows  from error message
-            message = errors[i].replace(wk, '').replace(' ()', '')
-            wk = wk.split(':')
-        else:
-            message = errors[i]
-            wk = ''
-        errors[i] = {'message': message, 'workflows': wk}
+#     for i in range(len(errors)):
+#         # extract the list of workflows
+#         if '(' in errors[i]:
+#             wk = errors[i][errors[i].index('(')+1:errors[i].index(')')]
+#             # replace workflows  from error message
+#             message = errors[i].replace(wk, '').replace(' ()', '')
+#             wk = wk.split(':')
+#         else:
+#             message = errors[i]
+#             wk = ''
+#         errors[i] = {'message': message, 'workflows': wk}
         
         
         
-    return errors
+#     return errors
         
         
-def case_error_formatting(errors):
-    '''
-    (str) -> dict
+# def case_error_formatting(errors):
+#     '''
+#     (str) -> dict
     
-    Returns a dictionary with error message for the combined error message across
-    templates for a single case
+#     Returns a dictionary with error message for the combined error message across
+#     templates for a single case
             
-    Parameters
-    ----------
-    - errors (str): Combined error across templates of a single case
-    '''
+#     Parameters
+#     ----------
+#     - errors (str): Combined error across templates of a single case
+#     '''
     
-    # extract the list of workflows
-    if '(' in errors:
-        wk = errors[errors.index('(')+1:errors.index(')')]
-        # replace workflows  from error message
-        message = errors.replace(wk, '').replace(' ()', '')
-        wk = wk.split(':')
-    else:
-        message = errors
-        wk = ''
-    errors = {'message': message, 'workflows': wk}
+#     # extract the list of workflows
+#     if '(' in errors:
+#         wk = errors[errors.index('(')+1:errors.index(')')]
+#         # replace workflows  from error message
+#         message = errors.replace(wk, '').replace(' ()', '')
+#         wk = wk.split(':')
+#     else:
+#         message = errors
+#         wk = ''
+#     errors = {'message': message, 'workflows': wk}
         
-    return errors
+#     return errors
    
         
    

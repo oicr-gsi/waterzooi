@@ -12,22 +12,22 @@ from commons import list_case_workflows
 
 
 
-def clean_up_data(provenance_data):
-    '''
-    (list) -> list
+# def clean_up_data(provenance_data):
+#     '''
+#     (list) -> list
     
-    Returns the list of case information removing any case for which information is missing
+#     Returns the list of case information removing any case for which information is missing
             
-    Parameters
-    ----------
-    - provenance_data (list): List of dictionaries, each representing the data of a single case
-    '''
+#     Parameters
+#     ----------
+#     - provenance_data (list): List of dictionaries, each representing the data of a single case
+#     '''
     
-    to_remove = [i for i in provenance_data if len(i['project_info']) == 0]
-    for i in to_remove:
-        provenance_data.remove(i)
+#     to_remove = [i for i in provenance_data if len(i['project_info']) == 0]
+#     for i in to_remove:
+#         provenance_data.remove(i)
     
-    return provenance_data
+#     return provenance_data
 
 
     
