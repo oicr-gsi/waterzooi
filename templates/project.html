@@ -159,42 +159,31 @@
         <td><a class="table_link" href="{{ url_for('analysis', project_name=project['project_id'], assay=i['assay'] | format_identifier) }}">{{ i['assay'] }}</a></td>
         <td>
           {% if i['case_id'] in signoffs %}
-            {% if 'release_approval' in signoffs[i['case_id']] %}  
-              {% for d in project['deliverables'].split(',') | sort %}
-                {% if d in signoffs[i['case_id']]['release_approval'] %}
-                  {% if signoffs[i['case_id']]['release_approval'][d]['qcpassed'] == True %}
-                    <div class="tooltip">
-                      <span style="font-size:16px;color:#70db70">&#10004;</span>
+            {% if 'release_approval' in signoffs[i['case_id']] %}
+              {% for d in signoffs[i['case_id']]['release_approval'] %}
+                {% if signoffs[i['case_id']]['release_approval'][d]['qcpassed'] == True %}
+                  <div class="tooltip">
+                    <span style="font-size:16px;color:#70db70">&#10004;</span>
                       <span class="tooltipsignoff">
                         <ul style="list-style-type: none; padding: 0; margin: 0;"> 
                           <li> {{d}} </li>
                           <li> {{signoffs[i['case_id']]['release_approval'][d]['username']}} </li>
                           {% if signoffs[i['case_id']]['release_approval'][d]['comment'] %}
                             {% for k in signoffs[i['case_id']]['release_approval'][d]['comment'] %}
-                              <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{k}}</a></li>   
+                              <li><a href="https://jira.oicr.on.ca/browse/{{k | basename}}" target="_blank">{{k | basename}}</a></li>   
                             {% endfor %}
                           {% endif %}
                         </ul>
                       </span>
-                    </div>  
-                  {% elif signoffs[i['case_id']]['release_approval'][d]['qcpassed'] == False %}
-                    <div class="tooltip">
-                      <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-                        <span class="tooltipsignoff">
-                          <ul style="list-style-type: none; padding: 0; margin: 0;">
-                            <li>{{d}}</li>
-                          </ul>
-                        </span>
-                    </div>
-                  {% endif %}
+                  </div>  
                 {% else %}
                   <div class="tooltip">
                     <span style="font-size:16px;color:#248f24;">?</span>
-                      <span class="tooltipsignoff">
-                        <ul style="list-style-type: none; padding: 0; margin: 0;">
-                          <li>{{d}}</li>
-                        </ul>
-                      </span>
+                    <span class="tooltipsignoff">
+                      <ul style="list-style-type: none; padding: 0; margin: 0;">
+                        <li>{{d}}</li>
+                      </ul>
+                    </span>
                   </div>
                 {% endif %}
               {% endfor %}
@@ -205,49 +194,42 @@
             NA             
           {% endif %}
         </td>
+              
         <td>
           {% if i['case_id'] in signoffs %}
             {% if 'release' in signoffs[i['case_id']] %}
               {% for d in signoffs[i['case_id']]['release'] %}
-                {% for dv in project['deliverables'].split(',') | sort %}
-                  {% if dv in signoffs[i['case_id']]['release'][d] %}
-                    {% if signoffs[i['case_id']]['release'][d][dv]['qcpassed'] == True %}
-                      <div class="tooltip">
-                        <span style="font-size:16px;color:#70db70">&#10004;</span>
-                        <span class="tooltipsignoff">
-                          <ul style="list-style-type: none; padding: 0; margin: 0;">  
-                            <li>{{dv}}</li>
-                            <li>{{signoffs[i['case_id']]['release'][d][dv]['username']}}</li>
-                            {% if signoffs[i['case_id']]['release'][d][dv]['comment'] %}
-                              {% for k in signoffs[i['case_id']]['release'][d][dv]['comment'] %}
-                                <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{k}}</a></li>   
-                              {% endfor %}
-                            {% endif %}
-                          </ul>
-                        </span>
-                      </div>
-                    {% elif signoffs[i['case_id']]['release'][d][dv]['qcPassed'] == False %}
-                      <div class="tooltip">
-                        <span style="font-size:16px;color:#ff3300;">&#10006;</span>
-                        <span class="tooltipsignoff">
-                          <ul style="list-style-type: none; padding: 0; margin: 0;">
-                            <li>{{dv}}</li>
-                          </ul>
-                        </span>
-                      </div>
-                    {% endif %}
-                  {% else %}
+                {% for j in signoffs[i['case_id']]['release'][d] %}
+                  {% if signoffs[i['case_id']]['release'][d][j]['qcpassed'] %}
                     <div class="tooltip">
-                      <span style="font-size:16px;color:#248f24;">?</span>
+                      <span style="font-size:16px;color:#70db70">&#10004;</span>
                       <span class="tooltipsignoff">
-                        <ul style="list-style-type: none; padding: 0; margin: 0;">
-                          <li>{{dv}}</li>
+                        <ul style="list-style-type: none; padding: 0; margin: 0;">  
+                          <li>{{j}}</li>
+                          <li> {{signoffs[i['case_id']]['release'][d][j]['username'] }}</li>
+                          {% if signoffs[i['case_id']]['release'][d][j]['comment'] %}
+                            {% for k in signoffs[i['case_id']]['release'][d][j]['comment'] %}
+                              <li>
+                                <a href="https://jira.oicr.on.ca/browse/{{k | basename}}" target="_blank">{{k | basename}}</a>
+                              </li>   
+                            {% endfor %}
+                          {% endif %}
                         </ul>
                       </span>
                     </div>
+                  {% else %}
+                    <div class="tooltip">
+                      <span style="font-size:16px;color:#248f24;">?</span>
+                        <span class="tooltipsignoff">
+                          <ul style="list-style-type: none; padding: 0; margin: 0;">
+                            <li> {{d}} </li>
+                            <li> {{j}} </li>
+                          </ul>
+                        </span>
+                    </div>
                   {% endif %}
-                {% endfor %}  
-              {% endfor %}    
+                {% endfor %}
+              {% endfor %}
             {% else %}
               NA
             {% endif %}
@@ -255,7 +237,7 @@
             NA
           {% endif %}
         </td>
-             
+            
         <td>
           {% if project['project_id'] in analysis_status %}
             {% if analysis_status[project['project_id']][i['case_id']] %}

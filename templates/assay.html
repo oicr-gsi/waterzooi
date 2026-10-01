@@ -99,15 +99,6 @@
         <th>Error</th>
     </thead>     
 
-
-
-
-
-    
-
-
-
-
       {% for case_id in case_names %}
          <tbody>
             <tr>
@@ -206,7 +197,6 @@
                             <span style="font-size:16px;color:#70db70">&#10004;</span>
                             <span class="tooltipsignoff">
                               <ul style="list-style-type: none; padding: 0; margin: 0;">  
-                                <li>{{d}}</li>
                                 <li>{{i}}</li>
                                 <li> {{signoffs[case_id]['release'][d][i]['username'] }}</li>
                                 {% if signoffs[case_id]['release'][d][i]['comment'] %}
