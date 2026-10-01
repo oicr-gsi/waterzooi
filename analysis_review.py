@@ -15,15 +15,6 @@ from commons import load_data, is_case_info_complete, get_cases_md5sum, find_seq
     compute_md5, case_to_update, connect_to_db, define_columns, initiate_db, insert_multiple_records, \
     delete_unique_record, delete_multiple_records
         
- 
-
-
-
-    
-
-
-
-
 
 def collect_sample_workflows(case_data):
     '''
@@ -1159,14 +1150,12 @@ if __name__ == '__main__':
                         help = 'Path to the provenance reporter data json. Default is /scratch2/groups/gsi/production/pr_refill_v2/provenance_reporter.json')
     parser.add_argument('-ad', '--analysis', dest='analysis_db', default = '/scratch2/groups/gsi/production/waterzooi/analysis_review_case.db', 
                         help='Path to the analysis review database')    
-    parser.add_argument('-pi', '--pinery', dest='pinery', default = 'http://pinery.gsi.oicr.on.ca/assays',
-                        help='Pinery URL. Default is http://pinery.gsi.oicr.on.ca/assays')    
-    parser.add_argument('-ac', '--assays', dest='assay_config', help='Path to the assay config json', required = True)    
+    parser.add_argument('-as', '--assays', dest='assay_file', help='Path to the json with assay definitions', required = True)    
+    parser.add_argument('-pi', '--pipelines', dest='pipeline_file', help='Path to the json with pipeline definitions', required = True)    
     
     # get arguments from the command line
     args = parser.parse_args()
     # generate sqlite cache
-    #generate_cache(args.provenance, args.assay_config, args.pinery, args.analysis_db, table='templates')
-    #review_data(args.provenance, args.assay_config, args.pinery, args.analysis_db, table='templates')
+    review_data(args.provenance, args.assay_file, args.pipeline_file, args.analysis_db)
 
        
