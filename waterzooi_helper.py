@@ -1462,12 +1462,13 @@ def prepare_cbioportal_json(analysis_data, workflow_outputs):
                         files = workflow_outputs[case_id][wfrunid]
                         # get the samples
                         samples = d['samples'].split(',')
-                        for i in range(len(d['tests'])):
-                            if 'tumour' in d['tests'][i].lower():
+                        # find the tumour sample
+                        for i in samples:
+                            if 'Ly' not in i:
+                                tumor_sample = i
                                 break
-                        tumor_sample = samples[i]
-                        assert 'Ly' not in tumor_sample
-                    
+                        assert tumor_sample and 'Ly' not in tumor_sample
+                                                                  
                         if donor not in D:
                             D[donor] = {}
                         if tumor_sample not in D[donor]:
@@ -1846,6 +1847,23 @@ def get_last_sequencing(project_name, database):
 
 
 
-
+def rename_case_id(case_id):
+    '''
+    (str) -> str
+    
+    Returns the case id replacing the en dash with an hyphen
+    
+    Parameters
+    ----------
+    - case_id (str): Case identifier
+    '''
+    
+    #convert en-dash to hyphen in file name
+    if "\u2013" in case_id:
+        case_name = case_id.replace("\u2013", '-')
+    else:
+        case_name = case_id
+    
+    return case_name
 
     
