@@ -448,17 +448,16 @@ def map_assay_test_to_test_case(assay_test, case_tests):
     
     for test in case_tests:
         if test_type == 'X':
-            if library_type != test:
-                print(library_type)
-                print(test)
-                print(assay_test)
-                print(case_tests)
-            
             assert library_type == test
             L.append(test)
         else:
-            if test.startswith(test_type) and library_type in test:
-                L.append(test)
+            if test.upper().startswith('T') or test.upper().startswith('N'):
+                if test.startswith(test_type) and library_type in test:
+                    L.append(test)
+            else:
+                if library_type == test:
+                    L.append(test)
+    
     L = list(set(L))
     
     assert len(L) == 1
@@ -554,7 +553,7 @@ def get_assay_expected_workflows(pipeline_workflows, tests_samples, samples_lims
                     else:
                         workflows[workflow] = [{'workflow': workflow, 'test': case_tests, 'sampleid': merged_samples, 'limsids': merged_lims, 'parents': [], 'parent_workflows': []}]
            
-            if ',' in pipeline_workflows[workflow]['tests'] or \
+            elif ',' in pipeline_workflows[workflow]['tests'] or \
             (',' not in pipeline_workflows[workflow]['tests'] and '|' not in pipeline_workflows[workflow]['tests']):
                 tests = pipeline_workflows[workflow]['tests'].split(',')  
                 # collect the limsids for each test using case data
@@ -1073,17 +1072,15 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
                                     production_workflows = get_production_workflows(samples_workflows, workflow_lims)
                                     # did all the expected workflows ran for all tests (check lims)?
                                     pipeline_analysis = map_expected_production_workflows(expected_workflow_lims, production_workflows)
+                                    # add parent workflows
+                                    pipeline_analysis = add_parent_workflows(pipeline_analysis, parent_to_children_workflows)
+                                                                    
                                     # check if missing data (workflows and parents)
                                     if is_data_complete(pipeline_analysis, expected_workflow_lims):
                                         
                                         
                                         # check if some workflows have extra iterations matching the required lims
                                         if no_extra_data(pipeline_analysis, expected_workflow_lims):
-                                            
-                                                
-                                            
-                                            # add parent workflows
-                                            pipeline_analysis = add_parent_workflows(pipeline_analysis, parent_to_children_workflows)
                                             # data passed all the checks
                                             valid = 1
                                             error = ''
