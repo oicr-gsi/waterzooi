@@ -50,11 +50,7 @@
                 <button class="download-dropbtn">Data</button>
                 <div class="download-dropdown-content">
                 <form method="POST" action ="">
-                  {% if deliverable == 'pipeline' %}
-                    <input class="checkbox_small" type="checkbox" name="deliverable" value="pipeline" id="deliverable" checked/><label>apply workflow deliverables</label><br>      
-                  {% else %}
-                    <input class="checkbox_small" type="checkbox" name="deliverable" value="pipeline" id="deliverable"/><label>apply workflow deliverables</label><br>      
-                  {% endif %}
+                  <input class="checkbox_small" type="checkbox" name="deliverable" value="pipeline" id="deliverable" checked/><label>apply workflow deliverables</label><br>      
                   <button class="select_button_small" type = "submit" value="submit">Analyses</button>
                 </form>          
               </div>
