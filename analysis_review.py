@@ -668,6 +668,47 @@ def identify_workflows_with_missing_data(cases_analysis, expected_workflow_lims)
     return missing                    
 
 
+
+
+
+
+
+def find_workflow_runid(production_workflows, workflow, test, data, expected_samples, expected_lims):
+    '''
+    (dict, dict, str, str) -> dict
+        
+    Find the workflow run id corresponding to workflow in production workflows
+    that has the same expected lims ids and samples and updates the dictionary data
+    if it exists
+    
+    Parameters
+    ----------
+    - production_workflows (dict): Dictionary with workflow information about all workflows for a case
+    - workflow (str): Workflow name
+    - test (list): list of expected tests
+    - data (dict): Dictionary with information about a particular workflow run id
+                   matching the excpected samples and lims
+    - expected_samples (str): Expected samples to match
+    - expcted_lims (str): Expected lims ids to match
+    '''
+
+    for wfrunid in production_workflows[workflow]:
+        limsids = production_workflows[workflow][wfrunid]['limsids']
+        samples = production_workflows[workflow][wfrunid]['samples']
+        if expected_samples == samples and expected_lims == limsids:
+            ### check that only 1 wfrunids match the requirement
+            assert data['wfrunid'] is None 
+            # update data collector
+            data['limsids'] = limsids
+            data['samples'] = samples
+            data['wfrunid'] = wfrunid
+            data['tests'] = test
+            data['workflow'] = workflow
+
+    return data
+
+
+   
 def find_production_workflow(production_workflows, d):
     '''
     (dict, dict) -> dict    
@@ -702,83 +743,146 @@ def find_production_workflow(production_workflows, d):
         # find the actual sequencing workflow as it may differ from assay
         for key in sequencing_workflows:
             if key in production_workflows:
-                for wfrunid in production_workflows[key]:
-                    limsids = production_workflows[key][wfrunid]['limsids']
-                    samples = production_workflows[key][wfrunid]['samples']
-                    if expected_samples == samples and expected_lims == limsids:
-                        ### check that only 1 wfrunids match the requirement
-                        assert data['wfrunid'] is None 
-                        # update data collector
-                        data['limsids'] = limsids
-                        data['samples'] = samples
-                        data['wfrunid'] = wfrunid
-                        data['tests'] = test
-                        data['workflow'] = key
+                data = find_workflow_runid(production_workflows, key, test, data, expected_samples, expected_lims)
+                
     elif workflow in gridss_workflows:
         # find the gridss workflow as it may differ from assay
         for key in gridss_workflows:
             if key in production_workflows:
-                for wfrunid in production_workflows[key]:
-                    limsids = production_workflows[key][wfrunid]['limsids']
-                    samples = production_workflows[key][wfrunid]['samples']
-                    if expected_samples == samples and expected_lims == limsids:
-                        ### check that only 1 wfrunids match the requirement
-                        assert data['wfrunid'] is None 
-                        # update data collector
-                        data['limsids'] = limsids
-                        data['samples'] = samples
-                        data['wfrunid'] = wfrunid
-                        data['tests'] = test
-                        data['workflow'] = key
+                data = find_workflow_runid(production_workflows, key, test, data, expected_samples, expected_lims)
+                
     elif workflow in bwa_workflows:
         # bwaMem and bwmem2 may both have been running in production
         # use workflow defined in pipeline if it exists
         # match alternative if expected workflow does not exist in production
         if workflow in production_workflows:
-            for wfrunid in production_workflows[workflow]:
-                limsids = production_workflows[workflow][wfrunid]['limsids']
-                samples = production_workflows[workflow][wfrunid]['samples']
-                if expected_samples == samples and expected_lims == limsids:
-                    ### check that only 1 wfrunids match the requirement
-                    assert data['wfrunid'] is None 
-                    # update data collector
-                    data['limsids'] = limsids
-                    data['samples'] = samples
-                    data['wfrunid'] = wfrunid
-                    data['tests'] = test
-                    data['workflow'] = workflow
+            data = find_workflow_runid(production_workflows, workflow, test, data, expected_samples, expected_lims)
         else:
             # find the bwa workflow as it may differ from assay
             for key in bwa_workflows:
                 if key in production_workflows:
-                    for wfrunid in production_workflows[key]:
-                        limsids = production_workflows[key][wfrunid]['limsids']
-                        samples = production_workflows[key][wfrunid]['samples']
-                        if expected_samples == samples and expected_lims == limsids:
-                            ### check that only 1 wfrunids match the requirement
-                            assert data['wfrunid'] is None 
-                            # update data collector
-                            data['limsids'] = limsids
-                            data['samples'] = samples
-                            data['wfrunid'] = wfrunid
-                            data['tests'] = test
-                            data['workflow'] = key
+                    data = find_workflow_runid(production_workflows, key, test, data, expected_samples, expected_lims)
+
     else:
         if workflow in production_workflows:
-            for wfrunid in production_workflows[workflow]:
-                limsids = production_workflows[workflow][wfrunid]['limsids']
-                samples = production_workflows[workflow][wfrunid]['samples']
-                if expected_samples == samples and expected_lims == limsids:
-                    ### check that only 1 wfrunids match the requirement
-                    assert data['wfrunid'] is None 
-                    # update data collector
-                    data['limsids'] = limsids
-                    data['samples'] = samples
-                    data['wfrunid'] = wfrunid
-                    data['tests'] = test
-                    data['workflow'] = workflow
-     
+            data = find_workflow_runid(production_workflows, workflow, test, data, expected_samples, expected_lims)
+            
     return data         
+
+
+
+
+# def find_production_workflow(production_workflows, d):
+#     '''
+#     (dict, dict) -> dict    
+    
+#     Returns a dictionary with prodcution data mapping the expected data for a specific workflow
+                
+#     Parameters
+#     ----------
+#     - production_workflows (dict): Dictionary with case data extracted from the provenance reporter
+#     - d (dict): Dictionary with expected workflow information based on assay and case info
+#     '''
+    
+#     # for sequencing workflows, the assay may indicate bcl2fastq but the 
+#     # sequencing workflows may be diferent if data is injected
+#     sequencing_workflows = ['casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq']
+    
+#     # gridss_matched is always indicated in the assays but the actual workflow
+#     # could be gridss or gridss_matched (same workflow but different names in research and clinical)
+#     gridss_workflows = ['gridss_matched', 'gridss']
+
+#     # bwaMem may be indicated in the assay but the actual workflow might be bwMem or bwamem2
+#     bwa_workflows = ['bwaMem', 'bwamem2']
+
+
+#     data = {'workflow': None, 'limsids': None, 'wfrunid': None, 'tests': None, 'samples': None, 'parents': []}
+#     workflow = d['workflow']
+#     expected_lims = d['limsids']
+#     expected_samples = d['sampleid']
+#     test = d['test']
+#     #  find the workflow in production with the expected limsids and samples
+#     if workflow in sequencing_workflows:
+#         # find the actual sequencing workflow as it may differ from assay
+#         for key in sequencing_workflows:
+#             if key in production_workflows:
+#                 for wfrunid in production_workflows[key]:
+#                     limsids = production_workflows[key][wfrunid]['limsids']
+#                     samples = production_workflows[key][wfrunid]['samples']
+#                     if expected_samples == samples and expected_lims == limsids:
+#                         ### check that only 1 wfrunids match the requirement
+#                         assert data['wfrunid'] is None 
+#                         # update data collector
+#                         data['limsids'] = limsids
+#                         data['samples'] = samples
+#                         data['wfrunid'] = wfrunid
+#                         data['tests'] = test
+#                         data['workflow'] = key
+#     elif workflow in gridss_workflows:
+#         # find the gridss workflow as it may differ from assay
+#         for key in gridss_workflows:
+#             if key in production_workflows:
+#                 for wfrunid in production_workflows[key]:
+#                     limsids = production_workflows[key][wfrunid]['limsids']
+#                     samples = production_workflows[key][wfrunid]['samples']
+#                     if expected_samples == samples and expected_lims == limsids:
+#                         ### check that only 1 wfrunids match the requirement
+#                         assert data['wfrunid'] is None 
+#                         # update data collector
+#                         data['limsids'] = limsids
+#                         data['samples'] = samples
+#                         data['wfrunid'] = wfrunid
+#                         data['tests'] = test
+#                         data['workflow'] = key
+#     elif workflow in bwa_workflows:
+#         # bwaMem and bwmem2 may both have been running in production
+#         # use workflow defined in pipeline if it exists
+#         # match alternative if expected workflow does not exist in production
+#         if workflow in production_workflows:
+#             for wfrunid in production_workflows[workflow]:
+#                 limsids = production_workflows[workflow][wfrunid]['limsids']
+#                 samples = production_workflows[workflow][wfrunid]['samples']
+#                 if expected_samples == samples and expected_lims == limsids:
+#                     ### check that only 1 wfrunids match the requirement
+#                     assert data['wfrunid'] is None 
+#                     # update data collector
+#                     data['limsids'] = limsids
+#                     data['samples'] = samples
+#                     data['wfrunid'] = wfrunid
+#                     data['tests'] = test
+#                     data['workflow'] = workflow
+#         else:
+#             # find the bwa workflow as it may differ from assay
+#             for key in bwa_workflows:
+#                 if key in production_workflows:
+#                     for wfrunid in production_workflows[key]:
+#                         limsids = production_workflows[key][wfrunid]['limsids']
+#                         samples = production_workflows[key][wfrunid]['samples']
+#                         if expected_samples == samples and expected_lims == limsids:
+#                             ### check that only 1 wfrunids match the requirement
+#                             assert data['wfrunid'] is None 
+#                             # update data collector
+#                             data['limsids'] = limsids
+#                             data['samples'] = samples
+#                             data['wfrunid'] = wfrunid
+#                             data['tests'] = test
+#                             data['workflow'] = key
+#     else:
+#         if workflow in production_workflows:
+#             for wfrunid in production_workflows[workflow]:
+#                 limsids = production_workflows[workflow][wfrunid]['limsids']
+#                 samples = production_workflows[workflow][wfrunid]['samples']
+#                 if expected_samples == samples and expected_lims == limsids:
+#                     ### check that only 1 wfrunids match the requirement
+#                     assert data['wfrunid'] is None 
+#                     # update data collector
+#                     data['limsids'] = limsids
+#                     data['samples'] = samples
+#                     data['wfrunid'] = wfrunid
+#                     data['tests'] = test
+#                     data['workflow'] = workflow
+     
+#     return data         
 
 
 def map_expected_production_workflows(expected_workflow_lims, production_workflows):
