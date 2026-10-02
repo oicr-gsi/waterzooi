@@ -148,9 +148,6 @@ def get_case_release_signoff(nabu_cache, case_id, project_name):
 
 
 
-
-
-
 def get_fileqc(nabu_cache, project_name, case_id = None):
     '''
     (str, str, str | None) -> dict
@@ -417,11 +414,16 @@ def get_workflow_level_release(L, fileqc):
 
 def merge_qc_status_workflow(L, fileqc):
     '''
-    
-    
-    
+    (list, dict) -> dict
+
+    Returns a dictionary of the entire workflow run by merging the release 
+    status of its ourtput files
+
+    Parameters
+    ----------
+    - L (list): List of file swids of the wourkflow run outout files
+    - fileqc (dict): Dictionaru with file qc
     '''
-    
     
     username = []
     ticket = []
@@ -451,10 +453,16 @@ def merge_qc_status_workflow(L, fileqc):
     
 def files_to_cases(database, project_name):
     '''
-
-
+    (str, str) ->
+ 
+    Returns a dictionary mapping all the file swids of a given project with 
+    their corresponding case id  
+    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi database
+    - project_name (str): Name of the project of interest
     '''
-
 
     # connect to db
     conn = connect_to_db(database)
@@ -622,26 +630,17 @@ def get_case_analysis_data(analysis_db, case_id, project_name, assay):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 def get_analysis_samples(analysis_data):
     '''
-    
-    
-    
+    (dict) -> dict
+
+    Returns a dictionary mapping all the samples to a case
+
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with analysis data    
     '''
-    
-    
+        
     D = {}
     
     for case_id in analysis_data:
@@ -659,30 +658,18 @@ def get_analysis_samples(analysis_data):
     return D                    
                     
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def get_analysis_workflows(analysis_data):
     '''
+    (dict) -> dict    
     
-    
-    
+    Returns a dictionary with all analysis workflows and their run ids for all
+    cases with analysis data
+        
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with captured analysis data
     '''
-    
-    
+        
     D = {}
     
     for case_id in analysis_data:
@@ -706,12 +693,17 @@ def get_analysis_workflows(analysis_data):
 
 def map_analysis_workflows(analysis_data, case_id):
     '''
+    (dict, str) -> dict
     
+    Returns a dictionary mapping each analysis workflow run id with its workflow name
+    for a single case
     
-    
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with captured analysis data
+    - case_id (str): Case identifier
     '''
-    
-    
+        
     D = {}
     
     if 'analysis' in analysis_data[case_id] and analysis_data[case_id]['analysis']:
@@ -724,31 +716,15 @@ def map_analysis_workflows(analysis_data, case_id):
                     
     return D                    
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def error_formatting(error):
     '''
-    
-    
-    
-    
+    (str) -> dict
+
+    Returns a dictionary with the error messages and the missing workflows
+
+    Parameters
+    ----------
+    - error (str): Error message from the analysis review
     '''
     
     if 'missing workflows' in error.lower():
@@ -860,6 +836,14 @@ def organize_data(analysis_data, case_id):
     '''
     (dict, str) -> list
 
+    Reorganize the analysis data and returns a list of inner dictionaries
+    with workflow information, a dictionary mapping the workflow run id with the workflow
+    names, and a dictionary of parent-child relationship 
+
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with captured analysis data
+    - case_id (str): Case identifier
     '''
     
     # store the data as a list of dictionary for easier sorting and display
@@ -870,8 +854,7 @@ def organize_data(analysis_data, case_id):
     
     # get the paren-children workflow relationships
     parents = {}
-    
-    
+     
     
     if 'analysis' in analysis_data[case_id] and analysis_data[case_id]['analysis']:
         for pipeline in analysis_data[case_id]['analysis']:
@@ -891,10 +874,7 @@ def organize_data(analysis_data, case_id):
     return data, analysis_workflows, parents
     
     
-    
-    
-    
-    
+   
 # def get_workflow_release_status(database, case_id):
 #     '''
 #     (str, str) -> dict
@@ -933,9 +913,15 @@ def organize_data(analysis_data, case_id):
 
 def get_case_assay(database, project_id, case_id):
     '''
+    (str, str, str) -> str
+
+    Returns the assay of a case     
     
-    
-    
+    Parameters
+    ----------
+    - database (str): Path to the waterzooi database
+    - project_id (str): Project name
+    - case_id (str): Case identifier
     '''
     
     # connect to db
@@ -947,8 +933,7 @@ def get_case_assay(database, project_id, case_id):
     assert len(data) == 1
     
     assay = data[0]['assay']
-    
-          
+              
     return assay
 
 
@@ -1266,8 +1251,18 @@ def get_data_release_approval_signoff(signoffs, case_id):
 
 def get_data_release_signoff(signoffs, project_deliverables, case_id, data):
     '''
+    (dict, list, str, str) -> dict
     
-    
+    Returns a dictionary indicating if all data release signoffs are complete
+        
+    Parameters
+    ----------
+    - signoffs (dict): Dictionary with case signoffs (release approval and release)
+    - project_deliverables (list): List of deliverables
+    - case_id (str): Case identifier
+    - data (str): Data type: all data release deliverables,
+                             pipeline data release deliverables,
+                             cbioportal release deliverables
     '''
     
     # collect data release deliverables and deliverable release signoffs
@@ -1368,8 +1363,12 @@ def get_files_to_release(files, files_extensions):
     '''
     (list, list | None) -> list
     
+    Returns a list of files matching the file extensions
     
-    
+    Parameters
+    ----------
+    - files (list): Outputfiles of a single workflow run
+    - file_extensions (list): File extension of the workflow deliverables
     '''
     
     L = []
@@ -1384,9 +1383,6 @@ def get_files_to_release(files, files_extensions):
     return L    
     
     
-
-
-
 
 def prepare_analysis_json(analysis_data, workflow_outputs, workflow_deliverables = None):
     '''
@@ -1518,13 +1514,22 @@ def prepare_cbioportal_json(analysis_data, workflow_outputs):
     
     
 def count_cases(analysis_data, data_release_approval, data_release, pipeline_signoff, cbio_signoff):
-    
     '''
+    (dict, dict, dict, dict, dict) -> int, int, int, int, int, int
     
+    Returns counts of cases with complete data, incomplete data,
+    comnplete data with release approval all release signed off,
+    complete data with release approval but no release sign off (ie ready to release),
+    complete data with release approval but no pipeline release sign off (ie pipeline ready to release),
+    complete data with release approval but no cbioportal sign off (ie cbio ready to release), 
     
-    
-    
-    
+    Parameters
+    ----------
+    - analysis_data (dict): Dictionary with captured analysis data
+    - data_release_approval (dict): Dictionary indicating if data release is true or False
+    - data_release (dict): Dictionary indicating if all data release deliverables are signed off
+    - pipeline_signoff (dict): Dictionary indicating if all pipeline data release deliverables are signed off
+    - cbio_signoff (dict): Dictionary indicating if cbioportal data release is signed off 
     '''
     
     complete = len([case_id for case_id in analysis_data if analysis_data[case_id]['valid']])
