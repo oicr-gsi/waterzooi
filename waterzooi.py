@@ -53,8 +53,8 @@ database = 'waterzooi_test_10012026.db'
 
 
 #analysis_db = 'analysis_review_test_09102026.db'
-
-analysis_db = 'analysis_review_test_09302026.db'
+#analysis_db = 'analysis_review_test_09302026.db'
+analysis_db = 'analysis_review_test_10022026.db'
 
 
 
@@ -209,8 +209,7 @@ def project_page(project_name):
     # extract signoff from the nabu cache
     signoffs = get_release_signoff(nabu_cache, project_name)
     # get the assays
-    assay_names = get_assays(database, project_name)
-    assays = sorted(list(set(assay_names.split(','))))
+    assays = get_assays(database, project_name)
     # get the samples and libraries for each case respectively sorted by tissue and library type
     samples_libraries = extract_samples_libraries_per_case(project_name, database)
     library_types = sorted(list(map(lambda x: x.strip(), project['library_types'].split(','))))
@@ -248,8 +247,7 @@ def sequencing(project_name):
     # add release status of each workflow
     sequences = add_workflow_qc_status(sequences, fileqc)
     # get the assays
-    assay_names = get_assays(database, project_name)
-    assays = sorted(list(set(assay_names.split(','))))
+    assays = get_assays(database, project_name)
     # map the instrument short name to sequencing platform
     platform_names = get_platform_shortname(project_name, database)
  
@@ -282,13 +280,8 @@ def analysis(project_name, assay):
     
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
-    
-    
-    # get analysis data for all cases with assay
-    # strip version from assay
-    assay_name = '_'.join(assay.split('_')[:-1])
-    assay_version = assay.split('_')[-1]
-    analysis_data = get_analysis_data(analysis_db, project_name, assay_name)
+    # get analysis data
+    analysis_data = get_analysis_data(analysis_db, project_name, assay)
     # sort cases id
     case_names = sorted(list(analysis_data.keys()))
           
@@ -318,8 +311,8 @@ def analysis(project_name, assay):
                                                        cbio_signoff)
     
     # get the assays
-    assay_names = get_assays(database, project_name)
-    assays = sorted(list(set(assay_names.split(','))))
+    assays = get_assays(database, project_name)
+       
     
     # add formatted error message
     for case_id in analysis_data:
@@ -388,11 +381,8 @@ def case_analysis(project_name, assay, case_id):
     # get the project info for project_name from db
     project = get_project_info(database, project_name)[0]
     
-    # get analysis data for all cases with assay
-    # strip version from assay
-    assay_name = '_'.join(assay.split('_')[:-1])
-        
-    analysis_data = get_case_analysis_data(analysis_db, case_id, project_name, assay_name)
+    # get analysis data for case
+    analysis_data = get_case_analysis_data(analysis_db, case_id, project_name, assay)
 
     # format error message
     if analysis_data[case_id]['error']:
@@ -421,9 +411,8 @@ def case_analysis(project_name, assay, case_id):
     workflow_release_status = {wfrunid: merge_qc_status_workflow(workflow_outputs[wfrunid], fileqc) for wfrunid in workflow_outputs}
 
     # get the assays
-    assay_names = get_assays(database, project_name)
-    assays = sorted(list(set(assay_names.split(','))))
-    
+    assays = get_assays(database, project_name)
+        
     # check if analysis data validation
     valid = analysis_data[case_id]['valid']
         
@@ -532,6 +521,7 @@ def show_workflow(project_name, case_id, wfrunid):
     
     # get the assay
     assay = get_case_assay(database, project_name, case_id)
+    assay = '_'.join(assay.split('_')[:-1])
     
     # get the parent and children workflows
     parent_to_children = get_case_parent_to_children_workflows(database, case_id)
@@ -659,10 +649,8 @@ def download_analysis_data(project_name, case_id, assay):
     assay = assay.replace('+:+', '/')
     case_id = case_id.replace('+:+', '/')
     
-    # strip version from assay
-    assay_name = '_'.join(assay.split('_')[:-1])
     # pull down analysis data
-    analysis_data = get_case_analysis_data(analysis_db, case_id, project_name, assay_name)
+    analysis_data = get_case_analysis_data(analysis_db, case_id, project_name, assay)
     # get the output files of each workflow for the case 
     workflow_outputs = get_workflow_outputs(database, project_name, case_id)
     # organize data for download
@@ -682,14 +670,13 @@ def download_analysis_data(project_name, case_id, assay):
 @app.route('/download_cbioportal/<project_name>/<case_id>/<assay>')
 def download_cbioportal_data(project_name, case_id, assay):
  
-
     assay = assay.replace('+:+', '/')
     case_id = case_id.replace('+:+', '/')
         
     # strip version from assay
-    assay_name = '_'.join(assay.split('_')[:-1])
     # pull down analysis data
-    analysis_data = get_case_analysis_data(analysis_db, case_id, project_name, assay_name)
+    analysis_data = get_case_analysis_data(analysis_db, case_id, project_name, assay)
+    
     # get the output files of each workflow for the case 
     workflow_outputs = get_workflow_outputs(database, project_name, case_id)
     # organize data for cbioportal importer
@@ -710,12 +697,10 @@ def download_cbioportal_data(project_name, case_id, assay):
 @app.route('/download_assay_cbioportal/<project_name>/<assay>')
 def download_assay_cbioportal_data(project_name, assay):
  
-
     assay = assay.replace('+:+', '/')
-    # strip version from assay
-    assay_name = '_'.join(assay.split('_')[:-1])
+        
     # pull down analysis data
-    analyses = get_analysis_data(analysis_db, project_name, assay_name)
+    analyses = get_analysis_data(analysis_db, project_name, assay)
     # get the output files of each workflow for all cases 
     outputs = get_workflow_outputs(database, project_name)
     # get the project info for project_name from db

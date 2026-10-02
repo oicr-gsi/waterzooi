@@ -471,10 +471,10 @@ def files_to_cases(database, project_name):
 
 def get_assays(database, project_name):
     '''
-    (str, str) -> str
+    (str, str) -> list
     
-    Returns a comma-separated list of all assays for a given project 
-    
+    Returns a list of all assay names in project (without the assay version)
+        
     Parameters
     ----------
     - database (str): Path to the database
@@ -485,8 +485,11 @@ def get_assays(database, project_name):
     data = conn.execute("SELECT assays FROM Projects WHERE project_id = ?;", (project_name,)).fetchall()     
     conn.close()
     
-    assays = ','.join([i['assays'] for i in data])
-    
+    assays = []
+    for i in data:
+        assays.extend(i['assays'].split(','))
+    assays = sorted(list(set((map(lambda x: '_'.join(x.split('_')[:-1]), assays))))) 
+        
     return assays
 
 
