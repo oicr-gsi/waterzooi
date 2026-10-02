@@ -147,6 +147,19 @@ def format_identifier(identifier):
     return identifier.replace('/', '+:+')
 
 
+@app.template_filter()
+def remove_version(assay):
+    '''
+    (str) -> str
+    
+    Remove the assay version from the assay
+                 
+    Parameters
+    ----------
+    - assay (str): Assay name combine with assay version
+    '''
+    
+    return '_'.join(assay.split('_')[:-1])
 
 
 @app.template_filter()

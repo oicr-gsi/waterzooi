@@ -120,7 +120,7 @@
     {% for i in cases %}
       <tr>
         <td>
-          <a class="project_links" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=i['assay'] | format_identifier, case_id=i['case_id'] | format_identifier, )}}">
+          <a class="project_links" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=i['assay'] | remove_version | format_identifier, case_id=i['case_id'] | format_identifier, )}}">
             {{ i['case_id'] }}
           </a>
           <a style="color: white; text-decoration: none;"  href="https://dimsum.oicr.on.ca/cases/{{i['case_id']}}" target="_blank">
@@ -156,7 +156,7 @@
           </a>
         </td>        
         <td>{{ i['ext_id'] }}</td>        
-        <td><a class="table_link" href="{{ url_for('analysis', project_name=project['project_id'], assay=i['assay'] | format_identifier) }}">{{ i['assay'] }}</a></td>
+        <td><a class="table_link" href="{{ url_for('analysis', project_name=project['project_id'], assay=i['assay'] | remove_version | format_identifier) }}">{{ i['assay'] }}</a></td>
         <td>
           {% if i['case_id'] in signoffs %}
             {% if 'release_approval' in signoffs[i['case_id']] %}
