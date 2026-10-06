@@ -175,11 +175,7 @@ def get_fileqc(nabu_cache, project_name, case_id = None):
         case_id = i['case_id']
         username = i['username']
         ticket = i['ticket']
-        status = i['qcstatus']
-        if status.lower() == 'pass':
-            qcstatus = 1
-        else:
-            qcstatus = 0
+        qcstatus = i['qcstatus']
         file_swid = i['fileid']
         D[file_swid] = {'case_id': case_id, 'username': username,
                         'ticket': ticket, 'qcstatus': qcstatus}
