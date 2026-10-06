@@ -299,9 +299,8 @@ def define_columns(database):
                                     'types': ['VARCHAR(572)', 'VARCHAR(256)',  'VARCHAR(128)', 'VARCHAR(256)',
                                               'VARCHAR(256)', 'VARCHAR(572)', 'VARCHAR(128)', 'VARCHAR(128)']},
                         'Checksums': {'names': ['project_id', 'case_id', 'donor_id', 'md5'],
-                                      'types': ['VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)']},
-                        'Workflow_status': {'names': ['wfrun_id', 'project_id', 'selected'],
-                                            'types': ['VARCHAR(572)', 'VARCHAR(128)', 'INT']}}                          
+                                      'types': ['VARCHAR(128)', 'VARCHAR(128)', 'VARCHAR(572)', 'VARCHAR(572)']}}
+                                                  
                         
     elif database == 'analysis_review':
         columns = {'templates': {'names':  ['case_id', 'donor_id', 'project_id', 'assay',
@@ -337,7 +336,7 @@ def create_table(database_name, database, table):
     table_format = ', '.join(list(map(lambda x: ' '.join(x), list(zip(column_names, column_types)))))
 
     if database == 'waterzooi':
-        if table  in ['Workflows', 'Parents', 'Files', 'Libraries', 'Workflow_Inputs', 'Samples', 'Checksums', 'Workflow_status']:
+        if table  in ['Workflows', 'Parents', 'Files', 'Libraries', 'Workflow_Inputs', 'Samples', 'Checksums']:
             constraints = '''FOREIGN KEY (project_id)
                 REFERENCES Projects (project_id)'''
             table_format = table_format + ', ' + constraints 
@@ -349,7 +348,7 @@ def create_table(database_name, database, table):
                   REFERENCES Workflows (wfrun_id)''' 
             table_format = table_format + ', ' + constraints + ', PRIMARY KEY (parents_id, children_id, project_id, case_id)'
     
-        if table in ['Worklows', 'Workflow_status']:
+        if table == 'Worklows':
             table_format = table_format + ', PRIMARY KEY (wfrun_id, project_id)'
     
         if table == 'Files':
