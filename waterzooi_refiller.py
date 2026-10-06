@@ -380,6 +380,33 @@ def collect_case_library_info(case_data):
     return D       
 
 
+
+def list_supplementals(case_data):
+    '''
+    (dict) -> list
+    
+    Returns a list of supplemental limsids in case
+    (ie. limsids used for analysis but not belonging to the same project of the case)
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with a single case data   
+    '''
+    
+    supplementals = []
+    
+    seq = json.loads(case_data['case_info']['sequencing'])
+    
+    for i in seq:
+        for j in i['limsIds']:
+            if j['supplemental']:
+                supplementals.append(j['id'])
+        
+    return supplementals
+    
+   
+
+
 def collect_case_sample_info(case_data):
     '''
     (dict) -> dict
@@ -391,10 +418,13 @@ def collect_case_sample_info(case_data):
     - case_data (dict): Dictionary with a single case data   
     '''
         
+    # collect supplemental limsids (used for analysis but do not belong to project)
+    supplementals = list_supplementals(case_data)
+       
     D = {}
         
     for d in case_data['sample_info']:
-        case = case_data['case']
+        case_id = case_data['case']
         donor = d['donor']
         project_id = d['project']
         assay = case_data['assay']
@@ -403,15 +433,19 @@ def collect_case_sample_info(case_data):
         #sex = d['sex']
         miso = 'NA'
         species = d['organism']
+        limsid = d['limsId']
         
-        d = {'case_id': case, 'assay': assay, 'donor_id': donor, 'ext_id': external_id, 
-             'species': species, 'project_id': [project_id], 'miso': miso, 'sequencing_status': str(int(sequencing_status))}
+        # exclude supplementals
+        if limsid not in supplementals:
+            d = {'case_id': case_id, 'assay': assay, 'donor_id': donor, 'ext_id': external_id, 
+                 'species': species, 'project_id': [project_id], 'miso': miso,
+                 'sequencing_status': str(int(sequencing_status))}
         
-        if case not in D:
-            D[case] = d
-        else:
-            D[case]['project_id'].append(project_id)
-        D[case]['project_id'] = list(set(D[case]['project_id']))
+            if case_id not in D:
+                D[case_id] = d
+            else:
+                D[case_id]['project_id'].append(project_id)
+            D[case_id]['project_id'] = list(set(D[case_id]['project_id']))
             
     return D
 
@@ -1221,29 +1255,11 @@ def generate_database(database, provenance_data_file):
         # check that no information is missing
         if is_case_info_complete(case_data):
             processed += 1    
-            # remove workflows that do not belong to the case
-            
-            
-            ### REVIEW - DO WE NEED TO REMOVE THESE WORKFLOWS
-            
-            
-            case_data = clean_up_workflows(case_data)
-            
-            
-            
-            
-            # # collect file qc at the project level if not already recorded
-            # file_qc, visited_projects = get_project_file_qc(case_data, visited_projects, file_qc, nabu)
-            
-            
             # record case data, update the project level information
             # remove case from recorded md5sums. any remaining cases are not in production
             # and should be removed from the database
             project_info, recorded_md5sums = record_case_info(case_data, database, recorded_md5sums, project_info, tables, columns)
-            # update workflow status
-            
- 
-    
+       
     # record project information in database
     if project_info:
         add_project_info(database, project_info, 'Projects', 'project_id', 'waterzooi')
