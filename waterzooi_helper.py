@@ -64,31 +64,31 @@ def get_project_info(database, project_name=None):
 
 
 
-def get_project_level_deliverables(nabu_cache, project_name):
-    '''
-    (str, str) -> list
+# def get_project_level_deliverables(nabu_cache, project_name):
+#     '''
+#     (str, str) -> list
     
-    Returns a list of project deliverables 
+#     Returns a list of project deliverables 
     
-    Parameters
-    ----------
-    - nabu_cache (str): Path to the nabu cache 
-    - project_name (str): Name of the project of interest
-    '''
+#     Parameters
+#     ----------
+#     - nabu_cache (str): Path to the nabu cache 
+#     - project_name (str): Name of the project of interest
+#     '''
         
-    conn = connect_to_db(nabu_cache)
-    data = conn.execute("SELECT DISTINCT release FROM signoff WHERE project_id = ?;", (project_name,)).fetchall()
-    conn.close()
+#     conn = connect_to_db(nabu_cache)
+#     data = conn.execute("SELECT DISTINCT release FROM signoff WHERE project_id = ?;", (project_name,)).fetchall()
+#     conn.close()
     
-    L = []
-    for i in data:
-        release = json.loads(i['release'])
-        for j in release:
-            deliverables = release[j].keys()
-            L.extend(deliverables)
-    L = list(set(L))
+#     L = []
+#     for i in data:
+#         release = json.loads(i['release'])
+#         for j in release:
+#             deliverables = release[j].keys()
+#             L.extend(deliverables)
+#     L = list(set(L))
     
-    return L
+#     return L
 
 
 def get_release_signoff(nabu_cache, project_name):
@@ -687,30 +687,30 @@ def get_analysis_workflows(analysis_data):
     return D                    
 
 
-def map_analysis_workflows(analysis_data, case_id):
-    '''
-    (dict, str) -> dict
+# def map_analysis_workflows(analysis_data, case_id):
+#     '''
+#     (dict, str) -> dict
     
-    Returns a dictionary mapping each analysis workflow run id with its workflow name
-    for a single case
+#     Returns a dictionary mapping each analysis workflow run id with its workflow name
+#     for a single case
     
-    Parameters
-    ----------
-    - analysis_data (dict): Dictionary with captured analysis data
-    - case_id (str): Case identifier
-    '''
+#     Parameters
+#     ----------
+#     - analysis_data (dict): Dictionary with captured analysis data
+#     - case_id (str): Case identifier
+#     '''
         
-    D = {}
+#     D = {}
     
-    if 'analysis' in analysis_data[case_id] and analysis_data[case_id]['analysis']:
-        for pipeline in analysis_data[case_id]['analysis']:
-            if analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
-                for workflow in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
-                    for d in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
-                        if d['wfrunid']:
-                            D[d['wfrunid']] = workflow
+#     if 'analysis' in analysis_data[case_id] and analysis_data[case_id]['analysis']:
+#         for pipeline in analysis_data[case_id]['analysis']:
+#             if analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+#                 for workflow in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis']:
+#                     for d in analysis_data[case_id]['analysis'][pipeline]['pipeline_analysis'][workflow]:
+#                         if d['wfrunid']:
+#                             D[d['wfrunid']] = workflow
                     
-    return D                    
+#     return D                    
 
 def error_formatting(error):
     '''
@@ -1234,31 +1234,31 @@ def get_data_release_signoff(signoffs, project_deliverables, case_id, data):
 
 
 
-def get_output_files(database, project_id, case_id):
-    '''
-    (str, str, str) -> dict
+# def get_output_files(database, project_id, case_id):
+#     '''
+#     (str, str, str) -> dict
     
-    Returns a dictionary with the matching file paths and file swids
+#     Returns a dictionary with the matching file paths and file swids
     
-    Parameters
-    ----------
-    - database (str): Path to the database
-    - wfrun_id (str): Workflow run identifier
-    '''
+#     Parameters
+#     ----------
+#     - database (str): Path to the database
+#     - wfrun_id (str): Workflow run identifier
+#     '''
     
-    conn = connect_to_db(database)
-    data = conn.execute("SELECT DISTINCT file, file_swid FROM Files WHERE project_id = ? and case_id = ?;", (project_id, case_id)).fetchall()
-    conn.close()   
+#     conn = connect_to_db(database)
+#     data = conn.execute("SELECT DISTINCT file, file_swid FROM Files WHERE project_id = ? and case_id = ?;", (project_id, case_id)).fetchall()
+#     conn.close()   
     
-    D = {}
+#     D = {}
     
-    for i in data:
-        file = i['file']
-        fileswid = i['file_swid']
-        assert fileswid not in D
-        D[fileswid] = file
+#     for i in data:
+#         file = i['file']
+#         fileswid = i['file_swid']
+#         assert fileswid not in D
+#         D[fileswid] = file
         
-    return D
+#     return D
 
 
 

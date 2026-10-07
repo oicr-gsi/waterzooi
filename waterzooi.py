@@ -15,19 +15,18 @@ import pandas as pd
 
 
 from waterzooi_helper import secret_key_generator, get_project_info, \
-    get_project_level_deliverables, get_release_signoff, get_case_analysis_status, \
-    count_completed_cases, extract_samples_libraries_per_case, collect_sequence_info, \
-    get_fileqc, merge_qc_status_workflow, get_assays, get_platform_shortname, get_cases, \
+    get_release_signoff, get_case_analysis_status, count_completed_cases, \
+    extract_samples_libraries_per_case, collect_sequence_info, get_fileqc, \
+    merge_qc_status_workflow, get_assays, get_platform_shortname, get_cases, \
     get_analysis_data, get_analysis_samples, get_analysis_workflows, error_formatting, \
     get_case_analysis_data, get_case_release_signoff, get_workflows_analysis_date, \
-    most_recent_analysis_workflow, map_workflows_to_fileids, map_analysis_workflows, \
-    organize_data, get_case_assay, get_case_parent_to_children_workflows, \
-    get_case_children_to_parents_workflows, get_workflow_output_files, get_case_workflow_info, \
-    get_input_sequences, add_workflow_qc_status, get_sequences_to_download, \
-    get_data_release_signoff, get_data_release_approval_signoff, get_output_files, \
-    get_workflow_outputs, prepare_analysis_json, prepare_cbioportal_json, count_cases, \
-    plot_graph, plot_small_graph, get_last_sequencing, rename_case_id, create_graph_edges, \
-    get_library_design    
+    most_recent_analysis_workflow, map_workflows_to_fileids, organize_data, get_case_assay, \
+    get_case_parent_to_children_workflows, get_case_children_to_parents_workflows, \
+    get_workflow_output_files, get_case_workflow_info, get_input_sequences, \
+    add_workflow_qc_status, get_sequences_to_download, get_data_release_signoff, \
+    get_data_release_approval_signoff, get_workflow_outputs, prepare_analysis_json, \
+    prepare_cbioportal_json, count_cases, plot_graph, plot_small_graph, \
+    get_last_sequencing, rename_case_id, create_graph_edges, get_library_design    
         
 
 import plotly.offline as pyo
@@ -40,40 +39,12 @@ app = Flask(__name__)
 app.secret_key = secret_key_generator(10)
 
 
-
-#database = 'waterzooi_db_case.db'
-workflow_db = 'workflows_case.db'
-#analysis_db = 'analysis_review_case.db'
+# list files as global variables
+database = 'waterzooi_db_case.db'
+analysis_db = 'analysis_review_case.db'
 nabu_key_file = 'nabu-prod_qc-gate-etl_api-key'
-
-#database = 'waterzooi_test_09092026.db'
-
-database = 'waterzooi_test_10012026.db'
-
-
-
-#analysis_db = 'analysis_review_test_09102026.db'
-#analysis_db = 'analysis_review_test_09302026.db'
-#analysis_db = 'analysis_review_test_10022026.db'
-
-
-analysis_db = 'analysis_review_test_10062026.db'
-
-
-
-#database = 'waterzooi_test_09092026.db'
-
-database = 'waterzooi_test_10062026.db'
-
-
-#nabu_cache = 'nabu_cache.db'
-
-nabu_cache = 'nabu_cache_2.db'
-
-
+nabu_cache = 'nabu_cache.db'
 workflow_deliv = 'workflow_deliverables.json'
-
-
 
 
 
