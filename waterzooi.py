@@ -54,12 +54,22 @@ database = 'waterzooi_test_10012026.db'
 
 #analysis_db = 'analysis_review_test_09102026.db'
 #analysis_db = 'analysis_review_test_09302026.db'
-analysis_db = 'analysis_review_test_10022026.db'
+#analysis_db = 'analysis_review_test_10022026.db'
+
+
+analysis_db = 'analysis_review_test_10062026.db'
 
 
 
-database = 'waterzooi_test_09092026.db'
-nabu_cache = 'nabu_cache.db'
+#database = 'waterzooi_test_09092026.db'
+
+database = 'waterzooi_test_10062026.db'
+
+
+#nabu_cache = 'nabu_cache.db'
+
+nabu_cache = 'nabu_cache_2.db'
+
 
 workflow_deliv = 'workflow_deliverables.json'
 

@@ -48,40 +48,6 @@ def is_case_info_complete(case_data):
     return complete
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 def compute_md5(d):
     '''
     (dict) -> str

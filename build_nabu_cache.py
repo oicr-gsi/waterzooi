@@ -81,51 +81,6 @@ def extract_nabu_signoff(nabu_key_file, nabu_endpoint='https://nabu.gsi.oicr.on.
 
 
 
-
-# def get_file_signoff(project, nabu_endpoint = 'https://nabu.gsi.oicr.on.ca/get-fileqcs'):
-#     '''
-#     (str, str) -> dict
-
-#     Returns a dictionary 
-
-#     Parameters
-#     ----------
-#     - project (str): Project of interest
-#     - nabu_endpoint (str): URL to access the file qc in Nabu
-#     '''
-
-#     headers = {'accept': 'application/json', 'Content-Type': 'application/json'}
-#     json_data = {'project': project}
-#     response = requests.post(nabu_endpoint, headers=headers, json=json_data)
-    
-#     D = {}
-    
-#     if response.status_code == 200:
-#         for d in response.json()['fileqcs']:
-#             fileid = d['fileid']
-#             filepath = d['filepath']
-#             if 'username' in d:
-#                 username = d['username']
-#             else:
-#                 username = 'NA'
-#             qcstatus = d['qcstatus']
-#             if 'comment' in d:
-#                 ticket = d['comment']
-#             else:
-#                 ticket = 'NA'
-            
-#             assert fileid not in D
-#             D[fileid] = {
-#                 'fileid' : fileid,
-#                 'filepath' : filepath,
-#                 'username' : username,
-#                 'qcstatus' : qcstatus,
-#                 'ticket' : ticket}
-            
-#     return D   
-
-
-
 def get_fileqc(nabu_endpoint = 'https://nabu.gsi.oicr.on.ca/fileqcs-only'):
     '''
     (str) -> dict
@@ -201,34 +156,6 @@ def create_nabu_cache(database, fields):
     conn.close()
 
 
-
-# def list_projects(provenance_data_file):
-#     '''
-#     (str)- > list
-    
-#     Returns a list of project names across all valid cases
-        
-#     Parameters
-#     - provenance_data_file (str): Path to the provenance reporter json file
-#     '''
-    
-#     L = []
-    
-#     # make a list of project
-#     # load production data
-#     provenance_data = load_data(provenance_data_file)
-    
-#     for case_data in provenance_data:
-#         # check that case data is complete (all sections in the case dictionary are complete)
-#         if is_case_info_complete(case_data):
-#             project_ids = [case_data['project_info'][i]['project'] for i in range(len(case_data['project_info']))]
-#             L.extend(project_ids)
-#             L = list(set(L))
-
-#     return L
-
-
-
 def map_file_swids_to_cases(provenance_data_file):
     '''
     (str)- > dict
@@ -258,33 +185,6 @@ def map_file_swids_to_cases(provenance_data_file):
 
     return D                     
 
-
-
-
-
-# def map_fileqc_to_cases(file_swids, fileqc):
-#     '''
-#     (dict, dict) -> list
-        
-#     Returns a list of lists with with file QC info to be added to the Nabu cache
-    
-#     Parameters
-#     ----------
-#     - file_swids (dict): Dictionary mapping file swids with case id and project ids
-#     - fileqc (dict): Dictionary with file qc information for each file swid
-#     '''
-
-#     data = []
-
-#     for fileid in fileqc:
-#         if fileid in file_swids:
-#             projects = file_swids[fileid]['project_id'].split(';')
-#             for project in projects:
-#                 L = [project, file_swids[fileid]['case_id'], fileid, fileqc[fileid]['filepath'],
-#                      fileqc[fileid]['username'], fileqc[fileid]['qcstatus'], fileqc[fileid]['ticket']]
-#                 data.append(L)   
-        
-#     return data
 
 
 def map_fileqc_to_cases(file_swids, fileqc):
@@ -476,36 +376,10 @@ def update_nabu_cache(provenance_data_file, nabu_cache, nabu_key_file, nabu = 'h
         query = "DELETE FROM fileqc"
         conn.execute(query)
         conn.commit()
-          
-        #delete_multiple_records([project], conn, nabu_cache, 'fileqc', 'project_id')
-        
         # add entries for project
         insert_multiple_records(data, conn, nabu_cache, 'fileqc', fields['fileqc']['names'])
         conn.close()
     
-    
-    
-    
-    
-    
-    
-    # nabu_fileqc_endpoint = nabu + '/get-fileqcs'
-    
-    # for project in projects:
-    #     fileqc = get_file_signoff(project, nabu_fileqc_endpoint)
-    #     # organize data to add to cache
-    #     data = map_fileqc_to_cases(file_swids, fileqc)
-    #     # check that files have info in the provenance reporter and in nabu
-    #     if data:
-    #         # open database to delete old entries and add new ones
-    #         conn = connect_to_db(nabu_cache)
-    #         # remove entries for project
-    #         delete_multiple_records([project], conn, nabu_cache, 'fileqc', 'project_id')
-    #         # add entries for project
-    #         insert_multiple_records(data, conn, nabu_cache, 'fileqc', fields['fileqc']['names'])
-    #         conn.close()
-        
-      
     # get the case signoff
     nabu_signoff_endpoint = nabu + '/case/sign-off'
     case_signoffs = extract_nabu_signoff(nabu_key_file, nabu_signoff_endpoint)

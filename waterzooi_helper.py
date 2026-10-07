@@ -870,41 +870,6 @@ def organize_data(analysis_data, case_id):
     return data, analysis_workflows, parents
     
     
-   
-# def get_workflow_release_status(database, case_id):
-#     '''
-#     (str, str) -> dict
-    
-#     Returns a dictionary with the release status of each workflow id of a given case
-#     The release status is derived from the file qc status in Nabu of the workflow output files
-    
-#     Parameters
-#     ----------
-#     - database (str): Path to the waterzooi sqlite database
-#     - case_id (str): Case identifier
-#     '''
-
-#     # get the file qc status for each output file of every workflows
-#     workflow_qc = get_workflow_file_qc(database, case_id)
-    
-#     D = {}    
-
-#     for workflow_id in workflow_qc:
-#         if all(map(lambda x: x.isdigit(), workflow_qc[workflow_id])):
-#             if all(map(lambda x: int(x), workflow_qc[workflow_id])):
-#                 D[workflow_id] = True
-#             elif any(map(lambda x: int(x), workflow_qc[workflow_id])):
-#                 D[workflow_id] = True
-#             elif all(map(lambda x: int(x), workflow_qc[workflow_id])) == False:
-#                 D[workflow_id] = False
-#         elif '1' in workflow_qc[workflow_id]:
-#             D[workflow_id] = True
-#         elif len(list(set(workflow_qc[workflow_id]))) == 1:
-#             D[workflow_id] = '?'
-        
-         
-#     return D        
-    
 
 
 def get_case_assay(database, project_id, case_id):
@@ -1034,27 +999,6 @@ def get_workflow_output_files(database, wfrun_id):
     return S, F
 
     
-    
-    # for i in data:
-    #     sample = i['sample_id']
-    #     file = i['file']
-    #     if file in D:
-    #         D[file].append(sample)
-    #     else:
-    #         D[file] = [sample]
-    #     D[file] = sorted(list(set(D[file])))
-            
-    # # group samples sharing the same files
-    # S = {}
-    # for file in D:
-    #     sample = ';'.join(D[file])
-    #     if sample in S:
-    #         S[sample].append(file)
-    #     else:
-    #         S[sample] = [file]
-       
-    # return S
-
 
 def get_case_workflow_info(database, case):
     '''
@@ -1630,18 +1574,7 @@ def plot_graph(edges, workflow_names):
     node_text = [workflow_names[i] for i in node_text]
     node_trace.text = node_text
     
-    # # generate figure
-    # fig = go.Figure(data=[edge_trace, node_trace],
-    #              layout=go.Layout(
-    #                 title='Workflow connections',
-    #                 showlegend=False,
-    #                 hovermode='closest',
-    #                 margin=dict(b=20,l=5,r=5,t=40),
-    #                 xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-    #                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
-    #                 )
-    
-    
+    # generate figure
     fig = go.Figure(data=[edge_trace, node_trace],
                  layout=go.Layout(
                     title='Workflow connections',
@@ -1658,17 +1591,6 @@ def plot_graph(edges, workflow_names):
                     autosize=True
                     )
                     )
-    
-    
-    
-    # fig.update_layout(
-    #     title='Workflow connections',
-    # autosize=True,
-    # margin=dict(l=0, r=0, t=0, b=0), # Strip padding for small spaces
-    # height=300,  
-    # width=1200,       
-    # )
-    
     
     
     return fig
@@ -1758,8 +1680,7 @@ def plot_small_graph(edges, workflow_names, wfrunid, parents, children):
             node_colors.append('#2eb82e')
     node_trace.marker.color = node_colors
     
-    
-    
+   
     # to change the size of the marker based on the number of connection
     #node_trace.marker.size = node_adjacencies
     
@@ -1785,15 +1706,6 @@ def plot_small_graph(edges, workflow_names, wfrunid, parents, children):
     height=150,  
     width=450,       
     )
-    
-#     fig.update_layout(
-#     height=150,          # Force the height to match your HTML <div> element
-#     autosize=True,       # Allows it to dynamically fill the 100% width of the <td>
-#     margin=dict(l=10, r=10, t=10, b=10), # Minimize padding to prevent cropping
-# )
-    
-    
-    
     
     
     return fig

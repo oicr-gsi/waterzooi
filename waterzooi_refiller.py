@@ -11,9 +11,7 @@ import json
 import argparse
 import time
 import os
-#import requests
-import sqlite3
-from data_helper import clean_up_workflows
+
 
 from commons import load_data, is_case_info_complete, compute_md5, get_cases_md5sum, find_sequencing_attributes, \
     get_donor_name, case_to_update, connect_to_db, define_columns, initiate_db, insert_multiple_records, \
@@ -687,131 +685,6 @@ def collect_case_file_info(case_data):
     return D
 
 
-
-# def get_file_signoff(project, nabu = 'https://nabu.gsi.oicr.on.ca/get-fileqcs'):
-#     '''
-#     (str, str) -> dict
-
-#     Returns a dictionary 
-
-#     Parameters
-#     ----------
-#     - project (str): Project of interest
-#     - nabu (str): URL to access the file qc in Nabu
-#     '''
-
-#     headers = {'accept': 'application/json', 'Content-Type': 'application/json'}
-#     json_data = {'project': project}
-#     response = requests.post(nabu, headers=headers, json=json_data)
-    
-#     D = {}
-    
-#     if response.status_code == 200:
-#         for d in response.json()['fileqcs']:
-#             fileid = d['fileid']
-#             filepath = d['filepath']
-#             if 'username' in d:
-#                 username = d['username']
-#             else:
-#                 username = 'NA'
-#             qcstatus = d['qcstatus']
-#             if 'comment' in d:
-#                 ticket = d['comment']
-#             else:
-#                 ticket = 'NA'
-            
-#             assert fileid not in D
-#             D[fileid] = {
-#                 'fileid' : fileid,
-#                 'filepath' : filepath,
-#                 'username' : username,
-#                 'qcstatus' : qcstatus,
-#                 'ticket' : ticket}
-            
-#     return D   
-
-
-
-# def get_project_file_qc(case_data, visited_projects, file_qc, nabu = 'https://nabu.gsi.oicr.on.ca/get-fileqcs'):
-#     '''
-#     (dict, list, dict, str) -> dict, list
-    
-#     Returns a dictionary with the file QC information and a list of projects
-#     for which file QC has already been extracted
-    
-#     Parameters
-#     ----------
-#     - case_data (dict): Dictionary with production data for a case
-#     - visited_projects (list): List of projects already evaluated
-#     - file_qc (dict): Dictionary recording the file QC information from nabu
-#     - nabu (str): Nabu file QC endpoint
-#     '''
-    
-#     for i in case_data['project_info']:
-#         project = i['project']
-#         # check if file qc for that project have already been recorded
-#         if project not in visited_projects:
-#             # get the file qc for that project
-#             D = get_file_signoff(project, nabu)
-#             # update file qc with  of that projects
-#             file_qc.update(D)
-#             # update list of visited projects
-#             visited_projects.append(project)
-
-#     return file_qc, visited_projects
-
-
-# def collect_file_qc_info(case_data, file_qc):
-#     '''
-#     (dict, dict) -> dict
-    
-#     Returns a dictionary with file QC information from Nabu
-    
-#     Parameters
-#     ----------
-#     - case_data (dict): Dictionary with production data for a case
-#     - file_qc (dict): Dictionary with file QC extracted from Nabu
-#     '''
-
-#     D = {}
-
-#     for i in case_data['project_info']:
-#         project_id = i['project']
-#         for d in case_data['workflow_runs']:
-#             wfrun_id = d['wfrunid']
-#             case_id = case_data['case']
-#             files = json.loads(d['files'])
-#             for j in range(len(files)):
-#                 file_swid = files[j]['accession']
-#                 # get the qc info
-#                 if file_swid in file_qc:
-#                     username = file_qc[file_swid]['username']
-#                     qcstatus = file_qc[file_swid]['qcstatus']
-#                     filepath = file_qc[file_swid]['filepath']
-#                     ticket = file_qc[file_swid]['ticket']
-#                 else:
-#                     username = 'NA'
-#                     qcstatus = 'NA'
-#                     filepath = 'NA'
-#                     ticket = 'NA'
-                         
-#                 data = {'username': username, 'qcstatus': qcstatus,
-#                         'filepath': filepath, 'ticket': ticket, 'project_id': [project_id]}
-                
-#                 if case_id not in D:
-#                     D[case_id] = {}
-#                 if wfrun_id not in D[case_id]:
-#                     D[case_id][wfrun_id] = {}
-#                 if file_swid not in D[case_id][wfrun_id]:
-#                     D[case_id][wfrun_id][file_swid] = data
-#                 else:
-#                     D[case_id][wfrun_id][file_swid]['project_id'].append(project_id)
-#                 D[case_id][wfrun_id][file_swid]['project_id'] = list(set(D[case_id][wfrun_id][file_swid]['project_id']))
-              
-#     return D                
-                
-
-
 def record_case_info(case_data, database, recorded_md5sums, project_info, tables, columns):
     '''
     (dict, str, dict, dict, dict, dict) -> dict, dict
@@ -982,37 +855,6 @@ def organize_file_info(data, columns):
         
     return L        
                          
-
-# def organize_file_qc_info(data):
-#     '''
-#     (dict) -> list
-    
-#     Returns a list with file QC information to be added to the waterzooi database
-    
-#     Parameters
-#     ----------
-#     - data (dict): Dictionary with case file QC information from production and Nabu 
-#     '''
-    
-#     L = []
-
-#     for case_id in data:
-#         for wfrun_id in data[case_id]:
-#             for file_id in data[case_id][wfrun_id]:
-#                 for project in data[case_id][wfrun_id][file_id]['project_id']:
-#                     d = [project, case_id, wfrun_id, file_id, data[case_id][wfrun_id][file_id]['filepath'],
-#                          data[case_id][wfrun_id][file_id]['username'],
-#                          data[case_id][wfrun_id][file_id]['ticket']]
-#                     if data[case_id][wfrun_id][file_id]['qcstatus'] == 'PASS':
-#                         d.append('1')
-#                     elif data[case_id][wfrun_id][file_id]['qcstatus'] == 'FAILED':
-#                         d.append('0')
-#                     else:
-#                         d.append(data[case_id][wfrun_id][file_id]['qcstatus'])
-#                     L.append(d) 
-                               
-#     return L
-
 
 def organize_library_info(data, columns):
     '''

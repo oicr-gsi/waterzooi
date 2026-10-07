@@ -14,13 +14,13 @@
     <tr>
       <th style="width: 1%; white-space: nowrap;">Workflow id</th>
 
-      <th style="width: 96%>;">Workflow connections</th>
+      <th style="width: 96%;">Workflow connections</th>
 
 
-      <th style="width: 1%>;">File release</th>
-      <th style="width: 1%>;">Name</th>
+      <th style="width: 1%;">File release</th>
+      <th style="width: 1%;">Name</th>
 
-      <th style="width: 1%>;">Version</th>
+      <th style="width: 1%;">Version</th>
 
 
     </tr>
@@ -34,7 +34,7 @@
         </div>
       </td>
         
-      <td style="width: 1%>;">
+      <td style="width: 1%;">
         {% if workflow_release_status[wfrunid]['qcstatus'] == True %}
           <div class="tooltip">  
             <span style="font-size:16px;color:#70db70">&#10004;</span>
@@ -52,8 +52,8 @@
           <span style="font-size:16px;color:#248f24;">?</span>
         {% endif %}
       </td>
-      <td style="width: 1%>;">{{ workflow_name }}</td>
-      <td style="width: 1%>;">{{ workflow_version }}</td>
+      <td style="width: 1%;">{{ workflow_name }}</td>
+      <td style="width: 1%;">{{ workflow_version }}</td>
     
     </tr>
     </tbody>

@@ -668,11 +668,6 @@ def identify_workflows_with_missing_data(cases_analysis, expected_workflow_lims)
     return missing                    
 
 
-
-
-
-
-
 def find_workflow_runid(production_workflows, workflow, test, data, expected_samples, expected_lims):
     '''
     (dict, dict, str, str) -> dict
@@ -769,120 +764,6 @@ def find_production_workflow(production_workflows, d):
             
     return data         
 
-
-
-
-# def find_production_workflow(production_workflows, d):
-#     '''
-#     (dict, dict) -> dict    
-    
-#     Returns a dictionary with prodcution data mapping the expected data for a specific workflow
-                
-#     Parameters
-#     ----------
-#     - production_workflows (dict): Dictionary with case data extracted from the provenance reporter
-#     - d (dict): Dictionary with expected workflow information based on assay and case info
-#     '''
-    
-#     # for sequencing workflows, the assay may indicate bcl2fastq but the 
-#     # sequencing workflows may be diferent if data is injected
-#     sequencing_workflows = ['casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq']
-    
-#     # gridss_matched is always indicated in the assays but the actual workflow
-#     # could be gridss or gridss_matched (same workflow but different names in research and clinical)
-#     gridss_workflows = ['gridss_matched', 'gridss']
-
-#     # bwaMem may be indicated in the assay but the actual workflow might be bwMem or bwamem2
-#     bwa_workflows = ['bwaMem', 'bwamem2']
-
-
-#     data = {'workflow': None, 'limsids': None, 'wfrunid': None, 'tests': None, 'samples': None, 'parents': []}
-#     workflow = d['workflow']
-#     expected_lims = d['limsids']
-#     expected_samples = d['sampleid']
-#     test = d['test']
-#     #  find the workflow in production with the expected limsids and samples
-#     if workflow in sequencing_workflows:
-#         # find the actual sequencing workflow as it may differ from assay
-#         for key in sequencing_workflows:
-#             if key in production_workflows:
-#                 for wfrunid in production_workflows[key]:
-#                     limsids = production_workflows[key][wfrunid]['limsids']
-#                     samples = production_workflows[key][wfrunid]['samples']
-#                     if expected_samples == samples and expected_lims == limsids:
-#                         ### check that only 1 wfrunids match the requirement
-#                         assert data['wfrunid'] is None 
-#                         # update data collector
-#                         data['limsids'] = limsids
-#                         data['samples'] = samples
-#                         data['wfrunid'] = wfrunid
-#                         data['tests'] = test
-#                         data['workflow'] = key
-#     elif workflow in gridss_workflows:
-#         # find the gridss workflow as it may differ from assay
-#         for key in gridss_workflows:
-#             if key in production_workflows:
-#                 for wfrunid in production_workflows[key]:
-#                     limsids = production_workflows[key][wfrunid]['limsids']
-#                     samples = production_workflows[key][wfrunid]['samples']
-#                     if expected_samples == samples and expected_lims == limsids:
-#                         ### check that only 1 wfrunids match the requirement
-#                         assert data['wfrunid'] is None 
-#                         # update data collector
-#                         data['limsids'] = limsids
-#                         data['samples'] = samples
-#                         data['wfrunid'] = wfrunid
-#                         data['tests'] = test
-#                         data['workflow'] = key
-#     elif workflow in bwa_workflows:
-#         # bwaMem and bwmem2 may both have been running in production
-#         # use workflow defined in pipeline if it exists
-#         # match alternative if expected workflow does not exist in production
-#         if workflow in production_workflows:
-#             for wfrunid in production_workflows[workflow]:
-#                 limsids = production_workflows[workflow][wfrunid]['limsids']
-#                 samples = production_workflows[workflow][wfrunid]['samples']
-#                 if expected_samples == samples and expected_lims == limsids:
-#                     ### check that only 1 wfrunids match the requirement
-#                     assert data['wfrunid'] is None 
-#                     # update data collector
-#                     data['limsids'] = limsids
-#                     data['samples'] = samples
-#                     data['wfrunid'] = wfrunid
-#                     data['tests'] = test
-#                     data['workflow'] = workflow
-#         else:
-#             # find the bwa workflow as it may differ from assay
-#             for key in bwa_workflows:
-#                 if key in production_workflows:
-#                     for wfrunid in production_workflows[key]:
-#                         limsids = production_workflows[key][wfrunid]['limsids']
-#                         samples = production_workflows[key][wfrunid]['samples']
-#                         if expected_samples == samples and expected_lims == limsids:
-#                             ### check that only 1 wfrunids match the requirement
-#                             assert data['wfrunid'] is None 
-#                             # update data collector
-#                             data['limsids'] = limsids
-#                             data['samples'] = samples
-#                             data['wfrunid'] = wfrunid
-#                             data['tests'] = test
-#                             data['workflow'] = key
-#     else:
-#         if workflow in production_workflows:
-#             for wfrunid in production_workflows[workflow]:
-#                 limsids = production_workflows[workflow][wfrunid]['limsids']
-#                 samples = production_workflows[workflow][wfrunid]['samples']
-#                 if expected_samples == samples and expected_lims == limsids:
-#                     ### check that only 1 wfrunids match the requirement
-#                     assert data['wfrunid'] is None 
-#                     # update data collector
-#                     data['limsids'] = limsids
-#                     data['samples'] = samples
-#                     data['wfrunid'] = wfrunid
-#                     data['tests'] = test
-#                     data['workflow'] = workflow
-     
-#     return data         
 
 
 def map_expected_production_workflows(expected_workflow_lims, production_workflows):
@@ -1085,26 +966,11 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
     
     # make a list of problematic cases to explore later
     
-    # exclude_cases = ['R5523_a141_GTNBP_0001_Bn_P',
-    #                  'R5526_a120_BDWGTS_0198_Ut_M',
-    #                  'R5526_a120_BIODIVA_0025_Om_M',
-    #                  'R5526_a120_BIODIVA_0149_Om_M',
-    #                  'R5526_a120_BIODIVA_0174_Ae_M',
-    #                  'R5526_a120_BIODIVA_0200_So_M',
-    #                  'R5526_a120_BIODIVA_0226_Ov_P',
-    #                  'R5526_a120_BIODIVA_0286_nn_M',
-    #                  'R5526_a120_BIODIVA_0392_Ov_P']
     
     exclude_cases = ['R5523_a141_GTNBP_0001_Bn_P']
     
     
-    
-    
-    # 'R5523_a141_GTNBP_0001_Bn_P': multiple workflow runs with same lims
-    # 'R5526_a120_BDWGTS_0198_Ut_M': tests labeled WG in case data, normal ? tumor?
-    # 'R5526_a120_BIODIVA_0025_Om_M': tests labeled WG in case data, normal ? tumor?
-    # 'R5526_a120_BIODIVA_0149_Om_M':  tests labeled WG in case data, normal ? tumor?
-    
+       
     
     
     for case_data in provenance_data:
@@ -1151,30 +1017,12 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
             except:
                 donor = ''
         
-        
-            ### exclude biodiva and hbseq projects for now
-            # issue witrh test --> WG
-            
-            
-            if 'BIODIVA' in project_ids or 'HBSEQ' in project_ids:
-                continue
-            
-            
-        
-        
             # check that case data is complete (all sections in the case dictionary are complete)
             if is_case_info_complete(case_data):
-                
-                
                 # review analysis only if signoff is complete
                 if is_signoff_complete(case_data):
-                    
-                                   
                     if assay_name in assays:
-                        
                         if assay_version in assays[assay_name]:
-                            
-                            
                             # extract case data
                             # map tests to lims ids
                             tests_limsids = map_lims_to_tests(case_data)
@@ -1196,21 +1044,12 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
                             parent_to_children_workflows = collect_workflow_relationships(case_data)
                     
                             for pipeline_name in assays[assay_name][assay_version]:
-                                
-                                
-                                
-                                
-                                
                                 pipeline_version = assays[assay_name][assay_version][pipeline_name]
                                 # get the pipeline expected worflows 
                                 pipeline_workflows = reformat_pipeline_workflows(pipelines[pipeline_name][pipeline_version])
-                    
                                 
                                 # did all expected workflows in config ran?
                                 if complete_expected_workflows(workflow_info, pipeline_workflows):
-                                    
-                                    
-                                    
                                     # get expected lims for each workflow based on the assay and the case
                                     expected_workflow_lims = get_assay_expected_workflows(pipeline_workflows, tests_samples, samples_lims)
                                     # get lims, samples and run ids for each workflow seen in production
@@ -1222,32 +1061,26 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
                                                                     
                                     # check if missing data (workflows and parents)
                                     if is_data_complete(pipeline_analysis, expected_workflow_lims):
-                                        
-                                        
                                         # check if some workflows have extra iterations matching the required lims
                                         if no_extra_data(pipeline_analysis, expected_workflow_lims):
                                             # data passed all the checks
                                             valid = 1
                                             error = ''
-                                            
                                         else:
                                             extra_workflows = identify_extra_workflows(pipeline_analysis, expected_workflow_lims)
                                             error = '[EXTRA WORKFLOWS]: Workflows have unexpected multiple runs {0}'.format(','.join(extra_workflows)) 
                                             valid = 0
-                                        
                                     else:
                                         missing = identify_workflows_with_missing_data(pipeline_analysis, expected_workflow_lims)
                                         error = '[INCOMPLETE DATA]: Workflows are missing {0}'.format(','.join(sorted(list(set(missing)))))
                                         valid = 0
-                               
                                 else:
                                     # get the missing workflows
                                     missing_workflows = identify_missing_workflows(workflow_info, pipeline_workflows)
                                     error = '[MISSING WORKFLOWS]: missing {0}'.format(','.join(sorted(missing_workflows)))
                                     valid = 0
                                     pipeline_analysis = {}
-                                
-                                
+                                                                
                                 case_analysis[pipeline_name] = {'pipeline_analysis': pipeline_analysis,
                                                                         'error': error,
                                                                         'valid': valid}
@@ -1257,11 +1090,9 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
                     else:
                         error = '[ASSAY]: assay {0} not in assay config'.format(assay_name)
                         valid = 0
-                                       
                 else:
                     error = '[INCOMPLETE SEQUENCING]: some tests have incomplete sequencing'
                     valid = 0
-                    
             else:
                 error = '[INCOMPLETE CASE]: case is missing some data'
                 valid = 0
