@@ -91,7 +91,13 @@
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['pipeline'] }}</a>
         </td>
         <td>
-          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">{{ i['cases'] }}</a>
+          {% if i['project_id'] in analysis_counts %}
+          <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">
+            {{analysis_counts[i['project_id']]['complete'] + analysis_counts[i['project_id']]['incomplete']}}
+          </a>
+          {% else %}
+            NA
+          {% endif %}
         </td>
         <td>
           <a class="project_links" href="{{ url_for('project_page', project_name=i['project_id']) }}">
