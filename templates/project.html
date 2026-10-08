@@ -80,7 +80,13 @@
   </tr>
   <tr>
     <th>Cases:</th>
-    <td>{{ project['cases'] }}</td>
+    <td>
+      {% if project['project_id'] in analysis_counts %}
+        {{analysis_counts[project['project_id']]['complete'] + analysis_counts[project['project_id']]['incomplete']}}
+      {% else %}
+        NA
+      {% endif %}
+    </td>
   </tr>
   <tr>
     <th>Samples:</th>
