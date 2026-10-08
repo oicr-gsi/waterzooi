@@ -11,13 +11,11 @@ import json
 import argparse
 import time
 import os
-import requests
-import sqlite3
-from db_helper import connect_to_db, define_columns, initiate_db, insert_multiple_records, \
-    delete_unique_record, delete_multiple_records
-from data_helper import load_data, clean_up_workflows, is_case_info_complete
-from commons import compute_md5, get_cases_md5sum, find_sequencing_attributes, \
-    get_donor_name, case_to_update    
+
+
+from commons import load_data, is_case_info_complete, compute_md5, get_cases_md5sum, find_sequencing_attributes, \
+    get_donor_name, case_to_update, connect_to_db, define_columns, initiate_db, insert_multiple_records, \
+    delete_unique_record, delete_multiple_records    
      
         
 
@@ -380,6 +378,33 @@ def collect_case_library_info(case_data):
     return D       
 
 
+
+def list_supplementals(case_data):
+    '''
+    (dict) -> list
+    
+    Returns a list of supplemental limsids in case
+    (ie. limsids used for analysis but not belonging to the same project of the case)
+    
+    Parameters
+    ----------
+    - case_data (dict): Dictionary with a single case data   
+    '''
+    
+    supplementals = []
+    
+    seq = json.loads(case_data['case_info']['sequencing'])
+    
+    for i in seq:
+        for j in i['limsIds']:
+            if j['supplemental']:
+                supplementals.append(j['id'])
+        
+    return supplementals
+    
+   
+
+
 def collect_case_sample_info(case_data):
     '''
     (dict) -> dict
@@ -391,10 +416,13 @@ def collect_case_sample_info(case_data):
     - case_data (dict): Dictionary with a single case data   
     '''
         
+    # collect supplemental limsids (used for analysis but do not belong to project)
+    supplementals = list_supplementals(case_data)
+       
     D = {}
         
     for d in case_data['sample_info']:
-        case = case_data['case']
+        case_id = case_data['case']
         donor = d['donor']
         project_id = d['project']
         assay = case_data['assay']
@@ -403,15 +431,19 @@ def collect_case_sample_info(case_data):
         #sex = d['sex']
         miso = 'NA'
         species = d['organism']
+        limsid = d['limsId']
         
-        d = {'case_id': case, 'assay': assay, 'donor_id': donor, 'ext_id': external_id, 
-             'species': species, 'project_id': [project_id], 'miso': miso, 'sequencing_status': str(int(sequencing_status))}
+        # exclude supplementals
+        if limsid not in supplementals:
+            d = {'case_id': case_id, 'assay': assay, 'donor_id': donor, 'ext_id': external_id, 
+                 'species': species, 'project_id': [project_id], 'miso': miso,
+                 'sequencing_status': str(int(sequencing_status))}
         
-        if case not in D:
-            D[case] = d
-        else:
-            D[case]['project_id'].append(project_id)
-        D[case]['project_id'] = list(set(D[case]['project_id']))
+            if case_id not in D:
+                D[case_id] = d
+            else:
+                D[case_id]['project_id'].append(project_id)
+            D[case_id]['project_id'] = list(set(D[case_id]['project_id']))
             
     return D
 
@@ -653,132 +685,7 @@ def collect_case_file_info(case_data):
     return D
 
 
-
-def get_file_signoff(project, nabu = 'https://nabu.gsi.oicr.on.ca/get-fileqcs'):
-    '''
-    (str, str) -> dict
-
-    Returns a dictionary 
-
-    Parameters
-    ----------
-    - project (str): Project of interest
-    - nabu (str): URL to access the file qc in Nabu
-    '''
-
-    headers = {'accept': 'application/json', 'Content-Type': 'application/json'}
-    json_data = {'project': project}
-    response = requests.post(nabu, headers=headers, json=json_data)
-    
-    D = {}
-    
-    if response.status_code == 200:
-        for d in response.json()['fileqcs']:
-            fileid = d['fileid']
-            filepath = d['filepath']
-            if 'username' in d:
-                username = d['username']
-            else:
-                username = 'NA'
-            qcstatus = d['qcstatus']
-            if 'comment' in d:
-                ticket = d['comment']
-            else:
-                ticket = 'NA'
-            
-            assert fileid not in D
-            D[fileid] = {
-                'fileid' : fileid,
-                'filepath' : filepath,
-                'username' : username,
-                'qcstatus' : qcstatus,
-                'ticket' : ticket}
-            
-    return D   
-
-
-
-def get_project_file_qc(case_data, visited_projects, file_qc, nabu = 'https://nabu.gsi.oicr.on.ca/get-fileqcs'):
-    '''
-    (dict, list, dict, str) -> dict, list
-    
-    Returns a dictionary with the file QC information and a list of projects
-    for which file QC has already been extracted
-    
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with production data for a case
-    - visited_projects (list): List of projects already evaluated
-    - file_qc (dict): Dictionary recording the file QC information from nabu
-    - nabu (str): Nabu file QC endpoint
-    '''
-    
-    for i in case_data['project_info']:
-        project = i['project']
-        # check if file qc for that project have already been recorded
-        if project not in visited_projects:
-            # get the file qc for that project
-            D = get_file_signoff(project, nabu)
-            # update file qc with  of that projects
-            file_qc.update(D)
-            # update list of visited projects
-            visited_projects.append(project)
-
-    return file_qc, visited_projects
-
-
-def collect_file_qc_info(case_data, file_qc):
-    '''
-    (dict, dict) -> dict
-    
-    Returns a dictionary with file QC information from Nabu
-    
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with production data for a case
-    - file_qc (dict): Dictionary with file QC extracted from Nabu
-    '''
-
-    D = {}
-
-    for i in case_data['project_info']:
-        project_id = i['project']
-        for d in case_data['workflow_runs']:
-            wfrun_id = d['wfrunid']
-            case_id = case_data['case']
-            files = json.loads(d['files'])
-            for j in range(len(files)):
-                file_swid = files[j]['accession']
-                # get the qc info
-                if file_swid in file_qc:
-                    username = file_qc[file_swid]['username']
-                    qcstatus = file_qc[file_swid]['qcstatus']
-                    filepath = file_qc[file_swid]['filepath']
-                    ticket = file_qc[file_swid]['ticket']
-                else:
-                    username = 'NA'
-                    qcstatus = 'NA'
-                    filepath = 'NA'
-                    ticket = 'NA'
-                         
-                data = {'username': username, 'qcstatus': qcstatus,
-                        'filepath': filepath, 'ticket': ticket, 'project_id': [project_id]}
-                
-                if case_id not in D:
-                    D[case_id] = {}
-                if wfrun_id not in D[case_id]:
-                    D[case_id][wfrun_id] = {}
-                if file_swid not in D[case_id][wfrun_id]:
-                    D[case_id][wfrun_id][file_swid] = data
-                else:
-                    D[case_id][wfrun_id][file_swid]['project_id'].append(project_id)
-                D[case_id][wfrun_id][file_swid]['project_id'] = list(set(D[case_id][wfrun_id][file_swid]['project_id']))
-              
-    return D                
-                
-
-
-def record_case_info(case_data, database, recorded_md5sums, project_info, file_qc, tables, columns):
+def record_case_info(case_data, database, recorded_md5sums, project_info, tables, columns):
     '''
     (dict, str, dict, dict, dict, dict) -> dict, dict
     
@@ -791,7 +698,6 @@ def record_case_info(case_data, database, recorded_md5sums, project_info, file_q
     - database (str): Path to the waterzooi database
     - recorded_md5sums (dict): Dictionary of cases and checksum extracted from the table in the database
     - project_info (dict): Dictionary with project level information 
-    - file_qc (dict): Dictionary with File QC extracted from Nabu
     - tables (dict): Dictionary with database table names
     - columns (dict): Dictionary with column names and types for each table in database
     '''
@@ -828,13 +734,10 @@ def record_case_info(case_data, database, recorded_md5sums, project_info, file_q
         # collect file information
         file_info = collect_case_file_info(case_data)
         print('collected file info')
-        # collect file qc information from Nabu
-        case_file_qc = collect_file_qc_info(case_data, file_qc)
-        print('collected file qc info')
-           
+                   
         # make a parallel list with table names
         table_names = [tables['workflows'], tables['files'],
-                       tables['files_qc'], tables['libraries'], tables['samples'],
+                       tables['libraries'], tables['samples'],
                        tables['workflow_inputs'], tables['parents'], tables['checksums']]
         # make a parallel list with column names
         column_names = [columns[i]['names'] for i in table_names]
@@ -842,10 +745,9 @@ def record_case_info(case_data, database, recorded_md5sums, project_info, file_q
         # make a list with data organized for insertion to the database
         L = [organize_workflow_info(workflow_info, column_names[0]),
              organize_file_info(file_info, column_names[1]),
-             organize_file_qc_info(case_file_qc),
-             organize_library_info(library_info, column_names[3]),
-             organize_sample_info(sample_info, column_names[4]),
-             organize_workflow_input_info(workflow_inputs_info, column_names[5]),
+             organize_library_info(library_info, column_names[2]),
+             organize_sample_info(sample_info, column_names[3]),
+             organize_workflow_input_info(workflow_inputs_info, column_names[4]),
              organize_parent_info(workflow_relationships),
              organize_checksum_info(case_data, md5sum)]
            
@@ -872,60 +774,6 @@ def record_case_info(case_data, database, recorded_md5sums, project_info, file_q
     
     return project_info, recorded_md5sums
     
-
-def update_workflow_status(case_data, database, columns, table = 'Workflow_status'):
-    '''
-    (dict, str, dict, str) -> None
-    
-    Insert new workflows in the workflow_status table and remove workflows not in production
-        
-    Parameters
-    ----------
-    - case_data (dict): Dictionary with production data for a case 
-    - database (str): Path to the waterzooi database
-    - columns (dict): Dictionary with column names and types for each table in database
-    - table (str): Name of the table with workflow status
-    '''
-     
-    workflow_info = collect_workflow_info(case_data)
-    
-    # get the recorded worfflows
-    if os.path.isfile(database):
-        conn = sqlite3.connect(database)
-        cur = conn.cursor()
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        current_tables = cur.fetchall()
-        current_tables = [i[0] for i in current_tables]    
-        if table in current_tables:
-            conn.row_factory = sqlite3.Row
-            data = conn.execute("SELECT * from {0};".format(table)).fetchall()
-            data = list(set(data))        
-            recorded_workflows = [i['wfrun_id'] for i in data]
-        else:
-            recorded_workflows = []
-        conn.close()
-    else:
-        recorded_workflows = []
-    
-    # add workflows if not recorded
-    workflows_to_add = list(set(workflow_info.keys()).difference(set(recorded_workflows)))
-    if workflows_to_add:
-        L = []
-        for workflow_id in workflow_info:
-            for project_id in workflow_info[workflow_id]:
-                L.append([workflow_id, project_id, 0])
-        conn = connect_to_db(database)
-        insert_multiple_records(data, conn, database, table, columns[table]['names'])
-        conn.close()
-           
-    # remove workflows not in production
-    workflows_to_remove = list(set(recorded_workflows).difference(workflow_info.keys()))
-    if workflows_to_remove:
-        conn = connect_to_db(database)
-        delete_multiple_records(workflows_to_remove, conn, database, table, 'wfrun_id')
-        conn.close()
-        
-        
 
 def organize_project_info(project_info):
     '''
@@ -1007,37 +855,6 @@ def organize_file_info(data, columns):
         
     return L        
                          
-
-def organize_file_qc_info(data):
-    '''
-    (dict) -> list
-    
-    Returns a list with file QC information to be added to the waterzooi database
-    
-    Parameters
-    ----------
-    - data (dict): Dictionary with case file QC information from production and Nabu 
-    '''
-    
-    L = []
-
-    for case_id in data:
-        for wfrun_id in data[case_id]:
-            for file_id in data[case_id][wfrun_id]:
-                for project in data[case_id][wfrun_id][file_id]['project_id']:
-                    d = [project, case_id, wfrun_id, file_id, data[case_id][wfrun_id][file_id]['filepath'],
-                         data[case_id][wfrun_id][file_id]['username'],
-                         data[case_id][wfrun_id][file_id]['ticket']]
-                    if data[case_id][wfrun_id][file_id]['qcstatus'] == 'PASS':
-                        d.append('1')
-                    elif data[case_id][wfrun_id][file_id]['qcstatus'] == 'FAILED':
-                        d.append('0')
-                    else:
-                        d.append(data[case_id][wfrun_id][file_id]['qcstatus'])
-                    L.append(d) 
-                               
-    return L
-
 
 def organize_library_info(data, columns):
     '''
@@ -1154,32 +971,6 @@ def organize_checksum_info(case_data, md5sum):
 
 
 
-
-def add_file_qc_to_db(file_qc_info, case, conn, database, table, columns, field):
-    '''
-    (dict, str, sqlite3.Connection, str, str, list, str) -> None
-    
-    Inserts or updates file information 
-     
-    Parameters
-    ----------
-    - file_qc_info (dict): Dictionary with case file QC information from production and Nabu
-    - case (str): Case identifier
-    - conn (sqlite3.Connection): Open connection to the database
-    - database (str): Path to the waterzooi sqlite database
-    - table (str): Table storing workflow information in the database
-    - columns (list): List of column names in table
-    - field (str): Field in table
-    '''
-    
-    # organize file information
-    L = organize_file_qc_info(file_qc_info)
-    # delete case from file table
-    delete_unique_record(case, conn, database, table, field)
-    # insert records
-    insert_multiple_records(L, conn, database, table, columns)
-
-
 def add_project_info(database, project_info, table='Projects', field = 'project_id', database_name = 'waterzooi'):
     '''
     (str, dict, str, str, str) -> None 
@@ -1211,12 +1002,11 @@ def add_project_info(database, project_info, table='Projects', field = 'project_
 
 
 
-def generate_database(database, provenance_data_file, nabu = 'https://nabu.gsi.oicr.on.ca/get-fileqcs'):
+def generate_database(database, provenance_data_file):
     '''
     (str, str) -> None
 
-    Generates the waterzooi database using data in the provenance_data_file and 
-    calcontaqc_db database
+    Generates the waterzooi database using data in the provenance_data_file 
 
     Parameters
     ----------
@@ -1225,10 +1015,9 @@ def generate_database(database, provenance_data_file, nabu = 'https://nabu.gsi.o
     '''
     
     tables = {'workflows': 'Workflows', 'parents': 'Parents', 
-              'files': 'Files', 'files_qc': 'File_qc', 
-              'libraries': 'Libraries', 'workflow_inputs': 'Workflow_Inputs',
-              'checksums': 'Checksums', 'samples':'Samples',
-              'workflow_status': 'Workflow_status'}
+              'files': 'Files', 'libraries': 'Libraries',
+              'workflow_inputs': 'Workflow_Inputs',
+              'checksums': 'Checksums', 'samples':'Samples'}
        
     columns = define_columns('waterzooi')
     
@@ -1246,11 +1035,6 @@ def generate_database(database, provenance_data_file, nabu = 'https://nabu.gsi.o
     # initiate dictionary to collect project level info
     project_info = {}
     
-    # initiate file qc 
-    file_qc = {}
-    # initiate collector to check for which projects file qc have been recorded
-    visited_projects = []
-
     total, processed = len(provenance_data), 0
     
     for case_data in provenance_data:
@@ -1258,18 +1042,11 @@ def generate_database(database, provenance_data_file, nabu = 'https://nabu.gsi.o
         # check that no information is missing
         if is_case_info_complete(case_data):
             processed += 1    
-            # remove workflows that do not belong to the case
-            case_data = clean_up_workflows(case_data)
-            # collect file qc at the project level if not already recorded
-            file_qc, visited_projects = get_project_file_qc(case_data, visited_projects, file_qc, nabu)
             # record case data, update the project level information
             # remove case from recorded md5sums. any remaining cases are not in production
             # and should be removed from the database
-            project_info, recorded_md5sums = record_case_info(case_data, database, recorded_md5sums, project_info, file_qc, tables, columns)
-            # update workflow status
-            
- 
-    
+            project_info, recorded_md5sums = record_case_info(case_data, database, recorded_md5sums, project_info, tables, columns)
+       
     # record project information in database
     if project_info:
         add_project_info(database, project_info, 'Projects', 'project_id', 'waterzooi')

@@ -1,10 +1,10 @@
 {% extends 'project_base.html' %}
-
+ 
 
 {% block link %}
   <a href="{{ url_for('project_page', project_name=project['project_id']) }}">{{ project['project_id'] }}</a>
-  <a href="{{ url_for('analysis', project_name=project['project_id'], assay=assay | format_identifier) }}">{{assay}}</a>   
-  <a class="selected" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier)}}">{{case}}</a>
+  <a class="selected" href="{{ url_for('case_analysis', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier)}}">{{case_id}}</a>
+
 {% endblock %}
 
 
@@ -12,34 +12,57 @@
 
   <table id="block_header_table" style="margin-top:60px;">
     <tr>
-      <th>Workflow id</th>
-      <th>File release</th>
-      <th>Name</th>
-      <th>Version</th>
+      <th style="width: 1%; white-space: nowrap;">Workflow id</th>
+
+      <th style="width: 96%;">Workflow connections</th>
+
+
+      <th style="width: 1%;">File release</th>
+      <th style="width: 1%;">Name</th>
+
+      <th style="width: 1%;">Version</th>
+
+
     </tr>
+
+    <tbody>
     <tr>
-      <td>{{ workflow_id }}</td>
-      <td>
-        {% if workflow_id not in workflow_qc %}
-          NA
-        {% elif workflow_qc[workflow_id] == True %}
-          <span style="font-size:16px;color:#70db70">&#10004;</span>
-        {% elif workflow_qc[workflow_id] == False %}
-          <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+      <td style="width: 1%; white-space: nowrap;"> {{wfrunid |  basename   }}</td>
+      <td style="width: 96%;">
+        <div style="width: 80%; height: 150px;">
+          {{ graph_div | safe }}
+        </div>
+      </td>
+        
+      <td style="width: 1%;">
+        {% if workflow_release_status[wfrunid]['qcstatus'] == True %}
+          <div class="tooltip">  
+            <span style="font-size:16px;color:#70db70">&#10004;</span>
+            <span class="tooltipsignoff">
+              <ul style="list-style-type: none; padding: 0; margin: 0;"> 
+                {% if workflow_release_status[wfrunid]['ticket'] %}
+                  {% for k in workflow_release_status[wfrunid]['ticket'] %}
+                    <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{k}}</a></li>   
+                  {% endfor %}
+                {% endif %}
+              </ul>
+            </span>
+          </div>  
         {% else %}
-          <span style="font-size:16px;color:#248f24;">{{workflow_qc[workflow_id]}}</span>
+          <span style="font-size:16px;color:#248f24;">?</span>
         {% endif %}
       </td>
-      <td>{{ workflow_info[workflow_id].0 }}</td>
-      <td>{{ workflow_info[workflow_id].1 }}</td>
+      <td style="width: 1%;">{{ workflow_name }}</td>
+      <td style="width: 1%;">{{ workflow_version }}</td>
+    
     </tr>
+    </tbody>
   </table>
   
-  
+  {% if outputfiles %}
 
   <h2> Output files: </h2>     
-  
-  {% if outputfiles %}
+    
     <table id="wgs_table">
       <tr>
         <th>Samples</th>
@@ -52,47 +75,61 @@
         <tbody>       
           <tr>
             {% if ';' in i %}
-            <td rowspan="{{rowNum}}">
-              <dl>
-                {% for k in i.split(';') %}
-                  <dt>{{k}}</dt>
-                {% endfor %}
-              </dl>
-            </td>
+              <td rowspan="{{rowNum}}">
+                <dl>
+                  {% for k in i.split(';') %}
+                    <dt>{{k}}</dt>
+                  {% endfor %}
+                </dl>
+              </td>
             {% else %}
               <td rowspan="{{rowNum}}">{{ i }}</td>
             {% endif %} 
                   
             <td>{{ outputfiles[i].0 }}</td>
             <td>
-              {% if outputfiles[i].0 not in file_qc %}
+              {% if files_to_swids[outputfiles[i].0] not in fileqc %}
                 NA
-              {% elif file_qc[outputfiles[i].0] == True %}
-                <span style="font-size:16px;color:#70db70">&#10004;</span>
-              {% elif file_qc[outputfiles[i].0] == False %}
-                <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+              {% elif fileqc[files_to_swids[outputfiles[i].0]]['qcstatus'] %}
+                <div class="tooltip">  
+                  <span style="font-size:16px;color:#70db70">&#10004;</span>
+                  <span class="tooltipsignoff">
+                    <ul style="list-style-type: none; padding: 0; margin: 0;"> 
+                      {% if fileqc[files_to_swids[outputfiles[i].0]]['ticket'] %}
+                        <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{fileqc[files_to_swids[outputfiles[i].0]]['ticket'] }}</a></li>   
+                      {% endif %}
+                    </ul>
+                  </span>
+                </div>  
               {% else %}
-                <span style="font-size:16px;color:#248f24;">{{file_qc[outputfiles[i].0]}}</span>
-            {% endif %}
-          </td>
-          {% for j in outputfiles[i][1:] %}
+                <span style="font-size:16px;color:#248f24;">?</span>
+              {% endif %}
+            </td>
+            {% for j in outputfiles[i][1:] %}
               <tr>
                 <td>{{ j }}</td>
                 <td>
-                  {% if j not in file_qc %}
+                  {% if files_to_swids[j] not in fileqc %}
                     NA
-                  {% elif file_qc[j] == True %}
-                    <span style="font-size:16px;color:#70db70">&#10004;</span>
-                  {% elif file_qc[j] == False %}
-                    <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+                  {% elif fileqc[files_to_swids[j]]['qcstatus'] %}
+                    <div class="tooltip">  
+                      <span style="font-size:16px;color:#70db70">&#10004;</span>
+                      <span class="tooltipsignoff">
+                        <ul style="list-style-type: none; padding: 0; margin: 0;"> 
+                          {% if fileqc[files_to_swids[j]]['ticket'] %}
+                            <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{ fileqc[files_to_swids[j]]['ticket'] }}</a></li>   
+                          {% endif %}
+                        </ul>
+                      </span>
+                    </div>
                   {% else %}
-                    <span style="font-size:16px;color:#248f24;">{{file_qc[j]}}</span>
+                    <span style="font-size:16px;color:#248f24;">?</span>
                   {% endif %}
                 </td>
               </tr>        
-             {% endfor %}
+            {% endfor %}
           </tr>
-         </tbody>    
+        </tbody>    
       {% endfor %}
     </table>
   {% else %}
@@ -100,14 +137,10 @@
   {% endif %}
   
 
-
-
-
-
-
-  {% if child_to_parents[workflow_id] != ['NA'] %}  
-    <h2> Parent workflows: </h2> 
-
+  {% if wfrunid in child_to_parents and child_to_parents[wfrunid] != ['NA'] %}  
+  
+  <h2> Parent workflows: </h2> 
+    
     <table id="workflow_table">
       <tr>
         <th colspan="3">Parents</th>
@@ -117,23 +150,32 @@
         <th>Workflow id</th>
         <th>File release</th>
       </tr>
-      {% for parent in child_to_parents[workflow_id] | sort %}
+      {% for parent in child_to_parents[wfrunid] | sort %}
         <tr>
           <td>{{ workflow_info[parent].0 }}</td>
           <td>
-            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=parent | format_identifier) }}">
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], case_id=case_id | format_identifier, wfrunid=parent | format_identifier) }}">
               {{parent}}
             </a>
           </td>
           <td>
-            {% if parent not in workflow_qc %}
+            {% if parent not in workflow_release_status %}
               NA
-            {% elif workflow_qc[parent] == True %}
-              <span style="font-size:16px;color:#70db70">&#10004;</span>
-            {% elif workflow_qc[parent] == False %}
-              <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+            {% elif workflow_release_status[parent]['qcstatus'] %}
+              <div class="tooltip">  
+                <span style="font-size:16px;color:#70db70">&#10004;</span>
+                <span class="tooltipsignoff">
+                <ul style="list-style-type: none; padding: 0; margin: 0;"> 
+                  {% if workflow_release_status[parent]['ticket'] %}
+                    {% for k in workflow_release_status[parent]['ticket'] %}
+                      <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{k}}</a></li>   
+                    {% endfor %}
+                  {% endif %}
+                </ul>
+                </span>
+              </div>  
             {% else %}
-              <span style="font-size:16px;color:#248f24;">{{workflow_qc[parent]}}</span>
+              <span style="font-size:16px;color:#248f24;">?</span>
             {% endif %}
           </td>
         </tr>
@@ -143,9 +185,9 @@
 {% endif %}  
 
 
-{% if parent_to_children[workflow_id] != ['NA'] %}  
+{% if wfrunid in parent_to_children and parent_to_children[wfrunid] != ['NA']  %}
   <h2> Downstream workflows: </h2> 
-
+  
   <table id="workflow_table">
     <tr>
       <th colspan="3">Children</th>  
@@ -155,23 +197,32 @@
       <th>Workflow id</th>
       <th>File release</th>
     </tr>  
-    {% for child in parent_to_children[workflow_id] %}
+    {% for child in parent_to_children[wfrunid] %}
       <tr>
         <td>{{ workflow_info[child].0 }}</td>
           <td>
-            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], assay=assay | format_identifier, case_id=case_id | format_identifier, wfrunid=child | format_identifier) }}">
+            <a class="workflow" href="{{ url_for('show_workflow', project_name=project['project_id'], case_id=case_id | format_identifier, wfrunid=child | format_identifier) }}">
               {{child}}
             </a>
           </td>
           <td>
-            {% if child not in workflow_qc %}
+            {% if child not in workflow_release_status %}
               NA
-            {% elif workflow_qc[child] == True %}
-              <span style="font-size:16px;color:#70db70">&#10004;</span>
-            {% elif workflow_qc[child] == False %}
-              <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+            {% elif workflow_release_status[child]['qcstatus'] %}
+              <div class="tooltip">  
+                <span style="font-size:16px;color:#70db70">&#10004;</span>
+                <span class="tooltipsignoff">
+                <ul style="list-style-type: none; padding: 0; margin: 0;"> 
+                  {% if workflow_release_status[child]['ticket'] %}
+                    {% for k in workflow_release_status[child]['ticket'] %}
+                      <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{k}}</a></li>   
+                    {% endfor %}
+                  {% endif %}
+                </ul>
+                </span>
+              </div>  
             {% else %}
-              <span style="font-size:16px;color:#248f24;">{{workflow_qc[child]}}</span>
+              <span style="font-size:16px;color:#248f24;">?</span>
             {% endif %}
           </td>
       </tr>  
@@ -181,6 +232,7 @@
 {% endif %}  
 
 
+{% if input_sequences %}
 
 <h2> Input sequences: </h2>   
 
@@ -204,35 +256,34 @@
           </td>
         {% endfor %}  
         <td>
-          {% if input_sequences[i][j][-1] not in file_qc %}
+          {% if input_sequences[i][j][-2] not in fileqc %}
             NA
-          {% elif file_qc[input_sequences[i][j][-1]] == True %}
-            <span style="font-size:16px;color:#70db70">&#10004;</span>
-          {% elif file_qc[input_sequences[i][j][-1]] == False %}
-            <span style="font-size:16px;color:#ff3300;">&#10006;</span>
+          {% elif fileqc[input_sequences[i][j][-2]]['qcstatus'] %}
+            <div class="tooltip">  
+              <span style="font-size:16px;color:#70db70">&#10004;</span>
+              <span class="tooltipsignoff">
+                <ul style="list-style-type: none; padding: 0; margin: 0;"> 
+                  {% if fileqc[input_sequences[i][j][-2]]['ticket'] %}
+                    <li><a href="https://jira.oicr.on.ca/browse/{{k}}" target="_blank">{{ fileqc[input_sequences[i][j][-2]]['ticket'] }}</a></li>   
+                  {% endif %}
+                </ul>
+              </span>
+            </div>
           {% else %}
-            <span style="font-size:16px;color:#248f24;">{{file_qc[input_sequences[i][j][-1]]}}</span>
+            <span style="font-size:16px;color:#248f24;">?</span>
           {% endif %}
         </td>
       </tr>
     {% endfor %}
   {% endfor %}
+  
 </table>
-
-
-
-
-
-
-    
-  <footer>
-    <p class="data_update"> Data last updated: {{project['last_updated'].split('_')[0]}} </p>
-  </footer>
-  
+{% endif %}
   
 
-
-
-
+<footer>
+  <p class="data_update"> Data last updated: {{project['last_updated'].split('_')[0]}} </p>
+</footer>
+  
+  
 {% endblock %}
-

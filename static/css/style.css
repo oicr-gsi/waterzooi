@@ -107,7 +107,7 @@ img {
   z-index: 1;
   padding: 12px 12px;
   margin-left: 15px;
-  font-size:13px;
+  font-size:10px;
   font-family: Arial, Helvetica, sans-serif;
 }
 .download-dropdown-content a {
@@ -463,6 +463,9 @@ button.ready_button:focus {
   border: 1px solid #404040;
 }
 
+#block_header_table tbody tr:first-child td {
+    border-top: none !important;
+}
 
 
 .select_button {
@@ -488,7 +491,7 @@ button.select_button:focus {
 
 
 .download-dropbtn-small {
-  background-color: gray;
+  background-color: #3e8e41;
   color: white;
   padding: 10px;
   border:none;
@@ -530,6 +533,86 @@ button.select_button:focus {
 .download-dropdown-small:hover-small .download-dropbtn-small {background-color: #3e8e41;}
 
 
+.download-dropbtn-small-inactive {
+  background-color: gray;
+  color: white;
+  padding: 10px;
+  border:none;
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 8px;
+  display:inline-block;
+  cursor: pointer;
+  transition-duration: 0.4s;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
+
+
+.download-button {
+  background-color: #3e8e41;
+  color: white;
+  padding: 0px;
+  border:none;
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 8px;
+  display:inline-block;
+  cursor: pointer;
+  transition-duration: 0.4s;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.download-button a {
+  color: white;
+  padding: 10px 10px;
+  text-decoration: none;
+  display: block;
+}
+
+.download-button a:hover {background-color: #006622;
+border-radius: 8px;
+}
+
+.download-button-inactive {
+  background-color: gray;
+  color: white;
+  padding: 10px;
+  border:none;
+  font-size: 12px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 8px;
+  display:inline-block;
+  cursor: pointer;
+  transition-duration: 0.4s;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 .download_button_small {
   background-color: gray;
@@ -566,6 +649,51 @@ button.select_button:focus {
   color: white;
   text-decoration: none;
 }
+
+
+
+
+
+.download_button_small_inactive {
+  background-color: gray;
+  color: white;
+  padding: 10px;
+  border:none;
+  font-size: 9px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 8px;
+  display:inline-block;
+  cursor: pointer;
+  transition-duration: 0.4s;
+  left: 10px;
+  font-family: Arial, Helvetica, sans-serif;
+  position: releative;
+  margin-bottom: 4px;
+  margin-top: 0px;
+}
+
+
+
+.download_button_small_inactive a {
+  color: white;
+  text-decoration: none;
+}
+.download_button_small_inactive:hover {
+  background-color: #196719;
+  border-radius: 8px;    
+  color: white;
+  text-decoration: none;
+}
+.download_button_small_inactive:hover a {
+  background-color: #196719;
+  border-radius: 8px;    
+  color: white;
+  text-decoration: none;
+}
+
+
+
 
 
 
