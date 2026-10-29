@@ -460,7 +460,7 @@ def map_assay_test_to_test_case(assay_test, case_tests):
                 if test.startswith(test_type) and library_type in test:
                     L.append(test)
             else:
-                if library_type == test:
+                if library_type == test or library_type in test:
                     L.append(test)
     
     L = list(set(L))
