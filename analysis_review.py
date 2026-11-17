@@ -713,6 +713,9 @@ def find_production_workflow(production_workflows, d):
     - d (dict): Dictionary with expected workflow information based on assay and case info
     '''
     
+    data = {}
+    
+    
     # for sequencing workflows, the assay may indicate bcl2fastq but the 
     # sequencing workflows may be diferent if data is injected
     sequencing_workflows = ['casava', 'bcl2fastq', 'fileimportforanalysis', 'fileimport', 'import_fastq']
