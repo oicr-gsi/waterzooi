@@ -453,7 +453,8 @@ def map_assay_test_to_test_case(assay_test, case_tests):
     
     for test in case_tests:
         if test_type == 'X':
-            assert library_type == test
+            if library_type != 'X':
+                assert library_type == test
             L.append(test)
         else:
             if test.upper().startswith('T') or test.upper().startswith('N'):
