@@ -713,8 +713,8 @@ def find_production_workflow(production_workflows, d):
     - d (dict): Dictionary with expected workflow information based on assay and case info
     '''
     
-    # initiate data; empty when workflow not in production
     data = {}
+    
     
     # for sequencing workflows, the assay may indicate bcl2fastq but the 
     # sequencing workflows may be diferent if data is injected
@@ -1076,17 +1076,17 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
                                 # get the pipeline expected worflows 
                                 pipeline_workflows = reformat_pipeline_workflows(pipelines[pipeline_name][pipeline_version], deliverables)
                                 
+                                # get expected lims for each workflow based on the assay and the case
+                                expected_workflow_lims = get_assay_expected_workflows(pipeline_workflows, tests_samples, samples_lims)
+                                # get lims, samples and run ids for each workflow seen in production
+                                production_workflows = get_production_workflows(samples_workflows, workflow_lims)
+                                # did all the expected workflows ran for all tests (check lims)?
+                                pipeline_analysis = map_expected_production_workflows(expected_workflow_lims, production_workflows)
+                                # add parent workflows
+                                pipeline_analysis = add_parent_workflows(pipeline_analysis, parent_to_children_workflows)
+                            
                                 # did all expected workflows in config ran?
                                 if complete_expected_workflows(workflow_info, pipeline_workflows):
-                                    # get expected lims for each workflow based on the assay and the case
-                                    expected_workflow_lims = get_assay_expected_workflows(pipeline_workflows, tests_samples, samples_lims)
-                                    # get lims, samples and run ids for each workflow seen in production
-                                    production_workflows = get_production_workflows(samples_workflows, workflow_lims)
-                                    # did all the expected workflows ran for all tests (check lims)?
-                                    pipeline_analysis = map_expected_production_workflows(expected_workflow_lims, production_workflows)
-                                    # add parent workflows
-                                    pipeline_analysis = add_parent_workflows(pipeline_analysis, parent_to_children_workflows)
-                                                                    
                                     # check if missing data (workflows and parents)
                                     if is_data_complete(pipeline_analysis, expected_workflow_lims):
                                         # check if some workflows have extra iterations matching the required lims
@@ -1107,7 +1107,7 @@ def review_data(provenance_data_file, assay_file, pipeline_file, database, table
                                     missing_workflows = identify_missing_workflows(workflow_info, pipeline_workflows)
                                     error = '[MISSING WORKFLOWS]: missing {0}'.format(','.join(sorted(missing_workflows)))
                                     valid = 0
-                                    pipeline_analysis = {}
+                                    #pipeline_analysis = {}
                                                                 
                                 case_analysis[pipeline_name] = {'pipeline_analysis': pipeline_analysis,
                                                                         'error': error,
